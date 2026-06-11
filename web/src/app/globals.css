@@ -1,0 +1,106 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Geist:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-geist: 'Geist', sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #fcf8fa; /* bg-background */
+  color: #1b1b1d; /* on-background */
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Material Icons setting */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  display: inline-block;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+/* Floating Label Styles from Stitch */
+.floating-label-group {
+  position: relative;
+}
+.floating-label-group input, .floating-label-group select {
+  padding-top: 1.25rem;
+  padding-bottom: 0.5rem;
+  background-color: #f6f3f5; /* surface-container-low */
+  border: 1px solid #c6c6cd; /* outline-variant */
+  border-radius: 0.25rem; /* lg */
+  color: #1b1b1d;
+}
+.floating-label-group label {
+  position: absolute;
+  top: 0.85rem;
+  left: 0.75rem;
+  transition: all 0.2s ease-out;
+  pointer-events: none;
+  color: #76777d; /* outline */
+}
+.floating-label-group input:focus ~ label,
+.floating-label-group input:not(:placeholder-shown) ~ label,
+.floating-label-group select:focus ~ label,
+.floating-label-group select:not([value=""]):valid ~ label,
+.floating-label-group select:not([value=""]) ~ label {
+  top: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #565e74;
+}
+
+/* Custom scrollbar for high-density UI */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+.map-ping {
+  animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@media print {
+  body {
+    background: #fff !important;
+  }
+
+  aside,
+  header {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  .contract-print-view {
+    min-height: auto !important;
+    padding: 0 !important;
+  }
+}

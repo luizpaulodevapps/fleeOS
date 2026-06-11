@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "FleetOS Mobile",
+    "slug": "fleetos-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0b131a"
+      }
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "scheme": "fleetos-mobile"
+  }
+}

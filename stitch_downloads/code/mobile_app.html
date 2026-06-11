@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Geist:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed": "#271901",
+                        "tertiary-fixed": "#fcdeb5",
+                        "on-secondary-fixed-variant": "#3c475a",
+                        "surface-container-high": "#eae7e9",
+                        "tertiary-fixed-dim": "#dec29a",
+                        "on-secondary-container": "#586377",
+                        "outline": "#76777d",
+                        "on-surface": "#1b1b1d",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-container": "#98805d",
+                        "primary-fixed-dim": "#bec6e0",
+                        "on-primary-fixed": "#131b2e",
+                        "background": "#fcf8fa",
+                        "secondary-fixed-dim": "#bcc7de",
+                        "inverse-on-surface": "#f3f0f2",
+                        "on-tertiary": "#ffffff",
+                        "outline-variant": "#c6c6cd",
+                        "on-background": "#1b1b1d",
+                        "secondary-container": "#d5e0f8",
+                        "on-secondary-fixed": "#111c2d",
+                        "on-primary-container": "#7c839b",
+                        "tertiary": "#000000",
+                        "on-error": "#ffffff",
+                        "surface-container": "#f0edef",
+                        "on-surface-variant": "#45464d",
+                        "surface-dim": "#dcd9db",
+                        "surface": "#fcf8fa",
+                        "error-container": "#ffdad6",
+                        "primary-container": "#131b2e",
+                        "surface-tint": "#565e74",
+                        "surface-container-highest": "#e4e2e4",
+                        "on-error-container": "#93000a",
+                        "secondary": "#545f73",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed-variant": "#3f465c",
+                        "primary": "#000000",
+                        "tertiary-container": "#271901",
+                        "primary-fixed": "#dae2fd",
+                        "inverse-surface": "#303032",
+                        "on-tertiary-fixed-variant": "#574425",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-fixed": "#d8e3fb",
+                        "surface-container-low": "#f6f3f5",
+                        "inverse-primary": "#bec6e0",
+                        "surface-bright": "#fcf8fa",
+                        "surface-variant": "#e4e2e4"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "container-max": "1440px",
+                        "stack-xl": "48px",
+                        "stack-md": "16px",
+                        "margin-mobile": "16px",
+                        "margin-desktop": "40px",
+                        "gutter": "24px",
+                        "unit": "4px",
+                        "stack-xs": "4px",
+                        "stack-sm": "8px",
+                        "stack-lg": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Geist"],
+                        "body-md": ["Inter"],
+                        "headline-lg": ["Geist"],
+                        "headline-xl": ["Geist"],
+                        "body-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-md": ["Geist"],
+                        "label-sm": ["Geist"],
+                        "mono-sm": ["Geist"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-lg": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "headline-xl": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "600"}],
+                        "mono-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: contain;
+        }
+        .active-glow {
+            box-shadow: 0 0 20px -5px rgba(34, 197, 94, 0.4);
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background font-body-md text-on-surface antialiased min-h-screen pb-24">
+<!-- Welcome Header -->
+<header class="px-margin-mobile pt-stack-lg pb-stack-md bg-surface-container-lowest">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-stack-md">
+<div class="relative">
+<img alt="Driver Profile" class="w-14 h-14 rounded-full object-cover border-2 border-surface-container" data-alt="A professional headshot of a friendly-looking middle-aged man in a clean white shirt, set against a blurred city backdrop during golden hour. The lighting is warm and cinematic, emphasizing a professional yet approachable fleet driver persona. The image follows a high-end enterprise aesthetic with crisp focus and natural skin tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuANUpygk_VleHGqhEtgktE-FRmHi3DdAjExuuDX5JgCRDqjDeC1TNxyuhdoY5m0VEE5S8rwOMEDr13Gb6pgWxAykxuinaSxGOrw0OVbYh04awxf5ZfPw52HOc367xRMXW5gzdpnUxDWNDy9IAh1uAHG5naHbUODy9-zP3s86Uvj2PoeItYqVkSnqeBKz02QSbcjyJhyUwvnwV3-AptwuqgE2gFB7U5c8PXg9U7UbHNfarSOnXjFyrxGZvmcbhmQek1auNioJ6JXfQ"/>
+<div class="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-surface-container-lowest rounded-full"></div>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md text-primary">Hello, Marcus</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Shift: 08:00 - 17:00</p>
+</div>
+</div>
+<button class="flex items-center gap-2 px-4 py-2 rounded-full border border-outline-variant bg-surface-container-low transition-all duration-300" id="status-toggle" onclick="toggleStatus()">
+<span class="w-2.5 h-2.5 rounded-full bg-green-500 active-glow animate-pulse" id="status-dot"></span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider" id="status-text">Online</span>
+</button>
+</div>
+</header>
+<main class="px-margin-mobile space-y-stack-lg mt-stack-md">
+<!-- Active Vehicle Card -->
+<section>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<div class="p-stack-md">
+<div class="flex justify-between items-start mb-stack-sm">
+<div>
+<h2 class="font-headline-md text-headline-md leading-tight">Toyota Prius</h2>
+<p class="font-mono-sm text-mono-sm text-on-surface-variant bg-surface-container px-2 py-0.5 rounded inline-block">V-402 • LB-9922</p>
+</div>
+<span class="material-symbols-outlined text-primary" data-icon="local_shipping">local_shipping</span>
+</div>
+<div class="relative w-full h-40 mt-4 rounded-lg overflow-hidden bg-surface-container-low">
+<img alt="Vehicle" class="w-full h-full object-cover" data-alt="A sleek, modern white Toyota Prius parked in a minimalist concrete parking structure with soft, diffused industrial lighting. The composition is clean and professional, emphasizing the vehicle's reliability and clean maintenance. The lighting is cool-toned to match a high-tech fleet management software aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAodn9Row2TPtYXnlxb3k5cM9-UwzMS9m8HCuLSpOqMRkPjO5rYH2l6ZNFRs6hQfP7iDUsWOflfDDuloeGheoDmWOm_EBiMIy1tWCRIWKsAOIoOVyZjw987VNh8awDW2cd1dyQ5YPe1RpwGKJl4QTZH51ROAzOPqXKQfYZD9-9kgK6hY0zB0WstvaiwgRpbyTRI9V53TWSdSTcwCgJzYEULjLVRzEwDMAwVYw6LelOylLFbx_pACM2D_A6KzfgSF8if40XSCTv5Og"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+</div>
+<div class="grid grid-cols-2 gap-stack-md mt-stack-lg">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary" data-icon="ev_station">ev_station</span>
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Fuel/Battery</p>
+<p class="font-headline-md text-headline-md">84%</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary" data-icon="speed">speed</span>
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Mileage</p>
+<p class="font-headline-md text-headline-md">12,402<span class="text-body-sm font-normal text-on-surface-variant ml-1">mi</span></p>
+</div>
+</div>
+</div>
+<button class="w-full mt-stack-lg bg-primary text-on-primary py-4 rounded-xl font-label-md flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
+<span class="material-symbols-outlined" data-icon="fact_check">fact_check</span>
+                        Run Inspection
+                    </button>
+</div>
+</div>
+</section>
+<!-- Earnings Overview -->
+<section>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-stack-md shadow-sm">
+<div class="flex justify-between items-center mb-4">
+<h3 class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Today's Earnings</h3>
+<span class="material-symbols-outlined text-green-600" data-icon="trending_up">trending_up</span>
+</div>
+<div class="flex items-end gap-stack-lg">
+<span class="font-headline-xl text-headline-xl">$142.50</span>
+<div class="flex-grow h-12 pb-1 overflow-hidden">
+<!-- Mini Sparkline SVG -->
+<svg class="w-full h-full" viewbox="0 0 100 40">
+<path d="M0,35 Q10,32 20,28 T40,25 T60,15 T80,18 T100,5" fill="none" stroke="#22c55e" stroke-linecap="round" stroke-width="2.5"></path>
+<path d="M0,35 Q10,32 20,28 T40,25 T60,15 T80,18 T100,5 V40 H0 Z" fill="url(#gradient)" opacity="0.1"></path>
+<defs>
+<lineargradient id="gradient" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" style="stop-color:#22c55e;stop-opacity:1"></stop>
+<stop offset="100%" style="stop-color:#22c55e;stop-opacity:0"></stop>
+</lineargradient>
+</defs>
+</svg>
+</div>
+</div>
+<div class="flex justify-between mt-4 pt-4 border-t border-outline-variant">
+<p class="font-body-sm text-body-sm text-on-surface-variant">6 Trips today</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Avg. $23.75/trip</p>
+</div>
+</div>
+</section>
+<!-- Notifications/Tasks -->
+<section class="pb-stack-xl">
+<h3 class="font-headline-md text-headline-md mb-stack-md px-1">Tasks &amp; Notifications</h3>
+<div class="space-y-3">
+<!-- Task 1 -->
+<div class="bg-surface border border-outline-variant rounded-xl p-4 flex items-center gap-4 hover:bg-surface-container-low transition-colors cursor-pointer">
+<div class="w-12 h-12 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container">
+<span class="material-symbols-outlined" data-icon="schedule">schedule</span>
+</div>
+<div class="flex-grow">
+<h4 class="font-label-md text-label-md text-primary">Shift Starting</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Begins in 15 minutes</p>
+</div>
+<span class="material-symbols-outlined text-outline-variant" data-icon="chevron_right">chevron_right</span>
+</div>
+<!-- Task 2 -->
+<div class="bg-surface border border-outline-variant rounded-xl p-4 flex items-center gap-4 hover:bg-surface-container-low transition-colors cursor-pointer">
+<div class="w-12 h-12 rounded-full bg-error-container flex items-center justify-center text-on-error-container">
+<span class="material-symbols-outlined" data-icon="priority_high">priority_high</span>
+</div>
+<div class="flex-grow">
+<h4 class="font-label-md text-label-md text-primary">License Renewal</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Action due in 5 days</p>
+</div>
+<span class="material-symbols-outlined text-outline-variant" data-icon="chevron_right">chevron_right</span>
+</div>
+<!-- Task 3 -->
+<div class="bg-surface border border-outline-variant rounded-xl p-4 flex items-center gap-4 hover:bg-surface-container-low transition-colors cursor-pointer">
+<div class="w-12 h-12 rounded-full bg-tertiary-fixed flex items-center justify-center text-on-tertiary-fixed">
+<span class="material-symbols-outlined" data-icon="build">build</span>
+</div>
+<div class="flex-grow">
+<h4 class="font-label-md text-label-md text-primary">Vehicle Maintenance</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Scheduled for tomorrow</p>
+</div>
+<span class="material-symbols-outlined text-outline-variant" data-icon="chevron_right">chevron_right</span>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-2 pb-8 bg-surface-container-highest shadow-lg md:hidden border-t border-outline-variant/30">
+<!-- Home (Active) -->
+<div class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-5 py-2 transition-all duration-300 scale-100">
+<span class="material-symbols-outlined text-[24px]" data-icon="home" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-label-sm text-label-sm mt-0.5">Home</span>
+</div>
+<!-- Vehicle -->
+<div class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high px-4 py-2 rounded-xl transition-all">
+<span class="material-symbols-outlined text-[24px]" data-icon="local_shipping">local_shipping</span>
+<span class="font-label-sm text-label-sm mt-0.5">Vehicle</span>
+</div>
+<!-- Finance -->
+<div class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high px-4 py-2 rounded-xl transition-all">
+<span class="material-symbols-outlined text-[24px]" data-icon="account_balance_wallet">account_balance_wallet</span>
+<span class="font-label-sm text-label-sm mt-0.5">Finance</span>
+</div>
+<!-- Settings -->
+<div class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high px-4 py-2 rounded-xl transition-all">
+<span class="material-symbols-outlined text-[24px]" data-icon="settings">settings</span>
+<span class="font-label-sm text-label-sm mt-0.5">Settings</span>
+</div>
+</nav>
+<script>
+        let isOnline = true;
+        
+        function toggleStatus() {
+            const btn = document.getElementById('status-toggle');
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+            
+            isOnline = !isOnline;
+            
+            if (isOnline) {
+                dot.classList.replace('bg-outline', 'bg-green-500');
+                dot.classList.add('animate-pulse', 'active-glow');
+                text.innerText = 'Online';
+                btn.classList.replace('bg-surface-container-highest', 'bg-surface-container-low');
+            } else {
+                dot.classList.replace('bg-green-500', 'bg-outline');
+                dot.classList.remove('animate-pulse', 'active-glow');
+                text.innerText = 'Offline';
+                btn.classList.replace('bg-surface-container-low', 'bg-surface-container-highest');
+            }
+        }
+
+        // Simple haptic feedback simulation
+        document.querySelectorAll('button, [onclick]').forEach(el => {
+            el.addEventListener('click', () => {
+                if (window.navigator.vibrate) {
+                    window.navigator.vibrate(5);
+                }
+            });
+        });
+    </script>
+</body></html>

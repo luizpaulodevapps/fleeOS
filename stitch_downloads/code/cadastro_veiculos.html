@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+
+<html class="light" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FleetOS | Cadastro de Veículo</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&amp;family=Geist:wght@400;500;600;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary": "#000000",
+                        "outline": "#76777d",
+                        "error": "#ba1a1a",
+                        "surface-dim": "#dcd9db",
+                        "primary": "#000000",
+                        "on-background": "#1b1b1d",
+                        "surface-container-high": "#eae7e9",
+                        "surface": "#fcf8fa",
+                        "secondary-fixed": "#d8e3fb",
+                        "on-primary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed-variant": "#574425",
+                        "on-tertiary-fixed": "#271901",
+                        "surface-variant": "#e4e2e4",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed": "#131b2e",
+                        "on-error": "#ffffff",
+                        "tertiary-fixed": "#fcdeb5",
+                        "error-container": "#ffdad6",
+                        "primary-fixed": "#dae2fd",
+                        "outline-variant": "#c6c6cd",
+                        "primary-container": "#131b2e",
+                        "on-primary-container": "#7c839b",
+                        "surface-bright": "#fcf8fa",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed-variant": "#3c475a",
+                        "surface-container": "#f0edef",
+                        "tertiary-container": "#271901",
+                        "secondary-container": "#d5e0f8",
+                        "surface-container-low": "#f6f3f5",
+                        "surface-tint": "#565e74",
+                        "secondary": "#545f73",
+                        "tertiary-fixed-dim": "#dec29a",
+                        "inverse-surface": "#303032",
+                        "on-secondary-fixed": "#111c2d",
+                        "on-surface-variant": "#45464d",
+                        "on-secondary-container": "#586377",
+                        "inverse-on-surface": "#f3f0f2",
+                        "on-primary-fixed-variant": "#3f465c",
+                        "secondary-fixed-dim": "#bcc7de",
+                        "on-surface": "#1b1b1d",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-primary": "#bec6e0",
+                        "background": "#fcf8fa",
+                        "surface-container-highest": "#e4e2e4",
+                        "primary-fixed-dim": "#bec6e0",
+                        "on-tertiary-container": "#98805d"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "unit": "4px",
+                        "stack-xs": "4px",
+                        "stack-xl": "48px",
+                        "margin-desktop": "40px",
+                        "stack-md": "16px",
+                        "container-max": "1440px",
+                        "gutter": "24px",
+                        "stack-lg": "24px",
+                        "margin-mobile": "16px",
+                        "stack-sm": "8px"
+                    },
+                    "fontFamily": {
+                        "body-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "mono-sm": ["Geist"],
+                        "label-sm": ["Geist"],
+                        "headline-md": ["Geist"],
+                        "label-md": ["Geist"],
+                        "body-lg": ["Inter"],
+                        "headline-lg": ["Geist"],
+                        "headline-xl": ["Geist"]
+                    },
+                    "fontSize": {
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "mono-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "600"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "headline-lg": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "headline-xl": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            vertical-align: middle;
+        }
+        
+        .floating-label-group {
+            position: relative;
+        }
+        .floating-label-group input, .floating-label-group select {
+            padding-top: 1.25rem;
+            padding-bottom: 0.5rem;
+        }
+        .floating-label-group label {
+            position: absolute;
+            top: 0.85rem;
+            left: 0.75rem;
+            transition: all 0.2s ease-out;
+            pointer-events: none;
+        }
+        .floating-label-group input:focus ~ label,
+        .floating-label-group input:not(:placeholder-shown) ~ label,
+        .floating-label-group select:focus ~ label,
+        .floating-label-group select:not([value=""]):valid ~ label {
+            top: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #565e74;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e4e2e4;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen flex">
+<!-- SideNavBar Anchor -->
+<aside class="fixed left-0 top-0 h-screen flex flex-col py-stack-lg border-r border-outline-variant bg-surface-container-lowest w-64 z-50">
+<div class="px-6 mb-10 flex items-center gap-3">
+<span class="font-headline-lg text-headline-lg font-semibold text-primary">FleetOS</span>
+</div>
+<nav class="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
+<!-- Navigation Items Mapping -->
+<a class="flex items-center gap-3 px-4 py-3 font-body-md text-on-surface-variant hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 font-body-md text-on-surface-variant hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">person</span>
+<span>Drivers</span>
+</a>
+<!-- Active State: Vehicles -->
+<a class="flex items-center gap-3 px-4 py-3 font-headline-md text-headline-md font-semibold border-r-2 border-primary text-primary bg-surface-container transition-all duration-200 scale-[0.98]" href="#">
+<span class="material-symbols-outlined">local_shipping</span>
+<span>Vehicles</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 font-body-md text-on-surface-variant hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">description</span>
+<span>Contracts</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 font-body-md text-on-surface-variant hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span>Finance</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 font-body-md text-on-surface-variant hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">build</span>
+<span>Maintenance</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 font-body-md text-on-surface-variant hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">assessment</span>
+<span>Reports</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 font-body-md text-on-surface-variant hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+<div class="mt-auto px-4 pt-4 border-t border-outline-variant space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 font-label-sm text-label-sm text-on-surface-variant hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">help</span>
+<span>Help Center</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 font-label-sm text-label-sm text-on-surface-variant hover:bg-surface-container transition-colors duration-200 text-error" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span>Sign Out</span>
+</a>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="ml-64 flex-1 flex flex-col min-h-screen">
+<!-- TopAppBar Context -->
+<header class="flex justify-between items-center w-full px-margin-desktop h-16 sticky top-0 z-40 bg-surface/80 backdrop-blur-md border-b border-outline-variant">
+<div class="flex items-center gap-4">
+<button class="md:hidden p-2 text-on-surface">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<div class="hidden md:flex items-center gap-8">
+<nav class="flex gap-6">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Overview</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Live Map</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Alerts</a>
+</nav>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-primary-fixed overflow-hidden border border-outline-variant">
+<img alt="Administrator Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCPVm7pB0lZgj9hzbXih2dabwHLEHW1SxflqWEDZbILPWK-2u2LvXuFdCbC5uIL9JPdzbqpP8dVBv4Msi-VDfwfBcF-HoLuXjnAz_TB_hqGCetVgngWs7EvTHORONYZ4QsBQXyT3zffCHBtfxH_qCmSlLQn1rT3jqR4pLxWwFLVNge7ERrKRV__yeGF4SlS-nqZURItDqLGNlExY_wcsfWKYmmbF_Oz6SW-13HbYTLXbOPqud0XyvAFjUkRkRyF32XZ_6cVXqBPXw"/>
+</div>
+</div>
+</header>
+<section class="p-margin-desktop max-w-[1100px] mx-auto w-full flex-1">
+<!-- Breadcrumbs -->
+<nav class="flex items-center gap-2 mb-4 text-on-surface-variant font-label-sm text-label-sm">
+<a class="hover:text-primary" href="#">Frota</a>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<a class="hover:text-primary" href="#">Veículos</a>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-primary font-bold">Cadastro</span>
+</nav>
+<!-- Header -->
+<div class="mb-8">
+<h1 class="font-headline-lg text-headline-lg text-primary">Cadastrar Novo Veículo</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Preencha as informações detalhadas para integrar o novo ativo à sua frota operacional.</p>
+</div>
+<!-- Form Content -->
+<form class="space-y-stack-lg">
+<!-- Section 1: Basic Info (Bento Style Grid) -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-stack-lg">
+<div class="flex items-center gap-2 mb-6 text-primary">
+<span class="material-symbols-outlined">info</span>
+<h2 class="font-label-md text-label-md uppercase tracking-wider">Informações Básicas</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
+<div class="md:col-span-4 floating-label-group">
+<input class="w-full bg-surface-container-low border border-outline-variant rounded px-3 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all" id="brand" placeholder=" " type="text"/>
+<label class="font-label-sm text-label-sm text-outline" for="brand">Marca</label>
+</div>
+<div class="md:col-span-4 floating-label-group">
+<input class="w-full bg-surface-container-low border border-outline-variant rounded px-3 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all" id="model" placeholder=" " type="text"/>
+<label class="font-label-sm text-label-sm text-outline" for="model">Modelo</label>
+</div>
+<div class="md:col-span-4 floating-label-group">
+<input class="w-full bg-surface-container-low border border-outline-variant rounded px-3 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all" id="year" placeholder=" " type="number"/>
+<label class="font-label-sm text-label-sm text-outline" for="year">Ano</label>
+</div>
+<div class="md:col-span-6 floating-label-group">
+<input class="w-full bg-surface-container-low border border-outline-variant rounded px-3 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all uppercase" id="plate" placeholder=" " type="text"/>
+<label class="font-label-sm text-label-sm text-outline" for="plate">Placa</label>
+</div>
+<div class="md:col-span-6 floating-label-group">
+<select class="w-full bg-surface-container-low border border-outline-variant rounded px-3 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all appearance-none" id="color" required="">
+<option disabled="" hidden="" selected="" value=""></option>
+<option value="white">Branco</option>
+<option value="black">Preto</option>
+<option value="silver">Prata</option>
+<option value="grey">Cinza</option>
+<option value="blue">Azul</option>
+<option value="other">Outro</option>
+</select>
+<label class="font-label-sm text-label-sm text-outline" for="color">Cor</label>
+</div>
+</div>
+</div>
+<!-- Section 2: Technical Specs -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-stack-lg">
+<div class="flex items-center gap-2 mb-6 text-primary">
+<span class="material-symbols-outlined">settings_suggest</span>
+<h2 class="font-label-md text-label-md uppercase tracking-wider">Especificações Técnicas</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+<div class="floating-label-group">
+<select class="w-full bg-surface-container-low border border-outline-variant rounded px-3 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all appearance-none" id="fuel" required="">
+<option disabled="" hidden="" selected="" value=""></option>
+<option value="gasoline">Gasolina</option>
+<option value="diesel">Diesel</option>
+<option value="flex">Flex (Álcool/Gasolina)</option>
+<option value="electric">Elétrico</option>
+<option value="hybrid">Híbrido</option>
+</select>
+<label class="font-label-sm text-label-sm text-outline" for="fuel">Tipo de Combustível</label>
+</div>
+<div class="floating-label-group">
+<input class="w-full bg-surface-container-low border border-outline-variant rounded px-3 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all" id="vin" placeholder=" " type="text"/>
+<label class="font-label-sm text-label-sm text-outline" for="vin">Número do Chassi (VIN)</label>
+</div>
+<div class="floating-label-group">
+<input class="w-full bg-surface-container-low border border-outline-variant rounded px-3 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all" id="engine" placeholder=" " type="text"/>
+<label class="font-label-sm text-label-sm text-outline" for="engine">Número do Motor</label>
+</div>
+<div class="floating-label-group">
+<div class="relative">
+<input class="w-full bg-surface-container-low border border-outline-variant rounded px-3 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all pr-12" id="odometer" placeholder=" " type="number"/>
+<span class="absolute right-3 top-4 font-mono-sm text-mono-sm text-outline">KM</span>
+<label class="font-label-sm text-label-sm text-outline" for="odometer">Odômetro Atual</label>
+</div>
+</div>
+</div>
+</div>
+<!-- Section 3: Documentation -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-stack-lg">
+<div class="flex items-center gap-2 mb-6 text-primary">
+<span class="material-symbols-outlined">upload_file</span>
+<h2 class="font-label-md text-label-md uppercase tracking-wider">Documentação</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+<!-- CRLV Upload -->
+<div class="group relative cursor-pointer">
+<label class="block mb-2 font-label-sm text-label-sm text-on-surface-variant">CRLV (Documento do Veículo)</label>
+<div class="h-40 border-2 border-dashed border-outline-variant rounded-lg flex flex-col items-center justify-center bg-surface-container-low hover:bg-surface-container transition-all group-hover:border-primary">
+<span class="material-symbols-outlined text-outline group-hover:text-primary text-[32px] mb-2 transition-colors">cloud_upload</span>
+<span class="font-label-sm text-label-sm text-outline group-hover:text-primary">Arraste ou clique para enviar o CRLV</span>
+<span class="text-[10px] text-outline mt-1">Formatos aceitos: PDF, PNG, JPG (Max 5MB)</span>
+</div>
+<input class="absolute inset-0 opacity-0 cursor-pointer" type="file"/>
+</div>
+<!-- Insurance Upload -->
+<div class="group relative cursor-pointer">
+<label class="block mb-2 font-label-sm text-label-sm text-on-surface-variant">Apólice de Seguro</label>
+<div class="h-40 border-2 border-dashed border-outline-variant rounded-lg flex flex-col items-center justify-center bg-surface-container-low hover:bg-surface-container transition-all group-hover:border-primary">
+<span class="material-symbols-outlined text-outline group-hover:text-primary text-[32px] mb-2 transition-colors">verified_user</span>
+<span class="font-label-sm text-label-sm text-outline group-hover:text-primary">Arraste ou clique para enviar a Apólice</span>
+<span class="text-[10px] text-outline mt-1">Formatos aceitos: PDF, PNG, JPG (Max 5MB)</span>
+</div>
+<input class="absolute inset-0 opacity-0 cursor-pointer" type="file"/>
+</div>
+</div>
+</div>
+<!-- Form Actions -->
+<div class="flex items-center justify-end gap-4 py-8 border-t border-outline-variant mt-stack-xl">
+<button class="px-8 py-3 font-label-md text-label-md text-on-surface-variant border border-outline-variant rounded-lg hover:bg-surface-container transition-all active:scale-95" type="button">
+                        Cancelar
+                    </button>
+<button class="px-10 py-3 font-label-md text-label-md text-on-primary bg-primary rounded-lg hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-primary/10" type="submit">
+                        Salvar Veículo
+                    </button>
+</div>
+</form>
+</section>
+<!-- Contextual Help Widget (Micro-interaction) -->
+<div class="fixed bottom-8 right-8 z-50">
+<button class="w-14 h-14 bg-primary text-on-primary rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform active:scale-90 group relative">
+<span class="material-symbols-outlined">support_agent</span>
+<span class="absolute right-full mr-4 bg-primary-container text-on-primary-container px-3 py-2 rounded text-label-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">Precisa de ajuda com o cadastro?</span>
+</button>
+</div>
+</main>
+<!-- BottomNavBar Anchor (Mobile Only) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-2 pb-safe md:hidden bg-surface-container-highest border-t border-outline-variant shadow-lg">
+<button class="flex flex-col items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">local_shipping</span>
+<span class="font-label-sm text-label-sm">Fleet</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span class="font-label-sm text-label-sm">Finance</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">build</span>
+<span class="font-label-sm text-label-sm">Service</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">menu</span>
+<span class="font-label-sm text-label-sm">Menu</span>
+</button>
+</nav>
+<script>
+        // Simple form validation visual feedback or interaction script
+        document.querySelectorAll('input, select').forEach(element => {
+            element.addEventListener('focus', () => {
+                element.closest('.bg-surface-container-lowest').classList.add('border-primary');
+            });
+            element.addEventListener('blur', () => {
+                element.closest('.bg-surface-container-lowest').classList.remove('border-primary');
+            });
+        });
+
+        // Prevention of accidental navigation
+        window.addEventListener('beforeunload', (e) => {
+            const forms = document.getElementsByTagName('form');
+            let isDirty = false;
+            for(let form of forms) {
+                const formData = new FormData(form);
+                for(let value of formData.values()) {
+                    if(value) { isDirty = true; break; }
+                }
+            }
+            if (isDirty) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    </script>
+</body></html>

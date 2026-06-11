@@ -1,0 +1,169 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserProfile() {
+      return get(/databases/$(database)/documents/user_profiles/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserProfile().role == 'super_admin';
+    }
+
+    function isFleetOwner() {
+      return isAuthenticated() && getUserProfile().role == 'fleet_owner';
+    }
+
+    function isDriver() {
+      return isAuthenticated() && getUserProfile().role == 'driver';
+    }
+
+    function belongsToTenant(tenantId) {
+      return isAuthenticated() && getUserProfile().tenantId == tenantId;
+    }
+
+    // Match users profiles
+    match /user_profiles/{uid} {
+      allow read: if isAuthenticated() && (request.auth.uid == uid || getUserProfile().tenantId == resource.data.tenantId || isSuperAdmin());
+      allow write: if isAuthenticated() && (request.auth.uid == uid || isSuperAdmin() || (isFleetOwner() && request.resource.data.tenantId == getUserProfile().tenantId));
+    }
+
+    // Match companies
+    match /companies/{companyId} {
+      allow read: if isAuthenticated() && (getUserProfile().tenantId == companyId || isSuperAdmin());
+      allow write: if isSuperAdmin();
+    }
+
+    // Generic multi-tenant collection helper rule
+    function canAccessTenantData() {
+      return isSuperAdmin() || 
+        (isFleetOwner() && belongsToTenant(resource.data.tenantId)) ||
+        (isDriver() && belongsToTenant(resource.data.tenantId));
+    }
+
+    function canWriteTenantData(tenantId) {
+      return isSuperAdmin() || 
+        (isFleetOwner() && belongsToTenant(tenantId));
+    }
+
+    function keepsTenantBoundary() {
+      return request.resource.data.tenantId == resource.data.tenantId;
+    }
+
+    // Match drivers
+    match /drivers/{driverId} {
+      allow read: if isAuthenticated() && canAccessTenantData();
+      allow write: if isAuthenticated() && (isSuperAdmin() || (isFleetOwner() && belongsToTenant(request.resource.data.tenantId)) || (isDriver() && request.auth.uid == driverId && belongsToTenant(request.resource.data.tenantId)));
+    }
+
+    // Match vehicles
+    match /vehicles/{vehicleId} {
+      allow read: if isAuthenticated() && canAccessTenantData();
+      allow write: if isAuthenticated() && canWriteTenantData(request.resource.data.tenantId);
+    }
+
+    // Match contracts
+    match /contracts/{contractId} {
+      allow read: if isAuthenticated() && canAccessTenantData();
+      allow create: if isAuthenticated() && canWriteTenantData(request.resource.data.tenantId);
+      allow update: if isAuthenticated() && keepsTenantBoundary() && canWriteTenantData(resource.data.tenantId);
+      allow delete: if isAuthenticated() && canWriteTenantData(resource.data.tenantId);
+    }
+
+    // Contract ERP support collections. Every document is isolated by tenantId.
+    match /{collectionName}/{documentId} {
+      allow read: if collectionName in [
+        'contract_receipts',
+        'contract_promissories',
+        'contract_checklists',
+        'contract_addendums',
+        'vehicle_assignments',
+        'contract_templates',
+        'daily_rate_profiles',
+        'billing_rules',
+        'business_calendar',
+        'billing_suspensions',
+        'billing_runs',
+        'billing_run_items',
+        'driver_ledger',
+        'cashier_sessions',
+        'cashier_movements',
+        'activity_timeline',
+        'expirations',
+        'tenant_counters',
+        'audit_logs'
+      ] && isAuthenticated() && canAccessTenantData();
+
+      allow create: if collectionName in [
+        'contract_receipts',
+        'contract_promissories',
+        'contract_checklists',
+        'contract_addendums',
+        'vehicle_assignments',
+        'contract_templates',
+        'daily_rate_profiles',
+        'billing_rules',
+        'business_calendar',
+        'billing_suspensions',
+        'billing_runs',
+        'billing_run_items',
+        'driver_ledger',
+        'cashier_sessions',
+        'cashier_movements',
+        'activity_timeline',
+        'expirations',
+        'tenant_counters',
+        'audit_logs'
+      ] && isAuthenticated() && canWriteTenantData(request.resource.data.tenantId);
+
+      allow update: if collectionName in [
+        'contract_receipts',
+        'contract_promissories',
+        'contract_checklists',
+        'contract_addendums',
+        'vehicle_assignments',
+        'contract_templates',
+        'daily_rate_profiles',
+        'billing_rules',
+        'business_calendar',
+        'billing_suspensions',
+        'cashier_sessions',
+        'activity_timeline',
+        'expirations',
+        'tenant_counters'
+      ] && isAuthenticated() && keepsTenantBoundary() && canWriteTenantData(resource.data.tenantId);
+
+      allow delete: if collectionName in [
+        'contract_receipts',
+        'contract_promissories',
+        'contract_checklists',
+        'contract_addendums',
+        'vehicle_assignments',
+        'contract_templates',
+        'daily_rate_profiles',
+        'billing_rules',
+        'business_calendar',
+        'billing_suspensions',
+        'activity_timeline',
+        'expirations'
+      ] && isAuthenticated() && canWriteTenantData(resource.data.tenantId);
+    }
+
+    // Match notifications
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && canAccessTenantData();
+      allow write: if isAuthenticated() && (canWriteTenantData(request.resource.data.tenantId) || (isDriver() && request.resource.data.userId == request.auth.uid));
+    }
+
+    // Match attachments
+    match /attachments/{attachmentId} {
+      allow read: if isAuthenticated() && canAccessTenantData();
+      allow write: if isAuthenticated() && (canWriteTenantData(request.resource.data.tenantId) || (isDriver() && request.resource.data.uploadedBy == request.auth.uid));
+    }
+  }
+}
