@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { DollarSign } from "lucide-react";
+import { DollarSign, Filter } from "lucide-react";
 import { usePricing } from "./_hooks/usePricing";
 import { CategoriesTab } from "./_components/CategoriesTab";
 import { RatesTab } from "./_components/RatesTab";
@@ -9,33 +9,53 @@ import { CalendarTab } from "./_components/CalendarTab";
 import { PackagesTab } from "./_components/PackagesTab";
 import { ProjectionsTab } from "./_components/ProjectionsTab";
 import { SimulatorTab } from "./_components/SimulatorTab";
+import { ContractTypesTab } from "./_components/ContractTypesTab";
+import { BillingProfilesTab } from "./_components/BillingProfilesTab";
+import { VersioningTab } from "./_components/VersioningTab";
 
 export default function PricingEngine() {
   const {
+    // Navigation & UI filter states
     activeTab,
     setActiveTab,
     loading,
     can,
     loadData,
     deleteDocument,
+    selectedOperationFilter,
+    setSelectedOperationFilter,
 
     // Database states
     categories,
+    subcategories,
+    operationTypes,
+    contractTypes,
+    billingProfiles,
+    calendarRules,
+    exemptions,
+    promotions,
+    tableVersions,
     tables,
     rates,
-    calendar,
-    exemptions,
     packages,
     vehicles,
+    contracts,
     drivers,
 
-    // Modals
+    // Modals & Forms
     isCatModalOpen,
     setIsCatModalOpen,
     editingCat,
     setEditingCat,
     catForm,
     setCatForm,
+
+    isSubModalOpen,
+    setIsSubModalOpen,
+    editingSub,
+    setEditingSub,
+    subForm,
+    setSubForm,
 
     isTblModalOpen,
     setIsTblModalOpen,
@@ -65,12 +85,37 @@ export default function PricingEngine() {
 
     isExModalOpen,
     setIsExModalOpen,
+    editingEx,
+    setEditingEx,
     exForm,
     setExForm,
+
+    isPromoModalOpen,
+    setIsPromoModalOpen,
+    editingPromo,
+    setEditingPromo,
+    promoForm,
+    setPromoForm,
+
+    isCtypeModalOpen,
+    setIsCtypeModalOpen,
+    editingCtype,
+    setEditingCtype,
+    ctypeForm,
+    setCtypeForm,
+
+    isBprofModalOpen,
+    setIsBprofModalOpen,
+    editingBprof,
+    setEditingBprof,
+    bprofForm,
+    setBprofForm,
 
     // Simulator states
     projCategory,
     setProjCategory,
+    projSubcategory,
+    setProjSubcategory,
     projRate,
     setProjRate,
     projOccupancy,
@@ -88,6 +133,8 @@ export default function PricingEngine() {
     // Operations
     handleSaveCategory,
     handleDeleteCategory,
+    handleSaveSubcategory,
+    handleDeleteSubcategory,
     handleSaveTable,
     handleDeleteTable,
     handleSaveRate,
@@ -96,6 +143,11 @@ export default function PricingEngine() {
     handleFetchHolidays,
     handleSavePackage,
     handleSaveExemption,
+    handleSavePromo,
+    handleSaveContractType,
+    handleDeleteContractType,
+    handleSaveBillingProfile,
+    handleDeleteBillingProfile,
     handleRunSimulation,
     handleExecuteBilling
   } = usePricing();
@@ -107,23 +159,42 @@ export default function PricingEngine() {
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-primary font-geist flex items-center gap-2">
             <DollarSign className="w-8 h-8 text-primary" />
-            <span>Pricing & Billing Engine</span>
+            <span>Pricing & Billing Engine 2.0</span>
           </h1>
           <p className="text-on-surface-variant text-xs mt-1">
-            Configure o motor inteligente de precificação e faturamento de diárias, isenções, adicionais de pacotes e simulação de ROI da frota.
+            Configure o motor inteligente de precificação e faturamento de diárias, isenções, subcategorias e simulação de ROI por operação.
           </p>
+        </div>
+
+        {/* Global Operation Filter */}
+        <div className="flex items-center gap-2 bg-surface-container border border-outline-variant px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0">
+          <Filter className="w-3.5 h-3.5 text-outline" />
+          <span className="text-slate-600">Filtrar por Operação:</span>
+          <select
+            value={selectedOperationFilter}
+            onChange={(e) => setSelectedOperationFilter(e.target.value)}
+            className="bg-transparent font-bold text-primary focus:outline-none cursor-pointer"
+          >
+            <option value="">Todas as Operações</option>
+            {operationTypes.map(op => (
+              <option key={op.id} value={op.id}>{op.name}</option>
+            ))}
+          </select>
         </div>
       </div>
 
       {/* Tabs Menu */}
       <div className="flex border-b border-outline-variant text-xs font-semibold gap-4 overflow-x-auto pb-1">
         {[
-          { id: "categories", name: "📋 Categorias" },
+          { id: "categories", name: "📋 Categorias & Sub" },
+          { id: "contract_types", name: "📄 Tipos de Contrato" },
+          { id: "billing_profiles", name: "💳 Perfis de Cobrança" },
           { id: "rates", name: "💲 Tabelas & Tarifas" },
           { id: "calendar", name: "📅 Calendário" },
           { id: "packages", name: "🎁 Pacotes & Isenções" },
+          { id: "versioning", name: "🧾 Versionamento" },
           { id: "projections", name: "📈 Projeções" },
-          { id: "simulator", name: "⚡ Simulador de Faturamento" }
+          { id: "simulator", name: "⚡ Simulador" }
         ].map(tab => (
           <button
             key={tab.id}
@@ -151,7 +222,10 @@ export default function PricingEngine() {
       {!loading && activeTab === "categories" && (
         <CategoriesTab
           categories={categories}
+          subcategories={subcategories}
           vehicles={vehicles}
+          operationTypes={operationTypes}
+          selectedOperationFilter={selectedOperationFilter}
           isCatModalOpen={isCatModalOpen}
           setIsCatModalOpen={setIsCatModalOpen}
           editingCat={editingCat}
@@ -160,6 +234,45 @@ export default function PricingEngine() {
           setCatForm={setCatForm}
           handleSaveCategory={handleSaveCategory}
           handleDeleteCategory={handleDeleteCategory}
+          isSubModalOpen={isSubModalOpen}
+          setIsSubModalOpen={setIsSubModalOpen}
+          editingSub={editingSub}
+          setEditingSub={setEditingSub}
+          subForm={subForm}
+          setSubForm={setSubForm}
+          handleSaveSubcategory={handleSaveSubcategory}
+          handleDeleteSubcategory={handleDeleteSubcategory}
+        />
+      )}
+
+      {!loading && activeTab === "contract_types" && (
+        <ContractTypesTab
+          contractTypes={contractTypes}
+          billingProfiles={billingProfiles}
+          operationTypes={operationTypes}
+          selectedOperationFilter={selectedOperationFilter}
+          isCtypeModalOpen={isCtypeModalOpen}
+          setIsCtypeModalOpen={setIsCtypeModalOpen}
+          editingCtype={editingCtype}
+          setEditingCtype={setEditingCtype}
+          ctypeForm={ctypeForm}
+          setCtypeForm={setCtypeForm}
+          handleSaveContractType={handleSaveContractType}
+          handleDeleteContractType={handleDeleteContractType}
+        />
+      )}
+
+      {!loading && activeTab === "billing_profiles" && (
+        <BillingProfilesTab
+          billingProfiles={billingProfiles}
+          isBprofModalOpen={isBprofModalOpen}
+          setIsBprofModalOpen={setIsBprofModalOpen}
+          editingBprof={editingBprof}
+          setEditingBprof={setEditingBprof}
+          bprofForm={bprofForm}
+          setBprofForm={setBprofForm}
+          handleSaveBillingProfile={handleSaveBillingProfile}
+          handleDeleteBillingProfile={handleDeleteBillingProfile}
         />
       )}
 
@@ -168,6 +281,7 @@ export default function PricingEngine() {
           rates={rates}
           tables={tables}
           categories={categories}
+          subcategories={subcategories}
           isTblModalOpen={isTblModalOpen}
           setIsTblModalOpen={setIsTblModalOpen}
           editingTbl={editingTbl}
@@ -187,7 +301,7 @@ export default function PricingEngine() {
 
       {!loading && activeTab === "calendar" && (
         <CalendarTab
-          calendar={calendar}
+          calendar={calendarRules}
           tables={tables}
           isCalModalOpen={isCalModalOpen}
           setIsCalModalOpen={setIsCalModalOpen}
@@ -198,8 +312,8 @@ export default function PricingEngine() {
           handleSaveCal={handleSaveCal}
           handleFetchHolidays={handleFetchHolidays}
           handleDeleteCal={async (id) => {
-            if (confirm("Remover data especial?")) {
-              await deleteDocument("pricing_calendar", id);
+            if (confirm("Remover regra do calendário?")) {
+              await deleteDocument("calendar_rules", id);
               loadData();
             }
           }}
@@ -210,8 +324,13 @@ export default function PricingEngine() {
         <PackagesTab
           packages={packages}
           exemptions={exemptions}
+          promotions={promotions}
           drivers={drivers}
+          contracts={contracts}
+          vehicles={vehicles}
           categories={categories}
+          operationTypes={operationTypes}
+          selectedOperationFilter={selectedOperationFilter}
           isPkgModalOpen={isPkgModalOpen}
           setIsPkgModalOpen={setIsPkgModalOpen}
           editingPkg={editingPkg}
@@ -220,16 +339,38 @@ export default function PricingEngine() {
           setPkgForm={setPkgForm}
           isExModalOpen={isExModalOpen}
           setIsExModalOpen={setIsExModalOpen}
+          editingEx={editingEx}
+          setEditingEx={setEditingEx}
           exForm={exForm}
           setExForm={setExForm}
+          isPromoModalOpen={isPromoModalOpen}
+          setIsPromoModalOpen={setIsPromoModalOpen}
+          editingPromo={editingPromo}
+          setEditingPromo={setEditingPromo}
+          promoForm={promoForm}
+          setPromoForm={setPromoForm}
           handleSavePackage={handleSavePackage}
           handleSaveExemption={handleSaveExemption}
           handleDeleteExemption={async (id) => {
-            if (confirm("Remover isenção contratual?")) {
+            if (confirm("Remover isenção comercial?")) {
               await deleteDocument("pricing_exemptions", id);
               loadData();
             }
           }}
+          handleSavePromo={handleSavePromo}
+          handleDeletePromo={async (id) => {
+            if (confirm("Remover campanha de promoção?")) {
+              await deleteDocument("pricing_promotions", id);
+              loadData();
+            }
+          }}
+        />
+      )}
+
+      {!loading && activeTab === "versioning" && (
+        <VersioningTab
+          tableVersions={tableVersions}
+          tables={tables}
         />
       )}
 
@@ -249,6 +390,12 @@ export default function PricingEngine() {
       {!loading && activeTab === "simulator" && (
         <SimulatorTab
           drivers={drivers}
+          contracts={contracts}
+          vehicles={vehicles}
+          categories={categories}
+          subcategories={subcategories}
+          tables={tables}
+          packages={packages}
           simDriverId={simDriverId}
           setSimDriverId={setSimDriverId}
           simStartDate={simStartDate}

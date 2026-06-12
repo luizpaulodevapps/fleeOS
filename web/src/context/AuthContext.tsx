@@ -206,7 +206,52 @@ const DEFAULT_SEEDS = {
     { date: "2026-06-11", pricingTableId: "tbl-promo", description: "Fórmula 1 SP", type: "event", priority: 5 }
   ],
   pricing_exemptions: [
-    { driverId: "drv-1", exemptionType: "percentage_discount", percentage: 10, validUntil: "2026-12-31" }
+    { id: "ex-1", tenantId: "tenant-1", name: "Motorista Antigo", targetType: "driver", targetId: "drv-1", exemptionType: "percentage", percentage: 10, value: 0, freeDaysCount: 0, validUntil: "2026-12-31" },
+    { id: "ex-2", tenantId: "tenant-1", name: "Veículo Reserva", targetType: "vehicle", targetId: "veh-2", exemptionType: "percentage", percentage: 100, value: 0, freeDaysCount: 0, validUntil: "2026-08-30" }
+  ],
+  pricing_promotions: [
+    { id: "promo-1", name: "Primeira Semana 50%", pricingCategoryId: "cat-a", discountPercentage: 50, validFrom: "2026-01-01", validTo: "2026-12-31", active: true },
+    { id: "promo-2", name: "Mês de Julho 20%", pricingCategoryId: "cat-c", discountPercentage: 20, validFrom: "2026-07-01", validTo: "2026-07-31", active: true }
+  ],
+  operation_types: [
+    { id: "taxi", name: "Táxi", active: true },
+    { id: "ride_hailing", name: "Aplicativo", active: true },
+    { id: "corporate", name: "Corporativo", active: true },
+    { id: "truck", name: "Caminhão", active: true },
+    { id: "bike", name: "Moto", active: true },
+    { id: "utility", name: "Utilitário", active: true }
+  ],
+  pricing_subcategories: [
+    { id: "sub-a1", categoryId: "cat-a", code: "CAT-A.1", name: "Gol G6 completo", description: "Gol G6 1.6 Completo com Ar e Direção" },
+    { id: "sub-a2", categoryId: "cat-a", code: "CAT-A.2", name: "HB20 Comfort", description: "HB20 Comfort 1.0 Flex", amountOverride: 185 },
+    { id: "sub-b1", categoryId: "cat-b", code: "CAT-B.1", name: "Cronos Drive", description: "Fiat Cronos Drive 1.3" }
+  ],
+  contract_types: [
+    { id: "taxi", name: "Locação Táxi", billingProfileId: "profile-daily-taxi-sp", defaultFrequency: "daily", allowExemptions: true, allowHolidayRules: true, operationTypeId: "taxi" },
+    { id: "ride_hailing", name: "Locação Aplicativo", billingProfileId: "profile-weekly-app", defaultFrequency: "weekly", allowExemptions: true, allowHolidayRules: true, operationTypeId: "ride_hailing" },
+    { id: "corporate", name: "Locação Corporativa", billingProfileId: "profile-monthly-corp", defaultFrequency: "monthly", allowExemptions: false, allowHolidayRules: false, operationTypeId: "corporate" },
+    { id: "fleet", name: "Locação Frota", billingProfileId: "profile-monthly-fleet", defaultFrequency: "monthly", allowExemptions: false, allowHolidayRules: false, operationTypeId: "corporate" },
+    { id: "moto", name: "Locação Moto", billingProfileId: "profile-weekly-app", defaultFrequency: "weekly", allowExemptions: true, allowHolidayRules: true, operationTypeId: "bike" },
+    { id: "truck", name: "Locação Caminhão", billingProfileId: "profile-monthly-corp", defaultFrequency: "monthly", allowExemptions: false, allowHolidayRules: false, operationTypeId: "truck" },
+    { id: "utility", name: "Locação Utilitário", billingProfileId: "profile-monthly-corp", defaultFrequency: "monthly", allowExemptions: true, allowHolidayRules: false, operationTypeId: "utility" },
+    { id: "executive", name: "Locação Executiva", billingProfileId: "profile-daily-taxi-sp", defaultFrequency: "daily", allowExemptions: true, allowHolidayRules: true, operationTypeId: "corporate" }
+  ],
+  billing_profiles: [
+    { id: "profile-daily-taxi-sp", name: "Diária Táxi SP", frequency: "daily", chargeDays: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"], holidayPolicy: "exempt", lateFeePercent: 2, graceDays: 1 },
+    { id: "profile-daily-taxi-nac", name: "Diária Táxi Nacional", frequency: "daily", chargeDays: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"], holidayPolicy: "exempt", lateFeePercent: 2, graceDays: 1 },
+    { id: "profile-weekly-app", name: "Semanal Aplicativo", frequency: "weekly", chargeDays: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"], holidayPolicy: "ignore", lateFeePercent: 2, graceDays: 2 },
+    { id: "profile-monthly-corp", name: "Mensal Corporativo", frequency: "monthly", chargeDays: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"], holidayPolicy: "ignore", lateFeePercent: 5, graceDays: 5 },
+    { id: "profile-monthly-fleet", name: "Mensal Frota", frequency: "monthly", chargeDays: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"], holidayPolicy: "ignore", lateFeePercent: 5, graceDays: 5 },
+    { id: "profile-yearly-corp", name: "Anual Corporativo", frequency: "yearly", chargeDays: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"], holidayPolicy: "ignore", lateFeePercent: 10, graceDays: 10 }
+  ],
+  calendar_rules: [
+    { id: "cal-nat", date: "2026-12-25", description: "Natal", type: "holiday", priority: 3, action: "exempt", value: 0 },
+    { id: "cal-f1", date: "2026-11-08", description: "Fórmula 1 SP", type: "event", priority: 2, action: "surcharge", value: 1.50 },
+    { id: "cal-lolla", date: "2026-03-27", description: "Lollapalooza SP", type: "event", priority: 2, action: "surcharge", value: 1.25 },
+    { id: "cal-promo-jul", date: "2026-07-15", description: "Promoção de Férias", type: "promo", priority: 1, action: "discount", value: 0.90 }
+  ],
+  pricing_table_versions: [
+    { id: "vlog-1", tableId: "tbl-std", version: 1, changeDescription: "Seed inicial de tarifas da Tabela Padrão", changedBy: "Admin Master", createdAt: new Date().toISOString() }
   ],
   contract_billing: [
     { contractId: "con-1", nextBillingDate: "2026-06-12", frequency: "daily", amount: 150, active: true, billingProfileId: "profile-daily-full" }
@@ -256,7 +301,33 @@ const DEFAULT_SEEDS = {
     }
   ],
   contracts: [
-    { id: "con-1", tenantId: "tenant-1", driverId: "drv-1", vehicleId: "veh-1", startDate: "2026-01-01", endDate: "2026-12-31", dailyRate: 150, weeklyRate: 800, monthlyRate: 3200, status: "active", closedBy: "", amountPaid: 7600, type: "Locação", pdfSignedUrl: "", dailyProfileId: "prof-1", dailyAmountSnapshot: 150, dailyProfileNameSnapshot: "Diária Padrão Comercial" }
+    { 
+      id: "con-1", 
+      tenantId: "tenant-1", 
+      driverId: "drv-1", 
+      vehicleId: "veh-1", 
+      startDate: "2026-01-01", 
+      endDate: "2026-12-31", 
+      dailyRate: 150, 
+      weeklyRate: 800, 
+      monthlyRate: 3200, 
+      status: "active", 
+      closedBy: "", 
+      amountPaid: 7600, 
+      type: "Locação", 
+      pdfSignedUrl: "", 
+      dailyProfileId: "prof-1", 
+      dailyAmountSnapshot: 150, 
+      dailyProfileNameSnapshot: "Diária Padrão Comercial",
+      pricingSnapshot: {
+        contractType: "taxi",
+        billingProfile: "profile-daily-taxi-sp",
+        pricingTable: "tbl-std",
+        category: "cat-c",
+        subcategory: "",
+        dailyRate: 150
+      }
+    }
   ],
   notifications: [
     { id: "not-1", tenantId: "tenant-1", userId: "uid-driver", title: "Vencimento de CNH", message: "Sua CNH expira em breve. Lembre-se de renovar e enviar a foto atualizada.", read: false, createdAt: new Date().toISOString() },
@@ -757,6 +828,330 @@ const DEFAULT_SEEDS = {
   ]
 };
 
+function generateVolumeMocks() {
+  const driversList = [...DEFAULT_SEEDS.drivers];
+  const vehiclesList = [...DEFAULT_SEEDS.vehicles];
+  const contractsList = [...DEFAULT_SEEDS.contracts];
+  const ledgerList = [...DEFAULT_SEEDS.driver_ledger];
+  const cashierSessionsList = [...DEFAULT_SEEDS.cashier_sessions];
+  const cashierMovementsList = [...DEFAULT_SEEDS.cashier_movements];
+  const workOrdersList = [...DEFAULT_SEEDS.work_orders];
+  const workOrderItemsList = [...DEFAULT_SEEDS.work_order_items];
+  const inventoryMovementsList = [...DEFAULT_SEEDS.inventory_movements];
+  const vehicleExpensesList = [...DEFAULT_SEEDS.vehicle_expenses];
+  const claimsList = [...DEFAULT_SEEDS.insurance_claims];
+  const claimChecklistsList = [...DEFAULT_SEEDS.claim_checklists];
+  const claimDamageItemsList = [...DEFAULT_SEEDS.claim_damage_items];
+  const claimBudgetsList = [...DEFAULT_SEEDS.claim_budgets];
+  const maintenanceList = [...DEFAULT_SEEDS.maintenance];
+  const appointmentsList: any[] = [];
+  const billingRunsList: any[] = [];
+  const ledgerEntriesList: any[] = [];
+
+  // Helper generators
+  const firstNames = ["Carlos", "Ana", "Roberto", "Mariana", "Gerson", "Juliana", "Felipe", "Sandra", "Rodrigo", "Amanda", "Lucas", "Beatriz", "Paulo", "Camila", "Bruno", "Patricia", "Diego", "Larissa", "Ricardo", "Vanessa"];
+  const lastNames = ["Santos", "Silva", "Oliveira", "Costa", "Alves", "Lima", "Souza", "Pereira", "Carvalho", "Rodrigues", "Nascimento", "Gomes", "Martins", "Araujo", "Ribeiro", "Melo", "Almeida", "Cardoso", "Teixeira", "Pinto"];
+  
+  // 1. Generate 80 Drivers
+  for (let i = 10; i <= 90; i++) {
+    const fn = firstNames[i % firstNames.length];
+    const ln = lastNames[(i * 3) % lastNames.length];
+    const name = `${fn} ${ln}`;
+    const id = `drv-${i}`;
+    const status = i % 8 === 0 ? "blocked" : "active";
+    driversList.push({
+      id,
+      tenantId: "tenant-1",
+      name,
+      cpf: `321.${i}56.${i}89-00`,
+      rg: `23.${i}45.${i}67-8`,
+      phone: `(11) 9${80000000 + i * 12345}`,
+      condutax: `C-${50000 + i}`,
+      condutaxExpiration: `2027-10-12`,
+      alvaraNumber: `A-${100 + i}`,
+      alvaraExpiration: `2027-12-20`,
+      cnhNumber: `900000000${i}`,
+      cnhCategory: i % 5 === 0 ? "D" : "AB",
+      cnhExpiration: `2029-05-15`,
+      address: `Av. General Rondon, ${100 + i} - São Paulo, SP`,
+      addressFull: { street: "Av. General Rondon", number: String(100 + i), zipCode: "02011-000", city: "São Paulo", state: "SP" },
+      emergencyContact: `Familiar - (11) 98000-00${i}`,
+      photoUrl: `https://images.unsplash.com/photo-${1500000000000 + i * 1000000}?w=150`,
+      status,
+      activeLocks: status === "blocked" ? ["Financeiro"] : [],
+      createdAt: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString(),
+      birthDate: "1990-08-15",
+      civilStatus: "Solteiro(a)",
+      notes: "Motorista gerado automaticamente para testes de volume e faturamento.",
+      admissionDate: "2025-01-10",
+      exitDate: ""
+    });
+  }
+
+  // 2. Generate 50 Vehicles
+  const brands = ["Toyota", "Chevrolet", "Fiat", "Volkswagen", "Hyundai", "BYD", "GWM", "Nissan"];
+  const models = [
+    { brand: "Toyota", model: "Corolla", cat: "cat-c" },
+    { brand: "Toyota", model: "Yaris", cat: "cat-b" },
+    { brand: "Chevrolet", model: "Onix", cat: "cat-a" },
+    { brand: "Chevrolet", model: "Spin", cat: "cat-b" },
+    { brand: "Fiat", model: "Cronos", cat: "cat-b" },
+    { brand: "Fiat", model: "Mobi", cat: "cat-a" },
+    { brand: "Volkswagen", model: "Gol", cat: "cat-a" },
+    { brand: "Volkswagen", model: "Virtus", cat: "cat-b" },
+    { brand: "Hyundai", model: "HB20", cat: "cat-a" },
+    { brand: "BYD", model: "King", cat: "cat-h" },
+    { brand: "BYD", model: "Dolphin", cat: "cat-e" },
+    { brand: "Nissan", model: "Sentra", cat: "cat-c" }
+  ];
+  const colors = ["Branco", "Prata", "Preto", "Cinza", "Vermelho"];
+  
+  for (let i = 10; i <= 60; i++) {
+    const mInfo = models[i % models.length];
+    const plate = `KPT-${1000 + i}`;
+    const id = `veh-${i}`;
+    const status = i % 12 === 0 ? "maintenance" : i % 15 === 0 ? "inactive" : "active";
+    vehiclesList.push({
+      id,
+      tenantId: "tenant-1",
+      plate,
+      model: mInfo.model,
+      brand: mInfo.brand,
+      year: 2021 + (i % 4),
+      renavam: `9876${i}4321`,
+      chassis: `9BWCA02X8J9128${i}`,
+      fuelType: mInfo.brand === "BYD" ? (mInfo.model === "Dolphin" ? "Elétrico" : "Híbrido") : "Flex",
+      mileage: 20000 + i * 1500,
+      insuranceExpiration: "2027-05-18",
+      registrationExpiration: "2027-10-10",
+      status,
+      photoUrl: "https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?w=300",
+      color: colors[i % colors.length],
+      activeLocks: status === "maintenance" ? ["Manutenção"] : [],
+      pricingCategoryId: mInfo.cat,
+      defaultPackageId: mInfo.cat === "cat-c" || mInfo.cat === "cat-h" ? "pkg-executive" : "pkg-flex",
+      billingProfileId: i % 2 === 0 ? "profile-daily-full" : "profile-daily-work"
+    });
+  }
+
+  // 3. Generate 35 Contracts
+  for (let i = 10; i <= 45; i++) {
+    const drvId = `drv-${i}`;
+    const vehId = `veh-${i}`;
+    const contractId = `con-${i}`;
+    const dailyRateVal = 160 + (i % 5) * 10;
+    
+    contractsList.push({
+      id: contractId,
+      tenantId: "tenant-1",
+      driverId: drvId,
+      vehicleId: vehId,
+      startDate: "2026-01-10",
+      endDate: "2026-12-31",
+      dailyRate: dailyRateVal,
+      weeklyRate: dailyRateVal * 6,
+      monthlyRate: dailyRateVal * 24,
+      status: i % 10 === 0 ? "closed" : "active",
+      closedBy: "",
+      amountPaid: 8400,
+      type: "Locação",
+      pdfSignedUrl: "",
+      dailyProfileId: "prof-1",
+      dailyAmountSnapshot: dailyRateVal,
+      dailyProfileNameSnapshot: "Diária Padrão Comercial",
+      pricingSnapshot: {
+        contractType: "taxi",
+        billingProfile: "profile-daily-taxi-sp",
+        pricingTable: "tbl-std",
+        category: i % 3 === 0 ? "cat-a" : "cat-b",
+        subcategory: "",
+        dailyRate: dailyRateVal
+      }
+    });
+
+    // 4. Generate Ledger Entries for these contracts
+    ledgerList.push({
+      id: `led-gen-init-${i}`,
+      tenantId: "tenant-1",
+      driverId: drvId,
+      type: "payment",
+      description: "Caução Garantia Inicial - Pix",
+      amount: 1000,
+      createdAt: "2026-01-10T10:00:00Z"
+    });
+
+    for (let d = 1; d <= 8; d++) {
+      const chargeDateStr = `2026-06-0${d}`;
+      ledgerList.push({
+        id: `led-gen-chg-${i}-${d}`,
+        tenantId: "tenant-1",
+        driverId: drvId,
+        type: "daily",
+        description: `Diária de Locação - Ref: ${chargeDateStr}`,
+        amount: -dailyRateVal,
+        createdAt: `${chargeDateStr}T08:00:00Z`
+      });
+    }
+
+    ledgerList.push({
+      id: `led-gen-pay-${i}`,
+      tenantId: "tenant-1",
+      driverId: drvId,
+      type: "payment",
+      description: "Pagamento de Diárias - Pix Recebido",
+      amount: dailyRateVal * 8,
+      createdAt: "2026-06-09T18:00:00Z"
+    });
+  }
+
+  // 5. Generate 20 Cashier Sessions & Sessions Movements
+  for (let i = 1; i <= 20; i++) {
+    const cashId = `cash-gen-${i}`;
+    const dateStr = `2026-06-${i < 10 ? '0' + i : i}`;
+    cashierSessionsList.push({
+      id: cashId,
+      tenantId: "tenant-1",
+      operatorId: "uid-super",
+      openedAt: `${dateStr}T08:00:00Z`,
+      closedAt: `${dateStr}T18:00:00Z`,
+      openingAmount: 100,
+      closingAmount: 1100 + i * 50,
+      difference: 0,
+      status: "closed"
+    });
+
+    for (let m = 1; m <= 3; m++) {
+      cashierMovementsList.push({
+        id: `mov-gen-${i}-${m}`,
+        tenantId: "tenant-1",
+        cashierId: cashId,
+        type: "RECEIPT",
+        amount: 300 + m * 80,
+        paymentMethod: "Pix",
+        description: `Recebimento diárias Lote - Motorista drv-${10 + i * m}`,
+        createdAt: `${dateStr}T14:00:00Z`
+      });
+    }
+  }
+
+  // 6. Generate Work Orders and Service logs (25 records)
+  for (let i = 10; i <= 35; i++) {
+    const woId = `wo-gen-${i}`;
+    const vehId = `veh-${i}`;
+    const isCompleted = i % 3 !== 0;
+    workOrdersList.push({
+      id: woId,
+      tenantId: "tenant-1",
+      vehicleId: vehId,
+      status: isCompleted ? "completed" : "in_progress",
+      description: i % 2 === 0 ? "Troca de amortecedores e pastilhas" : "Revisão periódica de suspensão e óleo",
+      totalPartsCost: 250 + i * 8,
+      totalLaborCost: 150 + i * 4,
+      totalCost: 400 + i * 12,
+      mileage: 35000 + i * 1000,
+      operatorId: "uid-super",
+      createdAt: `2026-05-${i}T09:00:00Z`,
+      completedAt: isCompleted ? `2026-05-${i}T17:00:00Z` : ""
+    });
+
+    workOrderItemsList.push({
+      id: `woi-gen-${i}-1`,
+      tenantId: "tenant-1",
+      workOrderId: woId,
+      type: "PART",
+      itemId: "inv-1",
+      description: "Pastilha de Freio Dianteira",
+      qty: 1,
+      unitCost: 120,
+      totalCost: 120
+    });
+
+    vehicleExpensesList.push({
+      id: `exp-gen-${i}`,
+      tenantId: "tenant-1",
+      vehicleId: vehId,
+      expenseType: "maintenance",
+      amount: 400 + i * 12,
+      date: `2026-05-${i}`,
+      referenceId: woId,
+      referenceType: "work_order",
+      description: `Manutenção OS: ${isCompleted ? 'Concluída' : 'Em progresso'}`,
+      createdAt: `2026-05-${i}T17:00:00Z`
+    });
+
+    maintenanceList.push({
+      id: `maint-gen-${i}`,
+      tenantId: "tenant-1",
+      vehicleId: vehId,
+      type: i % 2 === 0 ? "Preventiva" : "Corretiva",
+      description: i % 2 === 0 ? "Revisão geral com filtros e óleo" : "Alinhamento e rodízio de pneus",
+      cost: 400 + i * 12,
+      date: `2026-05-${i}`,
+      mileage: 35000 + i * 1000,
+      nextMaintenanceMileage: 45000 + i * 1000
+    });
+  }
+
+  // 7. Generate Claims & damaged structures (10 cases)
+  for (let i = 1; i <= 10; i++) {
+    const claimId = `claim-gen-${i}`;
+    const vehId = `veh-${10 + i}`;
+    const drvId = `drv-${10 + i}`;
+    claimsList.push({
+      id: claimId,
+      tenantId: "tenant-1",
+      claimNumber: `SIN-2026-000${i + 1}`,
+      vehicleId: vehId,
+      driverId: drvId,
+      contractId: `con-${10 + i}`,
+      occurrenceDate: `2026-06-0${i}T11:20`,
+      status: i % 3 === 0 ? "resolved" : i % 2 === 0 ? "authorized" : "under_review",
+      severity: i % 3 === 0 ? "heavy" : "medium",
+      location: `Av. Interlagos, ${1000 + i * 100} - São Paulo, SP`,
+      description: "Colisão lateral ao tentar mudar de faixa. Danos na lataria lateral e retrovisores.",
+      involvedThirdParties: false,
+      hasVictims: false,
+      vehicleDrivable: true,
+      createdBy: "Luiz Frota",
+      createdAt: `2026-06-0${i}T12:00:00Z`
+    });
+
+    claimDamageItemsList.push({
+      id: `cdi-gen-${i}-1`,
+      claimId,
+      item: "Porta Lateral",
+      severity: "medium",
+      estimatedCost: 1500
+    });
+
+    claimDamageItemsList.push({
+      id: `cdi-gen-${i}-2`,
+      claimId,
+      item: "Retrovisor",
+      severity: "light",
+      estimatedCost: 300
+    });
+  }
+
+  return {
+    drivers: driversList,
+    vehicles: vehiclesList,
+    contracts: contractsList,
+    driver_ledger: ledgerList,
+    cashier_sessions: cashierSessionsList,
+    cashier_movements: cashierMovementsList,
+    work_orders: workOrdersList,
+    work_order_items: workOrderItemsList,
+    inventory_movements: inventoryMovementsList,
+    vehicle_expenses: vehicleExpensesList,
+    insurance_claims: claimsList,
+    claim_checklists: claimChecklistsList,
+    claim_damage_items: claimDamageItemsList,
+    claim_budgets: claimBudgetsList,
+    maintenance: maintenanceList
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -767,7 +1162,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Initialize mock database in localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
-      Object.entries(DEFAULT_SEEDS).forEach(([key, value]) => {
+      const forceReSeed = !localStorage.getItem("fleetos_volume_seeded_v1") || 
+        (localStorage.getItem("fleetos_drivers") && JSON.parse(localStorage.getItem("fleetos_drivers") || "[]").length <= 2);
+
+      if (forceReSeed) {
+        // Clear existing keys first to ensure a clean slate
+        [
+          "companies", "user_profiles", "drivers", "vehicles", "pricing_categories", "pricing_tables", "pricing_rates",
+          "billing_event_types", "pricing_packages", "contract_billing_profiles", "pricing_calendar", "pricing_exemptions",
+          "pricing_promotions", "operation_types", "pricing_subcategories", "contract_types", "billing_profiles",
+          "calendar_rules", "pricing_table_versions", "contract_billing", "vehicle_acquisition", "contracts",
+          "notifications", "attachments", "payments", "maintenance", "driver_ledger", "vehicle_assignments",
+          "cashier_sessions", "cashier_movements", "maintenance_plan_items", "roles", "permissions", "role_permissions",
+          "audit_logs", "activity_timeline", "vehicle_assets", "vehicle_incidents", "driver_occurrences", "checklists",
+          "contract_templates", "daily_rate_profiles", "billing_rules", "business_calendar", "billing_suspensions",
+          "billing_runs", "billing_run_items", "insurance_claims", "claim_checklists", "claim_evidences",
+          "claim_reports", "claim_third_parties", "claim_damage_items", "damage_price_table", "claim_budgets",
+          "claim_installments", "claim_approvals", "inventory_items", "suppliers", "purchase_orders",
+          "purchase_order_items", "work_orders", "work_order_items", "inventory_movements", "vehicle_expenses",
+          "inventory_pending_items"
+        ].forEach(key => localStorage.removeItem(`fleetos_${key}`));
+        
+        localStorage.setItem("fleetos_volume_seeded_v1", "true");
+      }
+
+      const volumeMocks = generateVolumeMocks();
+      const mergedSeeds = {
+        ...DEFAULT_SEEDS,
+        ...volumeMocks
+      };
+
+      Object.entries(mergedSeeds).forEach(([key, value]) => {
         if (!localStorage.getItem(`fleetos_${key}`)) {
           localStorage.setItem(`fleetos_${key}`, JSON.stringify(value));
         }
@@ -778,12 +1203,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         "pricing_categories", "pricing_tables", "pricing_rates", "billing_event_types",
         "pricing_packages", "contract_billing_profiles", "pricing_calendar", "pricing_exemptions", "contract_billing",
         "inventory_items", "suppliers", "purchase_orders", "purchase_order_items", "work_orders", "work_order_items", "inventory_movements", "vehicle_expenses",
-        "inventory_pending_items"
+        "inventory_pending_items", "operation_types", "pricing_subcategories", "contract_types", "billing_profiles",
+        "calendar_rules", "pricing_promotions", "pricing_table_versions"
       ].forEach((key) => {
         if (!localStorage.getItem(`fleetos_${key}`)) {
-          localStorage.setItem(`fleetos_${key}`, JSON.stringify(DEFAULT_SEEDS[key as keyof typeof DEFAULT_SEEDS]));
+          localStorage.setItem(`fleetos_${key}`, JSON.stringify(mergedSeeds[key as keyof typeof mergedSeeds]));
         }
       });
+
 
       // Keep additive security metadata in sync for existing mock databases.
       ["permissions", "role_permissions"].forEach((key) => {
