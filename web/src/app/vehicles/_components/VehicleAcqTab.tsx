@@ -31,8 +31,42 @@ export function VehicleAcqTab({
   const remainDebt = remainInstall * (Number(f.installmentValue) || 0);
   const progressPct = totalInstall > 0 ? (paidInstall / totalInstall) * 100 : 0;
 
+  // Taxi & Initial Setup Calculations
+  const taximeter = Number(f.taximeterCost) || 0;
+  const rooftopLight = Number(f.rooftopLightCost) || 0;
+  const initialInspection = Number(f.initialInspectionCost) || 0;
+  const paintOrDecal = Number(f.paintOrDecalCost) || 0;
+  const municipalReg = Number(f.municipalRegistrationCost) || 0;
+  const otherInitial = Number(f.otherInitialCosts) || 0;
+  
+  const totalSetupCost = taximeter + rooftopLight + initialInspection + paintOrDecal + municipalReg + otherInitial;
+  const totalCapex = purchaseVal + totalSetupCost;
+
   return (
     <div className="space-y-6">
+      {/* CAPEX Activation KPI dashboard */}
+      {purchaseVal > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50 border border-slate-200 p-3 rounded-2xl">
+          <div className="bg-white border border-slate-150 p-3 rounded-xl flex flex-col justify-between shadow-sm">
+            <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Custo de Aquisição (Base)</span>
+            <span className="text-sm font-black text-slate-800 font-mono mt-1">
+              {purchaseVal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+            </span>
+          </div>
+          <div className="bg-white border border-slate-150 p-3 rounded-xl flex flex-col justify-between shadow-sm">
+            <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Preparação & Equipagem</span>
+            <span className="text-sm font-black text-violet-600 font-mono mt-1">
+              {totalSetupCost.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+            </span>
+          </div>
+          <div className="bg-gradient-to-br from-violet-600 to-indigo-700 p-3 rounded-xl flex flex-col justify-between text-white shadow-md">
+            <span className="text-[9px] font-black text-violet-100 uppercase tracking-wider">CAPEX Ativado Total</span>
+            <span className="text-base font-extrabold font-mono mt-1">
+              {totalCapex.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+            </span>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
           <Banknote className="w-5 h-5 text-violet-600" />
@@ -198,8 +232,8 @@ export function VehicleAcqTab({
 
       {/* FIPE + Custos fixos */}
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-        <h5 className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-3">📊 FIPE Atual + Custos Anuais</h5>
-        <div className="grid grid-cols-2 gap-3">
+        <h5 className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-3">📊 FIPE Atual & Seguro Anual</h5>
+        <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="block text-[10px] font-bold text-outline mb-1">Valor FIPE Atual (R$)</label>
             <input type="number" value={f.currentFipeValue} onChange={e => setAcqForm(p => ({ ...p, currentFipeValue: e.target.value }))} placeholder="0" className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none" />
@@ -211,10 +245,6 @@ export function VehicleAcqTab({
           <div>
             <label className="block text-[10px] font-bold text-outline mb-1">Custo Seguro/Ano (R$)</label>
             <input type="number" value={f.annualInsuranceCost} onChange={e => setAcqForm(p => ({ ...p, annualInsuranceCost: e.target.value }))} placeholder="0" className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none" />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-outline mb-1">IPVA/Ano (R$)</label>
-            <input type="number" value={f.annualIpvaCost} onChange={e => setAcqForm(p => ({ ...p, annualIpvaCost: e.target.value }))} placeholder="0" className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none" />
           </div>
         </div>
         {fipeVariation !== null && (
@@ -248,6 +278,251 @@ export function VehicleAcqTab({
                 {selectedVehicle.lastFipeUpdate ? new Date(selectedVehicle.lastFipeUpdate).toLocaleDateString("pt-BR") : "N/A"}
               </span>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Impostos, Licenciamento e Vistorias */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+        <h5 className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-3">📜 Impostos, Licenciamento e Vistorias</h5>
+        <div className="space-y-4">
+          {/* IPVA */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end border-b border-slate-150 pb-3">
+            <div>
+              <label className="block text-[10px] font-bold text-outline mb-1">Custo IPVA Anual (R$)</label>
+              <input
+                type="number"
+                value={f.annualIpvaCost || ""}
+                onChange={(e) => setAcqForm((p) => ({ ...p, annualIpvaCost: e.target.value }))}
+                placeholder="0"
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-outline mb-1">Vencimento IPVA</label>
+              <input
+                type="date"
+                value={f.ipvaExpirationDate || ""}
+                onChange={(e) => setAcqForm((p) => ({ ...p, ipvaExpirationDate: e.target.value }))}
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-outline mb-1">Situação IPVA</label>
+              <select
+                value={f.ipvaPaidStatus || "pending"}
+                onChange={(e) => setAcqForm((p) => ({ ...p, ipvaPaidStatus: e.target.value as any }))}
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none font-bold"
+              >
+                <option value="pending">Pendente de Pagamento</option>
+                <option value="paid">✓ Pago / Regularizado</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Licenciamento (CRLV) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end border-b border-slate-150 pb-3">
+            <div>
+              <label className="block text-[10px] font-bold text-outline mb-1">Taxa Licenciamento CRLV (R$)</label>
+              <input
+                type="number"
+                value={f.annualLicensingCost || ""}
+                onChange={(e) => setAcqForm((p) => ({ ...p, annualLicensingCost: e.target.value }))}
+                placeholder="0"
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-outline mb-1">Vencimento Licenciamento</label>
+              <input
+                type="date"
+                value={f.licensingExpirationDate || ""}
+                onChange={(e) => setAcqForm((p) => ({ ...p, licensingExpirationDate: e.target.value }))}
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-outline mb-1">Situação Licenciamento</label>
+              <select
+                value={f.licensingPaidStatus || "pending"}
+                onChange={(e) => setAcqForm((p) => ({ ...p, licensingPaidStatus: e.target.value as any }))}
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none font-bold"
+              >
+                <option value="pending">Pendente de Pagamento</option>
+                <option value="paid">✓ Pago / Emitido</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Vistoria Periódica */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+            <div>
+              <label className="block text-[10px] font-bold text-outline mb-1">Custo Vistoria GNV/Anual (R$)</label>
+              <input
+                type="number"
+                value={f.annualInspectionCost || ""}
+                onChange={(e) => setAcqForm((p) => ({ ...p, annualInspectionCost: e.target.value }))}
+                placeholder="0"
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-outline mb-1">Vencimento Vistoria</label>
+              <input
+                type="date"
+                value={f.inspectionExpirationDate || ""}
+                onChange={(e) => setAcqForm((p) => ({ ...p, inspectionExpirationDate: e.target.value }))}
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-outline mb-1">Situação Vistoria</label>
+              <select
+                value={f.inspectionPaidStatus || "pending"}
+                onChange={(e) => setAcqForm((p) => ({ ...p, inspectionPaidStatus: e.target.value as any }))}
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none font-bold"
+              >
+                <option value="pending">Pendente / Não Realizada</option>
+                <option value="paid">✓ Realizada / Aprovada</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Credenciamento de Táxi (Alvará) */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <h5 className="text-[10px] font-black uppercase tracking-wider text-slate-500">🚖 Credenciamento de Táxi e Regulamentação</h5>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!f.isTaxi}
+              onChange={(e) => setAcqForm((prev) => ({ ...prev, isTaxi: e.target.checked }))}
+              className="sr-only peer"
+            />
+            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+            <span className="ml-2 text-xs font-bold text-slate-700">Ativar Perfil Táxi</span>
+          </label>
+        </div>
+
+        {f.isTaxi && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t border-slate-200">
+            <div>
+              <label className="block text-[10px] font-bold text-outline mb-1">Número do Alvará</label>
+              <input
+                type="text"
+                value={f.alvaraNumber || ""}
+                onChange={(e) => setAcqForm((p) => ({ ...p, alvaraNumber: e.target.value }))}
+                placeholder="Ex: Alvará-1234"
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-outline mb-1">Vencimento Alvará</label>
+              <input
+                type="date"
+                value={f.alvaraExpirationDate || ""}
+                onChange={(e) => setAcqForm((p) => ({ ...p, alvaraExpirationDate: e.target.value }))}
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-outline mb-1">Custo de Renovação (R$)</label>
+              <input
+                type="number"
+                value={f.alvaraRenewalCost || ""}
+                onChange={(e) => setAcqForm((p) => ({ ...p, alvaraRenewalCost: e.target.value }))}
+                placeholder="0"
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-outline mb-1">Vistoria Municipal DTP</label>
+              <select
+                value={f.municipalInspectionStatus || "pending"}
+                onChange={(e) => setAcqForm((p) => ({ ...p, municipalInspectionStatus: e.target.value as any }))}
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none font-bold"
+              >
+                <option value="pending">Aguardando / Pendente</option>
+                <option value="approved">✓ Aprovada</option>
+                <option value="failed">✗ Reprovada</option>
+              </select>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Custos de Preparação e Equipagem Inicial (Setup do Veículo) */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+        <h5 className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-3">🛠️ Preparação Inicial e Equipagem (Capex Prep)</h5>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-[10px] font-bold text-outline mb-1">Instalação de Taxímetro (R$)</label>
+            <input
+              type="number"
+              value={f.taximeterCost || ""}
+              onChange={(e) => setAcqForm((p) => ({ ...p, taximeterCost: e.target.value }))}
+              placeholder="0"
+              className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-outline mb-1">Luminoso / Sinalizador (R$)</label>
+            <input
+              type="number"
+              value={f.rooftopLightCost || ""}
+              onChange={(e) => setAcqForm((p) => ({ ...p, rooftopLightCost: e.target.value }))}
+              placeholder="0"
+              className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-outline mb-1">Vistoria Inicial Inmetro (R$)</label>
+            <input
+              type="number"
+              value={f.initialInspectionCost || ""}
+              onChange={(e) => setAcqForm((p) => ({ ...p, initialInspectionCost: e.target.value }))}
+              placeholder="0"
+              className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-outline mb-1">Plotagem / Pintura (R$)</label>
+            <input
+              type="number"
+              value={f.paintOrDecalCost || ""}
+              onChange={(e) => setAcqForm((p) => ({ ...p, paintOrDecalCost: e.target.value }))}
+              placeholder="0"
+              className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-outline mb-1">Licenciamento / Outorga DTP (R$)</label>
+            <input
+              type="number"
+              value={f.municipalRegistrationCost || ""}
+              onChange={(e) => setAcqForm((p) => ({ ...p, municipalRegistrationCost: e.target.value }))}
+              placeholder="0"
+              className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-outline mb-1">Outras Taxas Iniciais (R$)</label>
+            <input
+              type="number"
+              value={f.otherInitialCosts || ""}
+              onChange={(e) => setAcqForm((p) => ({ ...p, otherInitialCosts: e.target.value }))}
+              placeholder="0"
+              className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-xs outline-none"
+            />
+          </div>
+        </div>
+
+        {totalSetupCost > 0 && (
+          <div className="mt-3 bg-violet-50 text-violet-900 border border-violet-200 px-3 py-2 rounded-lg flex justify-between items-center text-xs font-bold">
+            <span>Custo Total de Equipagem / Preparação:</span>
+            <span className="font-mono text-sm">{totalSetupCost.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
           </div>
         )}
       </div>

@@ -26,6 +26,12 @@ export function useOperations() {
   const [billingProfiles, setBillingProfiles] = useState<any[]>([]);
   const [exemptions, setExemptions] = useState<any[]>([]);
 
+  // Compliance state
+  const [regulatoryProcesses, setRegulatoryProcesses] = useState<any[]>([]);
+  const [municipalRegulations, setMunicipalRegulations] = useState<any[]>([]);
+  const [taxiPermits, setTaxiPermits] = useState<any[]>([]);
+  const [taxiPoints, setTaxiPoints] = useState<any[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [activeWizard, setActiveWizard] = useState<"delivery" | "return" | "swap" | null>(null);
 
@@ -36,7 +42,7 @@ export function useOperations() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [drv, veh, con, prof, cash, tpl, asg, comp, act, cat, tbl, rat, pkg, bprof, ex] = await Promise.all([
+      const [drv, veh, con, prof, cash, tpl, asg, comp, act, cat, tbl, rat, pkg, bprof, ex, regProc, munReg, permits, points] = await Promise.all([
         getCollection("drivers"),
         getCollection("vehicles"),
         getCollection("contracts"),
@@ -51,7 +57,11 @@ export function useOperations() {
         getCollection("pricing_rates"),
         getCollection("pricing_packages"),
         getCollection("contract_billing_profiles"),
-        getCollection("pricing_exemptions")
+        getCollection("pricing_exemptions"),
+        getCollection("vehicle_regulatory_process"),
+        getCollection("municipal_regulations"),
+        getCollection("permits"),
+        getCollection("taxi_points")
       ]);
       setDrivers(drv);
       setVehicles(veh);
@@ -68,6 +78,10 @@ export function useOperations() {
       setPackages(pkg);
       setBillingProfiles(bprof);
       setExemptions(ex);
+      setRegulatoryProcesses(regProc || []);
+      setMunicipalRegulations(munReg || []);
+      setTaxiPermits(permits || []);
+      setTaxiPoints(points || []);
     } catch (e) {
       console.error("Erro ao carregar dados na Central de Operações", e);
     } finally {
@@ -184,6 +198,19 @@ export function useOperations() {
       if (!delForm.vehicleId) return { valid: false, reason: "Selecione um veículo." };
       const vehicle = selectedDelVehicle;
       if (!vehicle) return { valid: false };
+      if (vehicle.regulatoryBlocked) {
+        return { valid: false, reason: vehicle.regulatoryBlockReason || "Veículo com bloqueio regulatório ativo." };
+      }
+      const taxiPermit = taxiPermits.find(permit => permit.currentVehicleId === vehicle.id && !["suspended", "deregistered", "cancelled"].includes(permit.status));
+      if (taxiPermit?.expirationDate && new Date(`${taxiPermit.expirationDate}T23:59:59`) < new Date()) {
+        return { valid: false, reason: `Alvará ${taxiPermit.permitNumber} vencido. Locação bloqueada.` };
+      }
+      if (taxiPermit?.pointId) {
+        const taxiPoint = taxiPoints.find(point => point.id === taxiPermit.pointId);
+        if (taxiPoint && (taxiPoint.status !== "active" || new Date(`${taxiPoint.expirationDate}T23:59:59`) < new Date())) {
+          return { valid: false, reason: `Ponto de táxi ${taxiPoint.name} vencido ou inativo. Locação bloqueada.` };
+        }
+      }
       if (vehicle.status !== "active") {
         return { valid: false, reason: `O veículo está indisponível (Status: ${vehicle.status})` };
       }
@@ -199,6 +226,29 @@ export function useOperations() {
       const hasActiveAsg = assignments.some(a => a.active === true && a.vehicleId === vehicle.id);
       if (hasActiveAsg) {
         return { valid: false, reason: "Este veículo já possui um vínculo ativo." };
+      }
+      // Regulatory compliance check:
+      const process = regulatoryProcesses.find(rp => rp.vehicleId === vehicle.id);
+      if (process) {
+        const reg = municipalRegulations.find(r => r.city === process.city);
+        const checklist = process.checklist;
+        if (checklist) {
+          const needsTaximeter = process.operationType === "taxi" && (!reg || reg.requiresTaxiMeter);
+          const needsDtp = process.operationType === "taxi" && (!reg || reg.requiresPermitInspection);
+
+          if (!checklist.invoice || !checklist.crv || !checklist.renavam || !checklist.insuranceActive || !checklist.trackerInstalled) {
+            return { valid: false, reason: "Veículo possui pendências no checklist regulatório obrigatório (NF, CRV, Renavam, Seguro ou Rastreador)!" };
+          }
+          if (needsTaximeter && (!checklist.taximeterInstalled || !checklist.taximeterCalibrated)) {
+            return { valid: false, reason: "Veículo de táxi necessita de taxímetro instalado e aferido!" };
+          }
+          if (process.operationType === "taxi" && !checklist.permitIssued) {
+            return { valid: false, reason: "Alvará regulatório não emitido para este táxi!" };
+          }
+          if (needsDtp && !checklist.dtpInspectionApproved) {
+            return { valid: false, reason: "Vistoria regulatória municipal (DTP) pendente ou reprovada!" };
+          }
+        }
       }
     }
     if (step === 3) {
@@ -1073,10 +1123,30 @@ export function useOperations() {
     !assignments.some(a => a.active === true && a.driverId === d.id)
   );
 
-  const availableVehicles = vehicles.filter(v =>
-    v.status === "active" &&
-    !assignments.some(a => a.active === true && a.vehicleId === v.id)
-  );
+  const availableVehicles = vehicles.filter(v => {
+    if (v.status !== "active") return false;
+
+    // Check active assignments
+    if (assignments.some(a => a.active === true && a.vehicleId === v.id)) return false;
+
+    // Check compliance checklist
+    const process = regulatoryProcesses.find(rp => rp.vehicleId === v.id);
+    if (!process) return true; // legacy fallback
+
+    const reg = municipalRegulations.find(r => r.city === process.city);
+    const checklist = process.checklist;
+    if (!checklist) return true;
+
+    const needsTaximeter = process.operationType === "taxi" && (!reg || reg.requiresTaxiMeter);
+    const needsDtp = process.operationType === "taxi" && (!reg || reg.requiresPermitInspection);
+
+    if (!checklist.invoice || !checklist.crv || !checklist.renavam || !checklist.insuranceActive || !checklist.trackerInstalled) return false;
+    if (needsTaximeter && (!checklist.taximeterInstalled || !checklist.taximeterCalibrated)) return false;
+    if (process.operationType === "taxi" && !checklist.permitIssued) return false;
+    if (needsDtp && !checklist.dtpInspectionApproved) return false;
+
+    return true;
+  });
 
   return {
     // DB collections
@@ -1094,6 +1164,8 @@ export function useOperations() {
     packages,
     billingProfiles,
     exemptions,
+    regulatoryProcesses,
+    municipalRegulations,
     
     // Status/UI
     loading,

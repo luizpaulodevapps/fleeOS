@@ -1,999 +1,306 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useAuth } from "@/context/AuthContext";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  computeContractDailies,
-  resolveProfile,
-  resolveRule,
-  type DailyItem,
-  type DailyProfile,
-  type BillingRule,
-} from "@/lib/billingEngine";
-import { 
-  Lock, 
-  Unlock, 
-  DollarSign, 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  Printer, 
-  CheckCircle, 
-  X, 
-  User, 
-  CreditCard, 
   AlertCircle,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Banknote,
+  Ban,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  CircleDollarSign,
+  Clock3,
+  CreditCard,
   FileText,
-  CalendarOff,
-  CalendarCheck
+  HandCoins,
+  Landmark,
+  LockKeyhole,
+  Menu,
+  MinusCircle,
+  Printer,
+  QrCode,
+  ReceiptText,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  UserRound,
+  WalletCards,
+  X,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { useFinancialHub } from "../financial/_hooks/useFinancialHub";
+import { AccountsReceivable, FinancialTransaction } from "../financial/_lib/types";
 
-interface DriverLedger {
-  id: string;
-  driverId: string;
-  type: string;
-  amount: number;
-  description: string;
-  createdAt: string;
-}
+type CheckoutStep = "ready" | "pix_pending" | "approved";
 
-export default function CashierManager() {
-  const { currentUser, getCollection, addDocument, updateDocument, can } = useAuth();
-  
-  const [loading, setLoading] = useState(true);
-  const [drivers, setDrivers] = useState<any[]>([]);
-  const [contracts, setContracts] = useState<any[]>([]);
-  const [profiles, setProfiles] = useState<any[]>([]);
-  const [billingRules, setBillingRules] = useState<any[]>([]);
-  const [businessCalendar, setBusinessCalendar] = useState<any[]>([]);
-  const [billingSuspensions, setBillingSuspensions] = useState<any[]>([]);
-  const [activeSession, setActiveSession] = useState<any | null>(null);
-  const [movements, setMovements] = useState<any[]>([]);
-  const [ledger, setLedger] = useState<any[]>([]);
+const money = (value = 0) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
-  type PendingBilling = {
-    contract: any;
-    profile: DailyProfile;
-    rule: BillingRule;
-    items: DailyItem[];        // pending only (already-charged dates filtered out)
-    chargedCount: number;
-    exemptCount: number;
-    pendingAmount: number;
-    fromDate: string;
-    toDate: string;
-  };
-  const [pendingBilling, setPendingBilling] = useState<PendingBilling | null>(null);
+const date = (value?: string) => {
+  if (!value) return "-";
+  return new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+};
 
-  // Forms
-  const [openingAmount, setOpeningAmount] = useState("");
-  
-  // 3-Click Payment Form
+const titleLabels: Record<string, string> = {
+  rent: "Diária",
+  fine: "Multa",
+  claim_deductible: "Franquia de sinistro",
+  adjustment: "Ajuste",
+};
+
+export default function CashierPage() {
+  const hub = useFinancialHub();
+  const { updateDocument, currentUser } = useAuth();
+  const [query, setQuery] = useState("");
   const [selectedDriverId, setSelectedDriverId] = useState("");
-  const [driverBalance, setDriverBalance] = useState(0);
-  const [receiveAmount, setReceiveAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("Pix");
-  
-  // Skimming Form
-  const [withdrawalAmount, setWithdrawalAmount] = useState("");
-  const [withdrawalType, setWithdrawalType] = useState("WITHDRAWAL");
-  const [withdrawalDesc, setWithdrawalDesc] = useState("");
+  const [selectedArIds, setSelectedArIds] = useState<string[]>([]);
+  const [amountReceived, setAmountReceived] = useState("");
+  const [method, setMethod] = useState<FinancialTransaction["method"]>("pix");
+  const [step, setStep] = useState<CheckoutStep>("ready");
+  const [pendingTransaction, setPendingTransaction] = useState<FinancialTransaction | null>(null);
+  const [receipt, setReceipt] = useState<FinancialTransaction | null>(null);
+  const [cashDrawerOpen, setCashDrawerOpen] = useState(false);
+  const [installmentOpen, setInstallmentOpen] = useState(false);
+  const [statementOpen, setStatementOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  // Closing Form
-  const [physicalCount, setPhysicalCount] = useState("");
+  const selectedDriver = hub.drivers.find((driver) => driver.id === selectedDriverId);
+  const driverContracts = hub.contracts.filter((contract) => contract.driverId === selectedDriverId && contract.status !== "closed");
+  const activeContract = driverContracts[0];
+  const activeVehicle = hub.vehicles.find((vehicle) => vehicle.id === activeContract?.vehicleId);
+  const score = selectedDriverId ? hub.getDriverCreditScore(selectedDriverId) : null;
 
-  // Modals / Overlay
-  const [receiptToShow, setReceiptToShow] = useState<any | null>(null);
-  const [borderoToShow, setBorderoToShow] = useState<any | null>(null);
+  const openDebts = useMemo(() => hub.receivables
+    .filter((item) => item.driverId === selectedDriverId && item.status !== "paid" && item.status !== "cancelled")
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()), [hub.receivables, selectedDriverId]);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [sessions, drvList, ledList, movList, conList, profList, brList, bcList, bsList] = await Promise.all([
-        getCollection("cashier_sessions"),
-        getCollection("drivers"),
-        getCollection("driver_ledger"),
-        getCollection("cashier_movements"),
-        getCollection("contracts"),
-        getCollection("daily_rate_profiles"),
-        getCollection("billing_rules"),
-        getCollection("business_calendar"),
-        getCollection("billing_suspensions"),
-      ]);
+  useEffect(() => {
+    setSelectedArIds(openDebts.map((item) => item.id));
+  }, [selectedDriverId, hub.receivables.length]);
 
-      setDrivers(drvList);
-      setLedger(ledList);
-      setContracts(conList);
-      setProfiles(profList);
-      setBillingRules(brList);
-      setBusinessCalendar(bcList);
-      setBillingSuspensions(bsList);
+  const selectedDebts = openDebts.filter((item) => selectedArIds.includes(item.id));
+  const selectedTotal = selectedDebts.reduce((total, item) => total + Number(item.amount || 0) - Number(item.paidAmount || 0), 0);
+  const receivedValue = Number(amountReceived || selectedTotal || 0);
+  const difference = receivedValue - selectedTotal;
 
-      // Find if there is an open session for today/operator
-      const openSession = sessions.find(s => s.status === "open");
-      if (openSession) {
-        setActiveSession(openSession);
-        // Load movements for this session
-        const sessionMovements = movList.filter(m => m.cashierId === openSession.id);
-        setMovements(sessionMovements);
-      } else {
-        setActiveSession(null);
-        setMovements([]);
-      }
+  useEffect(() => {
+    if (selectedTotal > 0) setAmountReceived(selectedTotal.toFixed(2));
+  }, [selectedTotal]);
 
-      if (drvList.length > 0 && !selectedDriverId) {
-        setSelectedDriverId(drvList[0].id);
-      }
-    } catch (e) {
-      console.error("Erro ao carregar dados do caixa", e);
-    } finally {
-      setLoading(false);
-    }
+  const ledger = useMemo(() => hub.ledger
+    .filter((entry) => entry.driverId === selectedDriverId)
+    .slice()
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()), [hub.ledger, selectedDriverId]);
+
+  const ledgerBalance = ledger.reduce((total, entry) => total + Number(entry.amount || 0), 0);
+
+  const searchResults = useMemo(() => {
+    const normalized = query.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!normalized) return [];
+    return hub.drivers.filter((driver) => {
+      const name = String(driver.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const cpf = String(driver.cpf || "").replace(/[^a-z0-9]/g, "");
+      const contract = hub.contracts.find((item) => item.driverId === driver.id && item.status !== "closed");
+      const vehicle = hub.vehicles.find((item) => item.id === contract?.vehicleId);
+      const vehicleTerms = `${vehicle?.plate || ""}${vehicle?.prefix || ""}${vehicle?.internalCode || ""}`.toLowerCase().replace(/[^a-z0-9]/g, "");
+      return name.includes(normalized) || cpf.includes(normalized) || vehicleTerms.includes(normalized);
+    }).slice(0, 8);
+  }, [query, hub.drivers, hub.contracts, hub.vehicles]);
+
+  const selectDriver = (driverId: string) => {
+    setSelectedDriverId(driverId);
+    setQuery("");
+    setStep("ready");
+    setReceipt(null);
+    setPendingTransaction(null);
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const toggleDebt = (id: string) => {
+    setSelectedArIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  };
 
-  // Recompute balance + pending dailies whenever the selected driver or any
-  // engine input changes. Materialization happens only on payment submit.
-  useEffect(() => {
-    if (!selectedDriverId) {
-      setDriverBalance(0);
-      setPendingBilling(null);
-      setReceiveAmount("0");
-      return;
-    }
-
-    const driverEntries = ledger.filter(entry => entry.driverId === selectedDriverId);
-    const balance = driverEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-    setDriverBalance(balance);
-
-    const contract = contracts.find(c => c.driverId === selectedDriverId && c.status === "Ativo");
-    let pendingAmount = 0;
-
-    if (contract) {
-      const profile = resolveProfile(contract, profiles);
-      const rule = resolveRule(contract, profile, billingRules);
-      const today = new Date().toISOString().split("T")[0];
-      const fromDate = contract.startDate || today;
-
-      const result = computeContractDailies({
-        contract,
-        profile,
-        rule,
-        calendar: businessCalendar,
-        suspensions: billingSuspensions,
-        fromDate,
-        toDate: today,
-      });
-
-      // Idempotency: filter out days already materialized in the ledger.
-      const chargedSet = new Set(
-        ledger
-          .filter(e => e.driverId === selectedDriverId && e.type === "daily" && e.contractId === contract.id)
-          .map(e => e.referenceDate)
-          .filter(Boolean)
+  const receivePayment = async () => {
+    if (!selectedDriverId || selectedArIds.length === 0 || receivedValue <= 0 || !hub.activeSession) return;
+    setSaving(true);
+    try {
+      const gateway = method === "pix" ? "mercado_pago" : method === "card" ? "stripe" : "manual";
+      const transaction = await hub.submitTransaction(
+        selectedArIds.length === 1 ? selectedArIds[0] : "auto_all",
+        selectedDriverId,
+        receivedValue,
+        method,
+        gateway,
+        "credit",
+        "keep_partial",
+        selectedArIds
       );
-      const pendingItems = result.items.filter(i => !chargedSet.has(i.date));
-      const pendingCharged = pendingItems.filter(i => i.isCharged);
-      pendingAmount = pendingCharged.reduce((s, i) => s + i.rate, 0);
-
-      setPendingBilling({
-        contract,
-        profile,
-        rule,
-        items: pendingItems,
-        chargedCount: pendingCharged.length,
-        exemptCount: pendingItems.length - pendingCharged.length,
-        pendingAmount,
-        fromDate,
-        toDate: today,
-      });
-    } else {
-      setPendingBilling(null);
-    }
-
-    // Pre-fill: total devido = saldo devedor (se ledger negativo) + pendências ainda não materializadas
-    const totalOwed = pendingAmount + Math.max(0, -balance);
-    setReceiveAmount(totalOwed > 0 ? totalOwed.toFixed(2) : "0");
-  }, [selectedDriverId, ledger, contracts, profiles, billingRules, businessCalendar, billingSuspensions]);
-
-  // Open cashier
-  const handleOpenCashier = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const initialAmt = Number(openingAmount) || 0;
-      const newSession = await addDocument("cashier_sessions", {
-        operatorId: currentUser?.displayName || "Operador",
-        openedAt: new Date().toISOString(),
-        closedAt: null,
-        openingAmount: initialAmt,
-        closingAmount: 0,
-        difference: 0,
-        status: "open"
-      });
-      setOpeningAmount("");
-      loadData();
-    } catch (e) {
-      console.error("Erro ao abrir caixa", e);
-    }
-  };
-
-  // 3-Click Receive Payment
-  const handleReceivePayment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeSession || !selectedDriverId) return;
-
-    try {
-      const value = Number(receiveAmount);
-      if (value <= 0) {
-        alert("Insira um valor maior que zero.");
-        return;
+      if (!transaction) return;
+      setPendingTransaction(transaction);
+      if (method === "pix") {
+        setStep("pix_pending");
+      } else {
+        await hub.webhookApproveTransaction(transaction.id, transaction);
+        setReceipt({ ...transaction, status: "approved" });
+        setStep("approved");
+        setSelectedArIds([]);
       }
-
-      const driverObj = drivers.find(d => d.id === selectedDriverId);
-      const driverName = driverObj ? driverObj.name : "Motorista";
-
-      // 0. Materialize pending dailies as ledger entries (idempotent — pendingBilling
-      //    was already filtered against existing referenceDates).
-      let materializedCount = 0;
-      let materializedTotal = 0;
-      if (pendingBilling) {
-        for (const item of pendingBilling.items) {
-          if (!item.isCharged) continue;
-          await addDocument("driver_ledger", {
-            driverId: selectedDriverId,
-            contractId: pendingBilling.contract.id,
-            referenceDate: item.date,
-            type: "daily",
-            amount: -item.rate,
-            description: `Diária ${item.date} (${item.dayOfWeek}) — ${pendingBilling.profile.name}`,
-          });
-          materializedCount++;
-          materializedTotal += item.rate;
-        }
-      }
-
-      // 1. Create cashier movement
-      const movement = await addDocument("cashier_movements", {
-        cashierId: activeSession.id,
-        type: "RECEIPT",
-        amount: value,
-        paymentMethod: paymentMethod,
-        description: materializedCount > 0
-          ? `Recebimento de ${materializedCount} diária(s) + ajuste — ${driverName}`
-          : `Recebimento — ${driverName}`,
-      });
-
-      // 2. Update driver ledger (Credit entry — the actual payment)
-      await addDocument("driver_ledger", {
-        driverId: selectedDriverId,
-        type: "payment",
-        amount: value,
-        description: `Recebimento Caixa (${paymentMethod})`,
-      });
-
-      // Show receipt popup
-      setReceiptToShow({
-        driverName,
-        value,
-        paymentMethod,
-        operator: activeSession.operatorId,
-        date: new Date().toLocaleDateString("pt-BR") + " " + new Date().toLocaleTimeString("pt-BR"),
-        id: movement.id
-      });
-
-      // Reload
-      loadData();
-    } catch (e) {
-      console.error("Erro ao receber diária", e);
+    } finally {
+      setSaving(false);
     }
   };
 
-  // Withdraw / Skimming (Sangria)
-  const handleWithdrawal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeSession) return;
-
+  const confirmPix = async () => {
+    if (!pendingTransaction) return;
+    setSaving(true);
     try {
-      const value = Number(withdrawalAmount);
-      if (value <= 0) {
-        alert("Insira um valor de retirada válido.");
-        return;
-      }
-
-      await addDocument("cashier_movements", {
-        cashierId: activeSession.id,
-        type: withdrawalType,
-        amount: value,
-        paymentMethod: "Dinheiro",
-        description: withdrawalDesc || "Sangria operacional"
-      });
-
-      setWithdrawalAmount("");
-      setWithdrawalDesc("");
-      loadData();
-      alert("Retirada registrada com sucesso!");
-    } catch (e) {
-      console.error("Erro ao realizar sangria", e);
+      await hub.webhookApproveTransaction(pendingTransaction.id, pendingTransaction);
+      setReceipt({ ...pendingTransaction, status: "approved" });
+      setStep("approved");
+      setSelectedArIds([]);
+    } finally {
+      setSaving(false);
     }
   };
 
-  // Close Cashier
-  const handleCloseCashier = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeSession) return;
-
-    try {
-      const physicalCountAmt = Number(physicalCount);
-      const expectedBalance = getExpectedBalance();
-      const difference = physicalCountAmt - expectedBalance;
-
-      // Close cashier session
-      const updatedSession = {
-        ...activeSession,
-        closedAt: new Date().toISOString(),
-        closingAmount: physicalCountAmt,
-        difference: difference,
-        status: "closed"
-      };
-
-      await updateDocument("cashier_sessions", activeSession.id, updatedSession);
-
-      // Create Bordero Data for the Receipt Modal
-      const pixTotal = movements.filter(m => m.paymentMethod === "Pix" && m.type === "RECEIPT").reduce((s, m) => s + m.amount, 0);
-      const cardTotal = movements.filter(m => m.paymentMethod === "Cartão" && m.type === "RECEIPT").reduce((s, m) => s + m.amount, 0);
-      const cashReceipts = movements.filter(m => m.paymentMethod === "Dinheiro" && m.type === "RECEIPT").reduce((s, m) => s + m.amount, 0);
-      const transferTotal = movements.filter(m => m.paymentMethod === "Transferência" && m.type === "RECEIPT").reduce((s, m) => s + m.amount, 0);
-      
-      const withdrawals = movements.filter(m => m.type !== "RECEIPT").reduce((s, m) => s + m.amount, 0);
-
-      setBorderoToShow({
-        operator: activeSession.operatorId,
-        openedAt: new Date(activeSession.openedAt).toLocaleString("pt-BR"),
-        closedAt: new Date().toLocaleString("pt-BR"),
-        openingAmount: activeSession.openingAmount,
-        totalPix: pixTotal,
-        totalCard: cardTotal,
-        totalCash: cashReceipts,
-        totalTransfer: transferTotal,
-        totalWithdrawals: withdrawals,
-        expectedBalance,
-        physicalCount: physicalCountAmt,
-        difference,
-        movements: [...movements]
-      });
-
-      setPhysicalCount("");
-      setActiveSession(null);
-      loadData();
-    } catch (e) {
-      console.error("Erro ao fechar caixa", e);
-    }
+  const blockDriver = async () => {
+    if (!selectedDriver || !confirm(`Bloquear ${selectedDriver.name} para novas retiradas de veículo?`)) return;
+    await updateDocument("drivers", selectedDriver.id, { status: "blocked_financial", financialBlockedAt: new Date().toISOString(), financialBlockedBy: currentUser?.displayName || "Caixa" });
+    await hub.reload();
   };
 
-  // Calculate expected cashier balance dynamically
-  const getExpectedBalance = () => {
-    if (!activeSession) return 0;
-    const opening = Number(activeSession.openingAmount || 0);
-    const receipts = movements.filter(m => m.type === "RECEIPT").reduce((sum, m) => sum + Number(m.amount || 0), 0);
-    const withdrawals = movements.filter(m => m.type !== "RECEIPT").reduce((sum, m) => sum + Number(m.amount || 0), 0);
-    return opening + receipts - withdrawals;
-  };
-
-  const expectedBalance = getExpectedBalance();
+  if (hub.loading) {
+    return <div className="min-h-[560px] flex flex-col items-center justify-center gap-3"><div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" /><p className="text-xs font-semibold text-slate-500">Preparando checkout...</p></div>;
+  }
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto print:bg-white print:text-black">
-      {/* Breadcrumbs */}
-      <nav className="flex items-center gap-2 text-on-surface-variant text-xs print:hidden">
-        <span className="hover:text-primary cursor-pointer">Financeiro</span>
-        <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-        <span className="text-primary font-bold">Frente de Caixa</span>
-      </nav>
+    <div className="min-w-0 text-slate-900">
+      <header className="flex items-center justify-between gap-4 mb-5">
+        <div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Frente de atendimento</p><h1 className="font-geist text-2xl font-black tracking-tight mt-1">Checkout</h1></div>
+        <button onClick={() => setCashDrawerOpen(true)} className="h-10 px-4 rounded-xl border border-slate-200 bg-white flex items-center gap-2 text-xs font-bold hover:border-indigo-300 hover:text-indigo-700 shadow-sm"><Menu className="w-4 h-4" /> Caixa <span className={`w-2 h-2 rounded-full ${hub.activeSession ? "bg-emerald-500" : "bg-red-500"}`} /></button>
+      </header>
 
-      {/* Header */}
-      <div className="border-b border-outline-variant pb-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-primary font-geist">
-            Operação de Caixa
-          </h1>
-          <p className="text-on-surface-variant text-xs mt-1">
-            Receba diárias de motoristas em tempo real, registre sangrias e faça fechamentos com borderôs automatizados.
-          </p>
-        </div>
-      </div>
+      <section className="relative z-20 mb-4">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+        <input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar motorista por nome, CPF, placa ou prefixo do táxi" className="w-full h-14 pl-12 pr-4 rounded-2xl bg-white border border-slate-200 text-sm font-medium outline-none shadow-sm focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100" />
+        {query && <div className="absolute left-0 right-0 top-[62px] rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden">{searchResults.map((driver) => { const contract = hub.contracts.find((item) => item.driverId === driver.id && item.status !== "closed"); const vehicle = hub.vehicles.find((item) => item.id === contract?.vehicleId); return <button key={driver.id} onClick={() => selectDriver(driver.id)} className="w-full px-4 py-3 flex items-center justify-between text-left border-b last:border-0 border-slate-100 hover:bg-indigo-50"><div><p className="text-xs font-bold text-slate-900">{driver.name}</p><p className="text-[10px] text-slate-500 mt-0.5">{driver.cpf || "CPF não informado"} · {vehicle?.plate || "Sem veículo ativo"}</p></div><ChevronRight className="w-4 h-4 text-slate-400" /></button>})}{searchResults.length === 0 && <p className="p-5 text-xs text-slate-400 text-center">Nenhum motorista encontrado.</p>}</div>}
+      </section>
 
-      {loading ? (
-        <div className="p-12 text-center bg-surface-container-lowest border border-outline-variant rounded-xl">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-on-surface-variant text-xs">Carregando fluxo de caixa...</p>
-        </div>
-      ) : !activeSession ? (
-        /* CLOSED CASHIER PANEL */
-        <div className="max-w-md mx-auto bg-surface-container-lowest border border-outline-variant p-8 rounded-xl text-center space-y-6 shadow-sm">
-          <div className="w-16 h-16 bg-red-500/10 text-red-600 rounded-full flex items-center justify-center mx-auto border border-red-500/20">
-            <Lock className="w-8 h-8" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-primary font-geist">Caixa Fechado</h2>
-            <p className="text-xs text-on-surface-variant mt-1">
-              O caixa atual está fechado. Para receber valores ou lançar sangrias, insira o saldo de abertura e inicie o turno.
-            </p>
-          </div>
-
-          <form onSubmit={handleOpenCashier} className="space-y-4 text-left">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-2">
-                Fundo de Caixa Inicial (Abertura R$)
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-3 text-xs font-bold text-outline">R$</span>
-                <input
-                  type="number"
-                  required
-                  placeholder="0,00"
-                  value={openingAmount}
-                  onChange={(e) => setOpeningAmount(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20 text-on-surface"
-                />
-              </div>
-            </div>
-
-            {can("cashier.open") ? (
-              <button
-                type="submit"
-                className="w-full py-3 rounded-lg bg-primary text-on-primary font-bold hover:opacity-90 transition-all text-xs flex items-center justify-center space-x-2"
-              >
-                <Unlock className="w-4 h-4" />
-                <span>Abrir Caixa Operacional</span>
-              </button>
-            ) : (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg text-xs font-semibold flex items-center justify-center space-x-2">
-                <AlertCircle className="w-4 h-4" />
-                <span>Você não tem permissão para abrir o caixa.</span>
-              </div>
-            )}
-          </form>
-        </div>
+      {!selectedDriver ? (
+        <EmptyCheckout />
       ) : (
-        /* OPEN CASHIER OPERATIONAL GRID */
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-gutter items-start">
-          {/* Main Actions Column */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Operator info and general KPIs */}
-            <div className="bg-surface-container-lowest border border-outline-variant p-5 rounded-xl grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center border border-emerald-500/20">
-                  <Unlock className="w-5 h-5 animate-pulse" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-outline uppercase font-bold">Operador Ativo</p>
-                  <p className="text-xs font-bold text-primary">{activeSession.operatorId}</p>
-                </div>
+        <div className="grid xl:grid-cols-[minmax(0,1fr)_340px] gap-5 items-start">
+          <main className="space-y-4">
+            <DriverCard driver={selectedDriver} vehicle={activeVehicle} score={score} balance={ledgerBalance} onReceive={() => setStep("ready")} onInstallment={() => setInstallmentOpen(true)} onStatement={() => setStatementOpen(true)} onBlock={blockDriver} />
+
+            <section className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between"><div><h2 className="font-geist text-sm font-black">Débitos</h2><p className="text-[10px] text-slate-500 mt-0.5">Selecione exatamente o que será quitado.</p></div><button onClick={() => setSelectedArIds(selectedArIds.length === openDebts.length ? [] : openDebts.map((item) => item.id))} className="text-[10px] font-bold text-indigo-600">{selectedArIds.length === openDebts.length ? "Limpar seleção" : "Selecionar todos"}</button></div>
+              <div className="divide-y divide-slate-100">
+                {openDebts.map((item) => <DebtRow key={item.id} item={item} selected={selectedArIds.includes(item.id)} onToggle={() => toggleDebt(item.id)} />)}
+                {openDebts.length === 0 && <div className="py-12 text-center"><CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" /><p className="text-sm font-bold text-slate-700 mt-3">Nenhum débito em aberto</p><p className="text-xs text-slate-400 mt-1">A conta deste motorista está em dia.</p></div>}
               </div>
+              <div className="px-5 py-4 bg-slate-50 flex items-center justify-between"><span className="text-xs font-bold text-slate-500">Total selecionado</span><strong className="font-geist text-xl font-black text-slate-950">{money(selectedTotal)}</strong></div>
+            </section>
 
-              <div>
-                <p className="text-[10px] text-outline uppercase font-bold">Aberto em</p>
-                <p className="text-xs font-semibold text-on-surface-variant">
-                  {new Date(activeSession.openedAt).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' })} ({new Date(activeSession.openedAt).toLocaleDateString("pt-BR")})
-                </p>
-              </div>
-
-              <div>
-                <p className="text-[10px] text-outline uppercase font-bold">Saldo de Caixa Esperado</p>
-                <p className="text-lg font-black text-primary">
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(expectedBalance)}
-                </p>
-              </div>
-            </div>
-
-            {/* PENDING DAILIES PANEL */}
-            {selectedDriverId && pendingBilling && (
-              <div className="bg-surface-container-lowest border border-outline-variant p-6 rounded-xl space-y-4">
-                <div className="flex items-center justify-between border-b border-outline-variant pb-3">
-                  <h2 className="text-sm font-bold text-primary uppercase tracking-wider font-geist flex items-center space-x-2">
-                    <CalendarCheck className="w-5 h-5 text-amber-500" />
-                    <span>Pendências de Diária</span>
-                  </h2>
-                  <span className="text-[10px] font-semibold text-outline">
-                    Período: {pendingBilling.fromDate} → {pendingBilling.toDate}
-                  </span>
+            {openDebts.length > 0 && (
+              <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+                <div className="flex items-center justify-between mb-4"><div><h2 className="font-geist text-sm font-black">Recebimento</h2><p className="text-[10px] text-slate-500 mt-0.5">Informe o valor e escolha como o motorista vai pagar.</p></div><WalletCards className="w-5 h-5 text-indigo-500" /></div>
+                <div className="grid md:grid-cols-[1fr_1.5fr] gap-4">
+                  <label><span className="block text-[9px] font-black uppercase tracking-wide text-slate-400 mb-1.5">Valor recebido</span><div className="relative"><span className="absolute left-3 top-3 text-xs font-bold text-slate-400">R$</span><input type="number" min="0" step="0.01" value={amountReceived} onChange={(event) => setAmountReceived(event.target.value)} className="checkout-input pl-9 font-geist font-black text-base" /></div></label>
+                  <div><span className="block text-[9px] font-black uppercase tracking-wide text-slate-400 mb-1.5">Forma de pagamento</span><div className="grid grid-cols-4 gap-2">{([{ id: "pix", label: "PIX", icon: QrCode }, { id: "card", label: "Cartão", icon: CreditCard }, { id: "cash", label: "Dinheiro", icon: Banknote }, { id: "transfer", label: "Transfer.", icon: Landmark }] as const).map((option) => <button key={option.id} onClick={() => setMethod(option.id)} className={`h-[44px] rounded-xl border flex items-center justify-center gap-1.5 text-[10px] font-bold transition-colors ${method === option.id ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-slate-200 text-slate-500 hover:border-slate-300"}`}><option.icon className="w-3.5 h-3.5" /> {option.label}</button>)}</div></div>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-                  <div className="bg-surface-container-low border border-outline-variant rounded-lg p-3">
-                    <p className="text-[10px] text-outline uppercase font-bold mb-0.5">Contrato / Tarifa</p>
-                    <p className="font-bold text-on-surface">{pendingBilling.profile.name}</p>
-                    <p className="text-[10px] text-on-surface-variant">
-                      R$ {Number(pendingBilling.profile.amount).toFixed(2)} / diária
-                    </p>
-                    {pendingBilling.contract.billingRuleNameSnapshot && (
-                      <p className="text-[10px] text-on-surface-variant mt-1 italic">
-                        {pendingBilling.contract.billingRuleNameSnapshot}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
-                    <p className="text-[10px] text-emerald-700 uppercase font-bold mb-0.5">A Cobrar</p>
-                    <p className="text-2xl font-black text-emerald-600">{pendingBilling.chargedCount}</p>
-                    <p className="text-[10px] text-emerald-700">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pendingBilling.pendingAmount)}
-                    </p>
-                  </div>
-
-                  <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
-                    <p className="text-[10px] text-amber-700 uppercase font-bold mb-0.5">Isentas no período</p>
-                    <p className="text-2xl font-black text-amber-600">{pendingBilling.exemptCount}</p>
-                    <p className="text-[10px] text-amber-700">fim de semana / feriado / suspensão</p>
-                  </div>
-                </div>
-
-                {pendingBilling.items.length > 0 && (
-                  <details className="text-xs">
-                    <summary className="cursor-pointer font-semibold text-primary hover:underline">
-                      Ver detalhamento dia a dia ({pendingBilling.items.length} dias)
-                    </summary>
-                    <div className="mt-3 max-h-48 overflow-y-auto border border-outline-variant rounded-lg">
-                      <table className="w-full text-[11px]">
-                        <thead className="bg-surface-container-low text-outline sticky top-0">
-                          <tr>
-                            <th className="px-3 py-1.5 text-left font-semibold">Data</th>
-                            <th className="px-3 py-1.5 text-left font-semibold">Dia</th>
-                            <th className="px-3 py-1.5 text-left font-semibold">Status</th>
-                            <th className="px-3 py-1.5 text-right font-semibold">Valor</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {pendingBilling.items.map((it, idx) => (
-                            <tr key={idx} className="border-t border-outline-variant/40">
-                              <td className="px-3 py-1.5 font-mono">{it.date}</td>
-                              <td className="px-3 py-1.5">{it.dayOfWeek}</td>
-                              <td className={`px-3 py-1.5 ${it.isCharged ? "text-emerald-600 font-semibold" : "text-amber-600"}`}>
-                                {it.reason}
-                              </td>
-                              <td className="px-3 py-1.5 text-right font-mono">
-                                {it.isCharged ? `R$ ${it.rate.toFixed(2)}` : "—"}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </details>
-                )}
-
-                <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-lg px-4 py-3">
-                  <div className="text-xs">
-                    <p className="text-[10px] text-outline uppercase font-bold">Total Devido</p>
-                    <p className="text-[10px] text-on-surface-variant">
-                      Diárias pendentes
-                      {driverBalance < 0 && ` + saldo devedor (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Math.abs(driverBalance))})`}
-                    </p>
-                  </div>
-                  <p className="text-2xl font-black text-primary">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                      pendingBilling.pendingAmount + Math.max(0, -driverBalance)
-                    )}
-                  </p>
-                </div>
-              </div>
+                <div className={`mt-4 rounded-xl px-4 py-3 flex items-center justify-between ${difference >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}><span className="text-[10px] font-bold">{difference > 0 ? "Crédito restante na conta" : difference < 0 ? "Saldo que continuará em aberto" : "Valor exato dos débitos"}</span><strong className="text-xs">{money(Math.abs(difference))}</strong></div>
+                {!hub.activeSession && <div className="mt-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 flex items-center gap-2 text-[10px] font-bold text-red-700"><LockKeyhole className="w-4 h-4" /> Abra o caixa antes de receber pagamentos.</div>}
+                <button disabled={!hub.activeSession || selectedTotal <= 0 || receivedValue <= 0 || saving} onClick={receivePayment} className="w-full h-12 mt-4 rounded-xl bg-slate-950 text-white text-xs font-black flex items-center justify-center gap-2 hover:bg-indigo-700 disabled:opacity-40"><HandCoins className="w-4 h-4" /> {saving ? "Processando..." : `Receber ${money(receivedValue)}`}</button>
+              </section>
             )}
+          </main>
 
-            {selectedDriverId && !pendingBilling && (
-              <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 text-xs text-amber-700 flex items-center gap-2">
-                <CalendarOff className="w-4 h-4" />
-                <span>Motorista sem contrato ativo. Apenas o saldo do livro-razão será considerado.</span>
-              </div>
-            )}
-
-            {/* FAST 3-CLICK RECEIPT WIDGET */}
-            <div className="bg-surface-container-lowest border border-outline-variant p-6 rounded-xl space-y-6">
-              <h2 className="text-sm font-bold text-primary uppercase tracking-wider font-geist flex items-center space-x-2 border-b border-outline-variant pb-3">
-                <DollarSign className="w-5 h-5 text-emerald-500" />
-                <span>Recebimento de Diária Rápido</span>
-              </h2>
-
-              <form onSubmit={handleReceivePayment} className="grid grid-cols-1 sm:grid-cols-12 gap-gutter items-end">
-                <div className="sm:col-span-4">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-2">
-                    Motorista
-                  </label>
-                  <select
-                    value={selectedDriverId}
-                    onChange={(e) => setSelectedDriverId(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20 text-on-surface"
-                  >
-                    {drivers.map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-2">
-                    Saldo Atual
-                  </label>
-                  <div className={`px-2 py-2.5 rounded-lg border text-center font-bold text-xs ${
-                    driverBalance >= 0 
-                      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" 
-                      : "bg-red-500/10 text-red-600 border-red-500/20"
-                  }`}>
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(driverBalance)}
-                  </div>
-                </div>
-
-                <div className="sm:col-span-3">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-2">
-                    Valor a Receber (R$)
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="0,00"
-                    value={receiveAmount}
-                    onChange={(e) => setReceiveAmount(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-xs font-bold text-primary outline-none focus:ring-2 focus:ring-primary/20 text-on-surface"
-                  />
-                </div>
-
-                <div className="sm:col-span-3">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-2">
-                    Meio
-                  </label>
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20 text-on-surface"
-                  >
-                    <option value="Pix">Pix</option>
-                    <option value="Dinheiro">Dinheiro</option>
-                    <option value="Cartão">Cartão</option>
-                    <option value="Transferência">Transferência</option>
-                  </select>
-                </div>
-
-                <div className="sm:col-span-12">
-                  {can("cashier.receive") ? (
-                    <button
-                      type="submit"
-                      className="w-full py-3 rounded-lg bg-emerald-500 text-white font-bold hover:bg-emerald-600 transition-all text-xs flex items-center justify-center space-x-2 shadow-lg shadow-emerald-500/10"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Confirmar Recebimento & Gerar Recibo</span>
-                    </button>
-                  ) : (
-                    <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg text-xs font-semibold flex items-center justify-center space-x-2">
-                      <AlertCircle className="w-4 h-4 text-red-500" />
-                      <span>Sem permissão para receber diárias.</span>
-                    </div>
-                  )}
-                </div>
-              </form>
-            </div>
-
-            {/* CASHIER MOVEMENTS SUMMARY */}
-            <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
-              <div className="p-4 border-b border-outline-variant bg-slate-50 flex items-center space-x-2">
-                <FileText className="w-4 h-4 text-primary" />
-                <h3 className="font-geist text-xs font-bold text-primary uppercase tracking-wider">Histórico de Lançamentos do Turno</h3>
-              </div>
-              <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead className="bg-slate-100/80 sticky top-0 border-b border-outline-variant">
-                    <tr>
-                      <th className="px-6 py-2.5 font-semibold text-on-surface-variant uppercase tracking-wider">Tipo</th>
-                      <th className="px-6 py-2.5 font-semibold text-on-surface-variant uppercase tracking-wider">Descrição</th>
-                      <th className="px-6 py-2.5 font-semibold text-on-surface-variant uppercase tracking-wider">Forma</th>
-                      <th className="px-6 py-2.5 font-semibold text-on-surface-variant uppercase tracking-wider">Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-outline-variant/60">
-                    {movements.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="px-6 py-8 text-center text-outline italic">Nenhum lançamento registrado neste turno.</td>
-                      </tr>
-                    ) : (
-                      movements.slice().reverse().map((m, idx) => (
-                        <tr key={m.id || idx} className="hover:bg-slate-50/50">
-                          <td className="px-6 py-3">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold border ${
-                              m.type === "RECEIPT"
-                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                                : "bg-red-500/10 text-red-600 border-red-500/20"
-                            }`}>
-                              {m.type === "RECEIPT" ? "Entrada" : m.type === "WITHDRAWAL" ? "Sangria" : m.type}
-                            </span>
-                          </td>
-                          <td className="px-6 py-3 font-medium text-primary">{m.description}</td>
-                          <td className="px-6 py-3 text-on-surface-variant">{m.paymentMethod}</td>
-                          <td className="px-6 py-3 font-bold text-primary">
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(m.amount)}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          {/* Sidebar Forms Column (Skimming & Closing) */}
-          <div className="space-y-6">
-            {/* SANGRIAS / RETIRADAS */}
-            <div className="bg-surface-container-lowest border border-outline-variant p-5 rounded-xl space-y-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-outline border-b border-outline-variant pb-2 flex items-center space-x-2">
-                <ArrowDownRight className="w-4 h-4 text-red-500" />
-                <span>Registrar Sangria / Retirada</span>
-              </h3>
-
-              <form onSubmit={handleWithdrawal} className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-outline mb-1.5">Valor da Retirada</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-xs font-bold text-outline">R$</span>
-                    <input
-                      type="number"
-                      required
-                      placeholder="0,00"
-                      value={withdrawalAmount}
-                      onChange={(e) => setWithdrawalAmount(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20 text-on-surface"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-outline mb-1.5">Tipo de Saída</label>
-                  <select
-                    value={withdrawalType}
-                    onChange={(e) => setWithdrawalType(e.target.value)}
-                    className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20 text-on-surface"
-                  >
-                    <option value="WITHDRAWAL">Sangria (Dinheiro Físico)</option>
-                    <option value="TRANSFER">Transferência para Conta</option>
-                    <option value="ADJUSTMENT">Ajuste de Saldo Negativo</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-outline mb-1.5">Descrição/Destino</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Depósito boca de caixa"
-                    value={withdrawalDesc}
-                    onChange={(e) => setWithdrawalDesc(e.target.value)}
-                    className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20 text-on-surface"
-                  />
-                </div>
-
-                {can("cashier.withdraw") ? (
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 rounded-lg border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-600 font-bold text-xs transition-all flex items-center justify-center space-x-1.5"
-                  >
-                    <ArrowDownRight className="w-3.5 h-3.5" />
-                    <span>Lançar Retirada</span>
-                  </button>
-                ) : (
-                  <div className="p-2.5 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg text-xs font-semibold text-center">
-                    Sem permissão para lançar sangria.
-                  </div>
-                )}
-              </form>
-            </div>
-
-            {/* FECHAMENTO DE CAIXA */}
-            <div className="bg-surface-container-lowest border border-outline-variant p-5 rounded-xl space-y-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-outline border-b border-outline-variant pb-2 flex items-center space-x-2">
-                <Lock className="w-4 h-4 text-primary" />
-                <span>Fechamento do Caixa</span>
-              </h3>
-
-              <form onSubmit={handleCloseCashier} className="space-y-4 text-xs">
-                <div className="bg-slate-50 p-3.5 rounded-lg space-y-2 border border-outline-variant/40">
-                  <div className="flex justify-between">
-                    <span className="text-outline font-semibold">Abertura:</span>
-                    <span className="font-bold text-primary">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(activeSession.openingAmount)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-outline font-semibold">Total Lançado (Líquido):</span>
-                    <span className="font-bold text-primary">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(expectedBalance - activeSession.openingAmount)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between border-t border-dashed border-outline-variant/60 pt-2 text-sm">
-                    <span className="text-primary font-bold">Saldo Esperado:</span>
-                    <span className="font-black text-primary">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(expectedBalance)}
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-outline mb-1.5">
-                    Saldo Físico Contado (Dinheiro/Contas)
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-xs font-bold text-outline">R$</span>
-                    <input
-                      type="number"
-                      required
-                      placeholder="0,00"
-                      value={physicalCount}
-                      onChange={(e) => setPhysicalCount(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs font-bold text-primary outline-none focus:ring-2 focus:ring-primary/20 text-on-surface"
-                    />
-                  </div>
-                </div>
-
-                {can("cashier.close") ? (
-                  <button
-                    type="submit"
-                    className="w-full py-3 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 transition-all text-xs flex items-center justify-center space-x-1.5"
-                  >
-                    <Lock className="w-4 h-4" />
-                    <span>Fechar Caixa & Gerar Borderô</span>
-                  </button>
-                ) : (
-                  <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg text-xs font-semibold text-center">
-                    Sem permissão para fechar o caixa.
-                  </div>
-                )}
-              </form>
-            </div>
-          </div>
+          <StatementPanel entries={ledger} />
         </div>
       )}
 
-      {/* RECEIPT POPUP MODAL */}
-      {receiptToShow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-obsidian-950/40 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-background border border-outline-variant rounded-xl p-6 relative shadow-2xl space-y-4 print:p-0 print:border-none print:shadow-none">
-            {/* Modal Close Button (Hidden on Print) */}
-            <button
-              onClick={() => setReceiptToShow(null)}
-              className="absolute right-4 top-4 p-1.5 rounded-lg text-outline hover:text-primary hover:bg-surface-container print:hidden"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Recibo Printable Container */}
-            <div className="text-center space-y-4 border border-outline-variant p-4 rounded-xl print:border-none">
-              <h2 className="text-sm font-black uppercase tracking-wider text-primary font-geist">Recibo de Recebimento</h2>
-              <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20">
-                <CheckCircle className="w-6 h-6" />
-              </div>
-
-              <div className="text-xs space-y-2 text-left bg-slate-50 p-3 rounded-lg">
-                <p><span className="text-outline font-semibold">Motorista:</span> <span className="font-bold text-primary">{receiptToShow.driverName}</span></p>
-                <p><span className="text-outline font-semibold">Valor Recebido:</span> <span className="font-bold text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receiptToShow.value)}</span></p>
-                <p><span className="text-outline font-semibold">Forma de Pago:</span> <span className="font-semibold text-primary">{receiptToShow.paymentMethod}</span></p>
-                <p><span className="text-outline font-semibold">Operador:</span> <span className="text-on-surface-variant font-medium">{receiptToShow.operator}</span></p>
-                <p><span className="text-outline font-semibold">Data/Hora:</span> <span className="text-on-surface-variant font-mono">{receiptToShow.date}</span></p>
-              </div>
-
-              <p className="text-[10px] text-outline leading-relaxed italic">Comprovante gerado digitalmente pela plataforma FleetOS.</p>
-            </div>
-
-            {/* Print Button (Hidden on Print) */}
-            <button
-              onClick={() => window.print()}
-              className="w-full py-2.5 rounded-lg bg-primary text-on-primary font-bold text-xs flex items-center justify-center space-x-1.5 print:hidden"
-            >
-              <Printer className="w-4 h-4" />
-              <span>Imprimir Via Motorista</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* BORDERÔ POPUP MODAL */}
-      {borderoToShow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-obsidian-950/40 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-background border border-outline-variant rounded-xl p-6 relative shadow-2xl space-y-4 print:p-0 print:border-none print:shadow-none">
-            {/* Close Button (Hidden on print) */}
-            <button
-              onClick={() => setBorderoToShow(null)}
-              className="absolute right-4 top-4 p-1.5 rounded-lg text-outline hover:text-primary hover:bg-surface-container print:hidden"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Bordero printable container */}
-            <div className="space-y-4 border border-outline-variant p-5 rounded-xl print:border-none">
-              <div className="text-center border-b border-outline-variant/60 pb-3">
-                <h2 className="text-base font-black uppercase tracking-wider text-primary font-geist">Borderô de Fechamento de Caixa</h2>
-                <p className="text-[10px] text-outline mt-0.5">FleetOS Enterprise Fleet Admin</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-3 rounded-lg">
-                <div>
-                  <p className="text-outline font-semibold">Operador:</p>
-                  <p className="font-bold text-primary">{borderoToShow.operator}</p>
-                </div>
-                <div>
-                  <p className="text-outline font-semibold">Status do Caixa:</p>
-                  <p className="font-bold text-red-600">Encerrado</p>
-                </div>
-                <div>
-                  <p className="text-outline font-semibold">Abertura:</p>
-                  <p className="font-medium text-on-surface-variant font-mono">{borderoToShow.openedAt}</p>
-                </div>
-                <div>
-                  <p className="text-outline font-semibold">Fechamento:</p>
-                  <p className="font-medium text-on-surface-variant font-mono">{borderoToShow.closedAt}</p>
-                </div>
-              </div>
-
-              <div className="space-y-2 text-xs">
-                <p className="font-bold text-primary uppercase text-[10px] tracking-wider border-b border-outline-variant/40 pb-1">Movimentações consolidadas</p>
-                <div className="grid grid-cols-2 gap-y-1.5">
-                  <span className="text-outline">Fundo de Caixa (Abertura):</span>
-                  <span className="font-semibold text-right text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(borderoToShow.openingAmount)}</span>
-                  
-                  <span className="text-outline">Recebimentos em Pix:</span>
-                  <span className="font-semibold text-right text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(borderoToShow.totalPix)}</span>
-                  
-                  <span className="text-outline">Recebimentos em Cartão:</span>
-                  <span className="font-semibold text-right text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(borderoToShow.totalCard)}</span>
-                  
-                  <span className="text-outline">Recebimentos em Dinheiro:</span>
-                  <span className="font-semibold text-right text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(borderoToShow.totalCash)}</span>
-
-                  <span className="text-outline">Recebimentos em Transferências:</span>
-                  <span className="font-semibold text-right text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(borderoToShow.totalTransfer)}</span>
-                  
-                  <span className="text-outline">Total Retiradas / Sangrias:</span>
-                  <span className="font-semibold text-right text-red-600">- {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(borderoToShow.totalWithdrawals)}</span>
-                </div>
-              </div>
-
-              <div className="bg-slate-100 p-3 rounded-lg grid grid-cols-3 gap-2 text-xs text-center font-bold">
-                <div>
-                  <p className="text-[9px] text-outline uppercase">Saldo Esperado</p>
-                  <p className="text-primary mt-0.5">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(borderoToShow.expectedBalance)}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] text-outline uppercase">Saldo Contado</p>
-                  <p className="text-primary mt-0.5">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(borderoToShow.physicalCount)}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] text-outline uppercase">Diferença/Quebra</p>
-                  <p className={`mt-0.5 ${borderoToShow.difference === 0 ? "text-accent-green" : borderoToShow.difference > 0 ? "text-emerald-600" : "text-red-600"}`}>
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(borderoToShow.difference)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Signature Lines */}
-              <div className="pt-8 grid grid-cols-2 gap-4 text-[10px] text-center border-t border-outline-variant/60">
-                <div>
-                  <div className="border-b border-outline-variant w-full h-8 mb-1"></div>
-                  <p className="text-outline">Assinatura Operador</p>
-                </div>
-                <div>
-                  <div className="border-b border-outline-variant w-full h-8 mb-1"></div>
-                  <p className="text-outline">Assinatura Gerência / Conferência</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Print Button (Hidden on Print) */}
-            <button
-              onClick={() => window.print()}
-              className="w-full py-2.5 rounded-lg bg-primary text-on-primary font-bold text-xs flex items-center justify-center space-x-1.5 print:hidden"
-            >
-              <Printer className="w-4 h-4" />
-              <span>Imprimir Fechamento e Borderô</span>
-            </button>
-          </div>
-        </div>
-      )}
+      {step === "pix_pending" && pendingTransaction && <PixModal amount={pendingTransaction.amount} transaction={pendingTransaction.transactionNumber} saving={saving} onConfirm={confirmPix} onClose={() => setStep("ready")} />}
+      {step === "approved" && receipt && <ReceiptModal transaction={receipt} driver={selectedDriver} method={method} onClose={() => { setStep("ready"); setReceipt(null); }} />}
+      {cashDrawerOpen && <CashDrawer hub={hub} onClose={() => setCashDrawerOpen(false)} />}
+      {installmentOpen && <InstallmentModal debts={selectedDebts.length ? selectedDebts : openDebts} driver={selectedDriver} createPaymentPlan={hub.createPaymentPlan} onClose={() => setInstallmentOpen(false)} />}
+      {statementOpen && <StatementModal entries={ledger} driver={selectedDriver} onClose={() => setStatementOpen(false)} />}
+      <style jsx global>{`.checkout-input{width:100%;height:44px;border:1px solid #e2e8f0;border-radius:.75rem;padding-right:.75rem;background:#fff;outline:none}.checkout-input:focus{border-color:#818cf8;box-shadow:0 0 0 3px #eef2ff}@media print{.receipt-print{position:fixed;inset:0;background:white;z-index:999;padding:32px}.receipt-print button{display:none}}`}</style>
     </div>
   );
 }
+
+function EmptyCheckout() {
+  return <div className="min-h-[480px] rounded-3xl border border-dashed border-slate-300 bg-white/60 flex flex-col items-center justify-center text-center p-8"><div className="w-16 h-16 rounded-2xl bg-indigo-50 grid place-items-center"><UserRound className="w-7 h-7 text-indigo-500" /></div><h2 className="font-geist text-lg font-black text-slate-800 mt-5">Quem está pagando?</h2><p className="text-xs text-slate-500 max-w-sm mt-2">Busque o motorista acima. Os débitos, saldo e últimas movimentações aparecem imediatamente.</p><div className="flex items-center gap-5 mt-6 text-[10px] font-bold text-slate-400"><span>Nome</span><span>CPF</span><span>Placa</span><span>Prefixo</span></div></div>;
+}
+
+function DriverCard({ driver, vehicle, score, balance, onReceive, onInstallment, onStatement, onBlock }: any) {
+  const grade = score?.grade || "A";
+  const healthy = ["AAA", "AA", "A"].includes(grade);
+  const critical = ["C", "D"].includes(grade);
+  const status = healthy ? "Excelente" : critical ? "Inadimplente" : "Atenção";
+  const scoreClass = healthy ? "bg-emerald-50 border-emerald-200 text-emerald-700" : critical ? "bg-red-50 border-red-200 text-red-700" : "bg-amber-50 border-amber-200 text-amber-700";
+  return <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5"><div className="flex flex-col md:flex-row md:items-start justify-between gap-4"><div className="flex items-center gap-3 min-w-0"><div className="w-11 h-11 rounded-xl bg-slate-950 text-white grid place-items-center font-geist font-black">{String(driver.name || "?").split(" ").slice(0, 2).map((part: string) => part[0]).join("")}</div><div className="min-w-0"><p className="text-[9px] font-black uppercase tracking-wide text-slate-400">Motorista</p><h2 className="font-geist text-lg font-black truncate">{driver.name}</h2><p className="text-[10px] text-slate-500 mt-0.5">{vehicle ? `${vehicle.prefix || vehicle.internalCode || "Táxi"} · ${vehicle.plate} · ${vehicle.brand} ${vehicle.model}` : "Sem veículo ativo"}</p></div></div><div className="flex gap-2"><div className={`rounded-xl px-3 py-2 border ${scoreClass}`}><p className="text-[9px] font-black uppercase">{status}</p><p className="font-geist text-lg font-black leading-none mt-1">{grade}</p></div><div className="rounded-xl px-3 py-2 bg-slate-50 border border-slate-200 text-right"><p className="text-[9px] font-black uppercase text-slate-400">Saldo</p><p className={`font-geist text-base font-black mt-1 ${balance < 0 ? "text-red-600" : "text-emerald-600"}`}>{money(balance)}</p></div></div></div><div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-slate-100"><QuickButton icon={HandCoins} label="Receber" primary onClick={onReceive} /><QuickButton icon={CalendarDays} label="Parcelar" onClick={onInstallment} /><QuickButton icon={Sparkles} label="Negociar" onClick={onInstallment} /><QuickButton icon={FileText} label="Extrato" onClick={onStatement} /><QuickButton icon={Ban} label="Bloquear" danger onClick={onBlock} /></div></section>;
+}
+
+function QuickButton({ icon: Icon, label, primary, danger, onClick }: any) {
+  return <button onClick={onClick} className={`h-9 px-3 rounded-lg border flex items-center gap-1.5 text-[10px] font-bold ${primary ? "bg-indigo-600 border-indigo-600 text-white" : danger ? "border-red-200 text-red-600 hover:bg-red-50" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}><Icon className="w-3.5 h-3.5" /> {label}</button>;
+}
+
+function DebtRow({ item, selected, onToggle }: { item: AccountsReceivable; selected: boolean; onToggle: () => void }) {
+  const remaining = Number(item.amount || 0) - Number(item.paidAmount || 0);
+  const overdue = new Date(item.dueDate).getTime() < Date.now();
+  return <button onClick={onToggle} className="w-full px-5 py-3.5 grid grid-cols-[24px_1fr_auto] gap-3 items-center text-left hover:bg-slate-50"><span className={`w-5 h-5 rounded-md border grid place-items-center ${selected ? "bg-indigo-600 border-indigo-600 text-white" : "border-slate-300"}`}>{selected && <Check className="w-3.5 h-3.5" />}</span><span><strong className="block text-xs text-slate-800">{titleLabels[item.titleType] || "Cobrança"}</strong><span className={`text-[10px] mt-0.5 block ${overdue ? "text-red-500" : "text-slate-400"}`}>{overdue ? "Vencido" : "Vence"} em {date(item.dueDate)}{item.status === "partial" ? " · pagamento parcial" : ""}</span></span><strong className="font-geist text-sm text-slate-900">{money(remaining)}</strong></button>;
+}
+
+function StatementPanel({ entries }: { entries: any[] }) {
+  return <aside className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden xl:sticky xl:top-4"><div className="px-4 py-4 border-b border-slate-100"><h2 className="font-geist text-sm font-black">Extrato</h2><p className="text-[10px] text-slate-500 mt-0.5">Últimos movimentos da conta.</p></div><div className="divide-y divide-slate-100 max-h-[610px] overflow-y-auto">{entries.slice(0, 12).map((entry) => <StatementRow key={entry.id} entry={entry} />)}{entries.length === 0 && <p className="p-8 text-center text-xs text-slate-400">Sem movimentações.</p>}</div></aside>;
+}
+
+function StatementRow({ entry }: { entry: any }) {
+  const credit = Number(entry.amount || 0) >= 0;
+  return <div className="p-4 flex items-center gap-3"><span className={`w-8 h-8 rounded-full grid place-items-center shrink-0 ${credit ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"}`}>{credit ? <ArrowDownLeft className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}</span><div className="min-w-0 flex-1"><p className="text-[11px] font-semibold text-slate-700 truncate">{entry.description}</p><p className="text-[9px] text-slate-400 mt-0.5">{date(entry.createdAt)}</p></div><strong className={`text-xs ${credit ? "text-emerald-600" : "text-slate-800"}`}>{credit ? "+" : "-"}{money(Math.abs(entry.amount))}</strong></div>;
+}
+
+function PixModal({ amount, transaction, saving, onConfirm, onClose }: any) {
+  return <Modal onClose={onClose}><div className="text-center"><div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 grid place-items-center mx-auto"><QrCode className="w-6 h-6" /></div><h2 className="font-geist text-xl font-black mt-4">Pagamento via PIX</h2><p className="text-2xl font-black mt-2">{money(amount)}</p><div className="w-44 h-44 mx-auto my-5 rounded-2xl bg-white border-8 border-slate-950 p-3 grid grid-cols-5 gap-1">{Array.from({ length: 25 }).map((_, index) => <span key={index} className={`${[0,1,2,5,7,10,11,12,14,16,18,20,22,23,24].includes(index) ? "bg-slate-950" : "bg-white"}`} />)}</div><div className="flex items-center justify-center gap-2 text-xs font-bold text-amber-600"><Clock3 className="w-4 h-4 animate-pulse" /> Aguardando pagamento...</div><p className="text-[9px] text-slate-400 font-mono mt-2">{transaction}</p><button disabled={saving} onClick={onConfirm} className="w-full h-11 rounded-xl bg-emerald-600 text-white text-xs font-black mt-5 disabled:opacity-50">{saving ? "Confirmando..." : "Simular webhook aprovado"}</button></div></Modal>;
+}
+
+function ReceiptModal({ transaction, driver, method, onClose }: any) {
+  return <Modal onClose={onClose}><div className="receipt-print text-center"><CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" /><h2 className="font-geist text-xl font-black mt-3">Pagamento aprovado</h2><p className="text-3xl font-black mt-3">{money(transaction.amount)}</p><div className="my-5 border-y border-dashed border-slate-300 py-4 text-left space-y-2 text-xs"><p className="flex justify-between"><span className="text-slate-400">Motorista</span><strong>{driver?.name}</strong></p><p className="flex justify-between"><span className="text-slate-400">Forma</span><strong className="uppercase">{method}</strong></p><p className="flex justify-between"><span className="text-slate-400">Recibo</span><strong className="font-mono">{transaction.transactionNumber}</strong></p><p className="flex justify-between"><span className="text-slate-400">Data</span><strong>{new Date().toLocaleString("pt-BR")}</strong></p></div><button onClick={() => window.print()} className="w-full h-11 rounded-xl bg-slate-950 text-white text-xs font-black flex items-center justify-center gap-2"><Printer className="w-4 h-4" /> Imprimir recibo</button><button onClick={onClose} className="w-full h-10 text-xs font-bold text-slate-500 mt-1">Concluir atendimento</button></div></Modal>;
+}
+
+function CashDrawer({ hub, onClose }: any) {
+  const [opening, setOpening] = useState("100");
+  const [physical, setPhysical] = useState("");
+  const [justification, setJustification] = useState("");
+  const [movementType, setMovementType] = useState("WITHDRAWAL");
+  const [movementAmount, setMovementAmount] = useState("");
+  const [movementDescription, setMovementDescription] = useState("");
+  const sessionMovements = hub.movements.filter((item: any) => item.cashierId === hub.activeSession?.id);
+  const receipts = sessionMovements.filter((item: any) => item.type === "RECEIPT").reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
+  const withdrawals = sessionMovements.filter((item: any) => item.type === "WITHDRAWAL").reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
+  const supplies = sessionMovements.filter((item: any) => item.type === "SUPPLY").reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
+  const expected = Number(hub.activeSession?.openingAmount || 0) + receipts + supplies - withdrawals;
+  const submitMovement = async () => { if (Number(movementAmount) <= 0) return; await hub.requestWithdrawal(Number(movementAmount), movementType, movementDescription); setMovementAmount(""); setMovementDescription(""); };
+  const closeCashier = () => { const counted = Number(physical); if (!physical || counted < 0) return alert("Informe o valor contado fisicamente."); if (counted !== expected && !justification.trim()) return alert("Informe uma justificativa para a diferença de caixa."); hub.closeCashier(hub.activeSession.id, counted, expected, justification); };
+  return <div className="fixed inset-0 z-[80] bg-slate-950/35 flex justify-end" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><aside className="w-full max-w-md h-full bg-[#fcfafb] overflow-y-auto shadow-2xl"><div className="sticky top-0 bg-white border-b border-slate-200 p-5 flex items-start justify-between z-10"><div><p className="text-[9px] font-black uppercase tracking-wider text-indigo-600">Gestão do turno</p><h2 className="font-geist text-xl font-black mt-1">Caixa</h2></div><button onClick={onClose} className="w-9 h-9 rounded-xl grid place-items-center hover:bg-slate-100"><X className="w-5 h-5" /></button></div><div className="p-5 space-y-4">{!hub.activeSession ? <section className="bg-white border border-slate-200 rounded-2xl p-5 text-center"><LockKeyhole className="w-8 h-8 text-red-500 mx-auto" /><h3 className="font-geist font-black mt-3">Caixa fechado</h3><p className="text-xs text-slate-500 mt-1">Informe o fundo de troco para iniciar o turno.</p><input type="number" value={opening} onChange={(event) => setOpening(event.target.value)} className="checkout-input mt-5 px-3 text-center font-bold" /><button onClick={() => hub.openCashier(Number(opening))} className="w-full h-11 mt-3 rounded-xl bg-emerald-600 text-white text-xs font-black">Abrir caixa</button></section> : <><section className="rounded-2xl bg-slate-950 text-white p-5"><div className="flex items-center gap-2 text-emerald-400 text-xs font-black"><span className="w-2 h-2 bg-emerald-400 rounded-full" /> Caixa aberto</div><p className="text-[10px] text-slate-400 mt-1">Operador: {hub.activeSession.operatorId}</p><div className="grid grid-cols-2 gap-3 mt-5"><CashMetric label="Entradas" value={money(receipts + supplies)} positive /><CashMetric label="Retiradas" value={money(withdrawals)} /><CashMetric label="Fundo inicial" value={money(hub.activeSession.openingAmount)} /><CashMetric label="Saldo esperado" value={money(expected)} positive /></div></section><section className="bg-white border border-slate-200 rounded-2xl p-5"><h3 className="text-xs font-black">Sangria ou suprimento</h3><div className="grid grid-cols-2 gap-2 mt-4"><button onClick={() => setMovementType("WITHDRAWAL")} className={`h-9 rounded-lg border text-[10px] font-bold ${movementType === "WITHDRAWAL" ? "border-red-400 bg-red-50 text-red-700" : "border-slate-200"}`}>Sangria</button><button onClick={() => setMovementType("SUPPLY")} className={`h-9 rounded-lg border text-[10px] font-bold ${movementType === "SUPPLY" ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-slate-200"}`}>Suprimento</button></div><input type="number" value={movementAmount} onChange={(event) => setMovementAmount(event.target.value)} placeholder="Valor" className="checkout-input px-3 mt-3" /><input value={movementDescription} onChange={(event) => setMovementDescription(event.target.value)} placeholder="Finalidade / justificativa" className="checkout-input px-3 mt-2" /><button onClick={submitMovement} className="w-full h-10 rounded-xl bg-slate-900 text-white text-xs font-bold mt-3">Registrar solicitação</button></section><section className="bg-white border border-slate-200 rounded-2xl p-5"><h3 className="text-xs font-black text-red-600">Fechar caixa</h3><input type="number" value={physical} onChange={(event) => setPhysical(event.target.value)} placeholder="Valor contado fisicamente" className="checkout-input px-3 mt-4" /><input value={justification} onChange={(event) => setJustification(event.target.value)} placeholder="Justificativa para diferença, se houver" className="checkout-input px-3 mt-2" /><button onClick={closeCashier} className="w-full h-10 rounded-xl border border-red-200 text-red-600 text-xs font-bold mt-3 hover:bg-red-50">Encerrar turno</button></section></>}</div></aside></div>;
+}
+
+function CashMetric({ label, value, positive }: any) { return <div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] uppercase text-slate-400 font-bold">{label}</p><p className={`text-sm font-black mt-1 ${positive ? "text-emerald-400" : "text-white"}`}>{value}</p></div>; }
+
+function InstallmentModal({ debts, driver, createPaymentPlan, onClose }: any) {
+  const total = debts.reduce((sum: number, item: AccountsReceivable) => sum + item.amount - item.paidAmount, 0);
+  const [entry, setEntry] = useState("0");
+  const [installments, setInstallments] = useState("6");
+  const [saving, setSaving] = useState(false);
+  const installmentValue = (total - Number(entry || 0)) / Math.max(1, Number(installments || 1));
+  const submit = async () => { setSaving(true); try { await createPaymentPlan(driver.id, debts.map((item: any) => item.id), total, Number(entry || 0), Number(installments)); onClose(); } finally { setSaving(false); } };
+  return <Modal onClose={onClose}><CalendarDays className="w-7 h-7 text-indigo-600" /><h2 className="font-geist text-xl font-black mt-3">Gerar acordo</h2><p className="text-xs text-slate-500 mt-1">Parcelamento para {driver.name}</p><div className="rounded-2xl bg-slate-950 text-white p-4 mt-5"><p className="text-[9px] uppercase font-bold text-slate-400">Dívida total</p><p className="text-3xl font-black mt-1">{money(total)}</p></div><label className="block mt-4"><span className="text-[9px] font-black uppercase text-slate-400">Entrada hoje</span><input type="number" min="0" max={total} value={entry} onChange={(event) => setEntry(event.target.value)} className="checkout-input px-3 mt-1.5" /></label><label className="block mt-3"><span className="text-[9px] font-black uppercase text-slate-400">Parcelas</span><select value={installments} onChange={(event) => setInstallments(event.target.value)} className="checkout-input px-3 mt-1.5">{[2,3,4,5,6,8,10,12].map((count) => <option key={count} value={count}>{count}x</option>)}</select></label><div className="rounded-xl bg-indigo-50 text-indigo-800 p-4 mt-4 flex justify-between text-xs"><span>{installments} parcelas</span><strong>{money(installmentValue)}</strong></div><button disabled={saving || total <= 0} onClick={submit} className="w-full h-11 rounded-xl bg-indigo-600 text-white text-xs font-black mt-4 disabled:opacity-40">{saving ? "Gerando acordo..." : "Gerar acordo"}</button></Modal>;
+}
+
+function StatementModal({ entries, driver, onClose }: any) { return <Modal onClose={onClose} wide><div className="flex items-center justify-between"><div><h2 className="font-geist text-xl font-black">Conta corrente</h2><p className="text-xs text-slate-500 mt-1">{driver.name}</p></div><ReceiptText className="w-7 h-7 text-indigo-500" /></div><div className="mt-5 border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 max-h-[60vh] overflow-y-auto">{entries.map((entry: any) => <StatementRow key={entry.id} entry={entry} />)}</div></Modal>; }
+
+function Modal({ onClose, children, wide = false }: any) { return <div className="fixed inset-0 z-[90] bg-slate-950/40 backdrop-blur-sm grid place-items-center p-4" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><div className={`relative w-full ${wide ? "max-w-xl" : "max-w-md"} rounded-2xl bg-[#fcfafb] shadow-2xl p-6`}><button onClick={onClose} className="absolute right-4 top-4 w-8 h-8 rounded-lg grid place-items-center hover:bg-slate-100"><X className="w-4 h-4" /></button>{children}</div></div>; }

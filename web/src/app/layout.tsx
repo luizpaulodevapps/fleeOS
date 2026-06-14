@@ -2,9 +2,9 @@
 
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import "./globals.css";
 
 const queryClient = new QueryClient();
@@ -12,6 +12,8 @@ const queryClient = new QueryClient();
 function SidebarContent() {
   const { currentUser, signOutUser, can } = useAuth();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
 
   if (!currentUser) return null;
 
@@ -43,13 +45,14 @@ function SidebarContent() {
         { name: "Vínculos", href: "/assignments", icon: "link", permission: "vehicles.edit" },
         { name: "Central Operacional", href: "/operations", icon: "published_with_changes", permission: "vehicles.edit" },
         { name: "Gestão de Sinistros", href: "/claims", icon: "shield", permission: "claims.view" },
-        { name: "Manutenção", href: "/maintenance", icon: "build", permission: "maintenance.view" }
+        { name: "Manutenção", href: "/maintenance", icon: "build", permission: "maintenance.view" },
+        { name: "Centro Regulatório", href: "/dispatcher", icon: "local_taxi", permission: "vehicles.edit" }
       ]
     },
     {
       title: "Financeiro & Precificação",
       items: [
-        { name: "Frente de Caixa", href: "/cashier", icon: "point_of_sale", permission: "cashier.view" },
+        { name: "Checkout", href: "/cashier", icon: "point_of_sale", permission: "cashier.view" },
         { name: "Extrato Financeiro", href: "/financial", icon: "payments", permission: "financial.view" },
         { name: "Precificação e Regras", href: "/pricing", icon: "price_change", permission: "financial.view" }
       ]
@@ -103,7 +106,9 @@ function SidebarContent() {
               </span>
               <div className="space-y-0.5">
                 {visibleItems.map((item) => {
-                  const isActive = pathname === item.href;
+                  const isActive = item.href.includes("?")
+                    ? (pathname === item.href.split("?")[0] && tabParam === new URLSearchParams(item.href.split("?")[1]).get("tab"))
+                    : (pathname === item.href && !tabParam);
                   return (
                     <Link
                       key={item.href}
@@ -235,6 +240,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
     "/reports": "reports.view",
     "/portals/workshop": "maintenance.view",
     "/portals/adjuster": "claims.view",
+    "/dispatcher": "vehicles.edit",
   };
 
   let hasRouteAccess = true;
@@ -286,7 +292,11 @@ function MainLayout({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="flex flex-1 min-h-screen">
-        {currentUser && <SidebarContent />}
+        {currentUser && (
+          <Suspense fallback={null}>
+            <SidebarContent />
+          </Suspense>
+        )}
         
         <div className={`flex-1 flex flex-col min-h-screen ${currentUser ? "md:pl-64" : ""}`}>
           {currentUser && (

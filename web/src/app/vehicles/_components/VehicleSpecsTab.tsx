@@ -410,7 +410,7 @@ export function VehicleSpecsTab({
                   className="w-full bg-white border border-slate-250 rounded-lg px-2.5 py-2 text-xs text-slate-800 font-semibold focus:border-slate-500 outline-none"
                 >
                   <option value="">Selecione uma marca...</option>
-                  {brandsList.map((brand) => (
+                  {(Array.isArray(brandsList) ? brandsList : []).map((brand) => (
                     <option key={brand} value={brand}>
                       {brand}
                     </option>
@@ -427,7 +427,7 @@ export function VehicleSpecsTab({
                   className="w-full bg-white border border-slate-250 rounded-lg px-2.5 py-2 text-xs text-slate-800 font-semibold focus:border-slate-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="">Selecione um modelo...</option>
-                  {modelsList.map((model) => (
+                  {(Array.isArray(modelsList) ? modelsList : []).map((model) => (
                     <option key={model} value={model}>
                       {model}
                     </option>
@@ -444,7 +444,7 @@ export function VehicleSpecsTab({
                   className="w-full bg-white border border-slate-250 rounded-lg px-2.5 py-2 text-xs text-slate-800 font-semibold focus:border-slate-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="">Selecione a versão...</option>
-                  {versionsList.map((v, idx) => (
+                  {(Array.isArray(versionsList) ? versionsList : []).map((v, idx) => (
                     <option key={idx} value={idx}>
                       {v.year} {v.fuelType} - {getTrimName(v.model, selectedModel)} - {v.price}
                     </option>
@@ -479,7 +479,7 @@ export function VehicleSpecsTab({
 
               {showDropdown && suggestions.length > 0 && (
                 <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg divide-y divide-slate-100">
-                  {suggestions.map((item, index) => (
+                  {(Array.isArray(suggestions) ? suggestions : []).map((item, index) => (
                     <div
                       key={index}
                       onClick={() => {
@@ -723,7 +723,7 @@ export function VehicleSpecsTab({
             id="s-category"
           >
             <option value="">Selecione...</option>
-            {categories.map((c) => (
+            {(Array.isArray(categories) ? categories : []).map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} ({c.code})
               </option>

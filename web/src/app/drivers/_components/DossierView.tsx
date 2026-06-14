@@ -99,6 +99,22 @@ export function DossierView({
             <div className="col-span-2">
               <p className="font-bold text-slate-500 uppercase text-[9px]">Endereço</p>
               <p className="text-slate-900">{driver.address}</p>
+              {driver.addressFull?.hasGarage && (
+                <p className="text-[10px] text-slate-600 mt-1 font-semibold flex items-center gap-1">
+                  <span>🏠 Garagem:</span>
+                  <span className="capitalize">{driver.addressFull.garageType || "Descoberta"}</span>
+                  <span>—</span>
+                  <span className="capitalize">
+                    {driver.addressFull.garageStyle === "condominio"
+                      ? "Condomínio (Prédio)"
+                      : driver.addressFull.garageStyle === "estacionamento"
+                      ? "Estacionamento"
+                      : driver.addressFull.garageStyle === "privativa"
+                      ? "Residencial Privativa"
+                      : "Outros"}
+                  </span>
+                </p>
+              )}
             </div>
             <div>
               <p className="font-bold text-slate-500 uppercase text-[9px]">Contato de Emergência</p>

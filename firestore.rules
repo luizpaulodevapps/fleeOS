@@ -96,7 +96,21 @@ service cloud.firestore {
         'activity_timeline',
         'expirations',
         'tenant_counters',
-        'audit_logs'
+        'audit_logs',
+        'permits',
+        'regulatory_processes',
+        'regulatory_dispatchers',
+        'taxi_points',
+        'regulatory_inspections',
+        'gnv_registries',
+        'taximeter_registry',
+        'driver_regulatory',
+        'annual_inspections',
+        'taximeter_adjustments',
+        'vehicle_lifecycle_processes',
+        'vehicle_dossiers',
+        'vehicle_compliance_scores',
+        'infractions'
       ] && isAuthenticated() && canAccessTenantData();
 
       allow create: if collectionName in [
@@ -118,7 +132,21 @@ service cloud.firestore {
         'activity_timeline',
         'expirations',
         'tenant_counters',
-        'audit_logs'
+        'audit_logs',
+        'permits',
+        'regulatory_processes',
+        'regulatory_dispatchers',
+        'taxi_points',
+        'regulatory_inspections',
+        'gnv_registries',
+        'taximeter_registry',
+        'driver_regulatory',
+        'annual_inspections',
+        'taximeter_adjustments',
+        'vehicle_lifecycle_processes',
+        'vehicle_dossiers',
+        'vehicle_compliance_scores',
+        'infractions'
       ] && isAuthenticated() && canWriteTenantData(request.resource.data.tenantId);
 
       allow update: if collectionName in [
@@ -135,7 +163,21 @@ service cloud.firestore {
         'cashier_sessions',
         'activity_timeline',
         'expirations',
-        'tenant_counters'
+        'tenant_counters',
+        'permits',
+        'regulatory_processes',
+        'regulatory_dispatchers',
+        'taxi_points',
+        'regulatory_inspections',
+        'gnv_registries',
+        'taximeter_registry',
+        'driver_regulatory',
+        'annual_inspections',
+        'taximeter_adjustments',
+        'vehicle_lifecycle_processes',
+        'vehicle_dossiers',
+        'vehicle_compliance_scores',
+        'infractions'
       ] && isAuthenticated() && keepsTenantBoundary() && canWriteTenantData(resource.data.tenantId);
 
       allow delete: if collectionName in [

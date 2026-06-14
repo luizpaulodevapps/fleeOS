@@ -14,6 +14,18 @@ export interface Driver {
   cnhSuspended: boolean;
   cnhObservation: string;
   address: string;
+  addressFull?: {
+    street: string;
+    number: string;
+    zipCode: string;
+    city: string;
+    state: string;
+    complement?: string;
+    neighborhood?: string;
+    hasGarage?: boolean;
+    garageType?: string;
+    garageStyle?: string;
+  };
   emergencyContact: string;
   photoUrl: string;
   status: string;
@@ -83,6 +95,18 @@ export interface DriverFormData {
   cnhSuspended: boolean;
   cnhObservation: string;
   address: string;
+  addressFull?: {
+    street: string;
+    number: string;
+    zipCode: string;
+    city: string;
+    state: string;
+    complement?: string;
+    neighborhood?: string;
+    hasGarage?: boolean;
+    garageType?: string;
+    garageStyle?: string;
+  };
   emergencyContact: string;
   photoUrl: string;
   status: string;

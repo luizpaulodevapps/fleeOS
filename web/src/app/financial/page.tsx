@@ -1,455 +1,334 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useFinancialHub } from "./_hooks/useFinancialHub";
+import { TreasuryDashboard } from "./_components/TreasuryDashboard";
+import { CashierConsole } from "./_components/CashierConsole";
+import { ReconciliationConsole } from "./_components/ReconciliationConsole";
+import { CollectionsEngine } from "./_components/CollectionsEngine";
+import { ComplianceConsole } from "./_components/ComplianceConsole";
+
 import { 
   Plus, 
-  Search, 
-  Trash2, 
   X, 
   DollarSign, 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  Calendar, 
-  User,
-  CreditCard,
-  PlusCircle,
-  MinusCircle,
-  FileText
+  TrendingUp, 
+  CreditCard, 
+  FileCheck, 
+  Layers, 
+  ShieldCheck, 
+  Scale 
 } from "lucide-react";
 
-export default function FinancialManager() {
-  const { getCollection, addDocument, deleteDocument, can } = useAuth();
+function FinancialPageContent() {
+  const { can } = useAuth();
+  const hub = useFinancialHub();
   
-  const [ledger, setLedger] = useState<any[]>([]);
-  const [drivers, setDrivers] = useState<any[]>([]);
-  const [selectedDriverId, setSelectedDriverId] = useState("all");
-  const [loading, setLoading] = useState(true);
-
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // Form State
-  const [formData, setFormData] = useState({
-    driverId: "",
-    type: "daily" as "daily" | "fine" | "bonus" | "payment" | "adjustment",
-    amount: "",
-    description: ""
-  });
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [ledList, drvList] = await Promise.all([
-        getCollection("driver_ledger"),
-        getCollection("drivers")
-      ]);
-      setLedger(ledList);
-      setDrivers(drvList);
-    } catch (e) {
-      console.error("Erro ao carregar conta corrente", e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Navigation Tabs
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "cashier" | "reconciliation" | "collections" | "compliance">("dashboard");
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  const openNewModal = () => {
-    setFormData({
-      driverId: drivers[0]?.id || "",
-      type: "daily",
-      amount: "",
-      description: ""
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleCreateEntry = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const rawAmount = Number(formData.amount);
-      if (rawAmount <= 0) {
-        alert("Insira um valor maior que zero.");
-        return;
-      }
-
-      // Automatically store debit types (daily, fine) as negative values
-      const sign = (formData.type === "daily" || formData.type === "fine") ? -1 : 1;
-      const finalAmount = rawAmount * sign;
-
-      await addDocument("driver_ledger", {
-        driverId: formData.driverId,
-        type: formData.type,
-        amount: finalAmount,
-        description: formData.description,
-      });
-
-      setIsModalOpen(false);
-      loadData();
-      alert("Lançamento efetuado com sucesso!");
-    } catch (err) {
-      console.error("Erro ao salvar lançamento financeiro", err);
+    if (tabParam && ["dashboard", "cashier", "reconciliation", "collections", "compliance"].includes(tabParam)) {
+      setActiveTab(tabParam as any);
     }
-  };
+  }, [tabParam]);
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Deseja realmente estornar/excluir este lançamento financeiro?")) {
-      try {
-        await deleteDocument("driver_ledger", id);
-        loadData();
-      } catch (err) {
-        console.error("Erro ao excluir lançamento", err);
-      }
-    }
-  };
-
-  // Helper to find driver name
-  const getDriverName = (driverId: string) => {
-    const drv = drivers.find(d => d.id === driverId);
-    return drv ? drv.name : "Motorista Não Encontrado";
-  };
-
-  // Calculate stats for the selected scope
-  const filteredLedger = ledger.filter(entry => {
-    if (selectedDriverId === "all") return true;
-    return entry.driverId === selectedDriverId;
+  // Adjustment Request Modal
+  const [isAdjModalOpen, setIsAdjModalOpen] = useState(false);
+  const [adjData, setAdjData] = useState({
+    driverId: "",
+    amount: "",
+    reason: ""
   });
 
-  const totals = filteredLedger.reduce((acc, entry) => {
-    const val = Number(entry.amount || 0);
-    if (val > 0) {
-      acc.credits += val;
-    } else {
-      acc.debits += Math.abs(val);
+  const handleRequestAdjustment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = Number(adjData.amount);
+    if (!adjData.driverId || isNaN(amt) || amt === 0 || !adjData.reason) {
+      alert("Por favor, preencha todos os campos obrigatórios corretamente.");
+      return;
     }
-    acc.balance += val;
-    return acc;
-  }, { credits: 0, debits: 0, balance: 0 });
 
-  // Overall statistics for all drivers (for general KPIs)
-  const generalStats = ledger.reduce((acc, entry) => {
-    const val = Number(entry.amount || 0);
-    if (val > 0) {
-      acc.totalPaid += val;
-    } else {
-      acc.totalCharged += Math.abs(val);
-    }
-    return acc;
-  }, { totalPaid: 0, totalCharged: 0 });
-
-  // Calculate default/outstanding balance (sum of all negative driver accounts)
-  const getOutstandingBalance = () => {
-    const driverBalances: { [key: string]: number } = {};
-    ledger.forEach(entry => {
-      driverBalances[entry.driverId] = (driverBalances[entry.driverId] || 0) + Number(entry.amount || 0);
-    });
-    
-    return Object.values(driverBalances)
-      .filter(bal => bal < 0)
-      .reduce((sum, bal) => sum + Math.abs(bal), 0);
+    await hub.requestAdjustment(adjData.driverId, amt, adjData.reason);
+    setIsAdjModalOpen(false);
+    setAdjData({ driverId: "", amount: "", reason: "" });
+    alert("Solicitação de ajuste de saldo enviada para a fila de compliance/auditoria.");
   };
 
-  const totalOutstanding = getOutstandingBalance();
-
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto p-4 md:p-6 text-xs text-on-surface">
+      
       {/* Breadcrumbs */}
-      <nav className="flex items-center gap-2 text-on-surface-variant text-xs">
-        <span className="hover:text-primary cursor-pointer">Financeiro</span>
-        <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-        <span className="text-primary font-bold">Contas Correntes</span>
+      <nav className="flex items-center gap-2 text-on-surface-variant text-[11px]">
+        <span className="hover:text-primary cursor-pointer font-medium">Financeiro</span>
+        <span className="material-symbols-outlined text-[12px] text-outline">chevron_right</span>
+        <span className="text-primary font-bold">Financial Hub</span>
       </nav>
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-outline-variant pb-5">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-primary font-geist">
-            Contas Correntes dos Motoristas
+          <h1 className="text-2xl font-black tracking-tight text-primary font-geist">
+            Financial Hub & Central Anti-Fraude
           </h1>
-          <p className="text-on-surface-variant text-xs mt-1">
-            Gerencie o extrato financeiro (livro-razão), lance multas, aplique abonos e consulte saldos de diárias acumulados.
+          <p className="text-on-surface-variant text-[11px] mt-1.5">
+            Cockpit unificado de contas a receber, faturamento de motoristas, controle de turno de caixa, conciliação e compliance.
           </p>
         </div>
+        
         {can("driver_ledger.edit") && (
           <button
-            onClick={openNewModal}
-            className="flex items-center space-x-2 px-5 py-2.5 rounded-lg bg-primary text-on-primary font-bold hover:opacity-90 transition-all text-xs"
+            onClick={() => {
+              setAdjData({ driverId: hub.drivers[0]?.id || "", amount: "", reason: "" });
+              setIsAdjModalOpen(true);
+            }}
+            className="flex items-center space-x-1.5 px-4 py-2.5 rounded-lg bg-primary text-on-primary font-extrabold hover:opacity-90 transition-all text-xs shadow-sm"
           >
             <Plus className="w-4 h-4" />
-            <span>Lançamento Manual</span>
+            <span>Solicitar Ajuste Manual</span>
           </button>
         )}
       </div>
 
-      {/* KPI Cards Grid */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
-        {/* Total Recebido */}
-        <div className="bg-surface-container-lowest p-stack-md border border-outline-variant rounded-xl hover:border-primary transition-all">
-          <div className="flex justify-between items-start mb-2">
-            <span className="p-2 bg-emerald-500/10 rounded-lg text-emerald-600">
-              <ArrowUpRight className="w-5 h-5" />
-            </span>
-            <span className="text-accent-green text-[10px] font-bold uppercase">Entradas</span>
-          </div>
-          <div className="text-2xl font-black font-geist text-primary">
-            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedDriverId === "all" ? generalStats.totalPaid : totals.credits)}
-          </div>
-          <div className="text-on-surface-variant text-[10px] font-bold uppercase tracking-wider mt-1">
-            {selectedDriverId === "all" ? "Total Recebido (Geral)" : "Total Pago (Motorista)"}
-          </div>
-        </div>
+      {/* Tab Navigation */}
+      <div className="flex border-b border-outline-variant overflow-x-auto space-x-1.5 pb-0.5">
+        <button
+          onClick={() => setActiveTab("dashboard")}
+          className={`flex items-center space-x-1.5 px-4 py-3 font-bold border-b-2 text-xs transition-all whitespace-nowrap ${
+            activeTab === "dashboard"
+              ? "border-primary text-primary"
+              : "border-transparent text-outline hover:text-primary hover:border-outline-variant"
+          }`}
+        >
+          <TrendingUp className="w-4 h-4" />
+          <span>Dashboard Executivo</span>
+        </button>
 
-        {/* Total Cobrado */}
-        <div className="bg-surface-container-lowest p-stack-md border border-outline-variant rounded-xl hover:border-primary transition-all">
-          <div className="flex justify-between items-start mb-2">
-            <span className="p-2 bg-red-500/10 rounded-lg text-red-600">
-              <ArrowDownRight className="w-5 h-5" />
-            </span>
-            <span className="text-red-500 text-[10px] font-bold uppercase">Débitos</span>
-          </div>
-          <div className="text-2xl font-black font-geist text-primary">
-            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedDriverId === "all" ? generalStats.totalCharged : totals.debits)}
-          </div>
-          <div className="text-on-surface-variant text-[10px] font-bold uppercase tracking-wider mt-1">
-            {selectedDriverId === "all" ? "Total Cobrado (Geral)" : "Total Débitos (Motorista)"}
-          </div>
-        </div>
+        <button
+          onClick={() => setActiveTab("cashier")}
+          className={`flex items-center space-x-1.5 px-4 py-3 font-bold border-b-2 text-xs transition-all whitespace-nowrap ${
+            activeTab === "cashier"
+              ? "border-primary text-primary"
+              : "border-transparent text-outline hover:text-primary hover:border-outline-variant"
+          }`}
+        >
+          <CreditCard className="w-4 h-4" />
+          <span>Caixa Operacional</span>
+        </button>
 
-        {/* Saldo Selecionado */}
-        <div className="bg-surface-container-lowest p-stack-md border border-outline-variant rounded-xl hover:border-primary transition-all">
-          <div className="flex justify-between items-start mb-2">
-            <span className={`p-2 rounded-lg ${totals.balance >= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-600"}`}>
-              <DollarSign className="w-5 h-5" />
-            </span>
-            <span className={`text-[10px] font-bold uppercase ${totals.balance >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-              {totals.balance >= 0 ? "Credor" : "Devedor"}
-            </span>
-          </div>
-          <div className={`text-2xl font-black font-geist ${totals.balance >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totals.balance)}
-          </div>
-          <div className="text-on-surface-variant text-[10px] font-bold uppercase tracking-wider mt-1">
-            {selectedDriverId === "all" ? "Balanço Líquido Geral" : "Saldo Corrente do Motorista"}
-          </div>
-        </div>
+        <button
+          onClick={() => setActiveTab("reconciliation")}
+          className={`flex items-center space-x-1.5 px-4 py-3 font-bold border-b-2 text-xs transition-all whitespace-nowrap ${
+            activeTab === "reconciliation"
+              ? "border-primary text-primary"
+              : "border-transparent text-outline hover:text-primary hover:border-outline-variant"
+          }`}
+        >
+          <FileCheck className="w-4 h-4" />
+          <span>Conciliação Bancária</span>
+        </button>
 
-        {/* Inadimplência Total */}
-        <div className="bg-surface-container-lowest p-stack-md border border-outline-variant rounded-xl hover:border-primary transition-all">
-          <div className="flex justify-between items-start mb-2">
-            <span className="p-2 bg-amber-500/10 rounded-lg text-amber-600">
-              <ArrowDownRight className="w-5 h-5 animate-pulse" />
-            </span>
-            <span className="text-amber-500 text-[10px] font-bold uppercase">Devedores</span>
-          </div>
-          <div className="text-2xl font-black font-geist text-primary">
-            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalOutstanding)}
-          </div>
-          <div className="text-on-surface-variant text-[10px] font-bold uppercase tracking-wider mt-1">Dívida Total de Motoristas</div>
-        </div>
-      </section>
+        <button
+          onClick={() => setActiveTab("collections")}
+          className={`flex items-center space-x-1.5 px-4 py-3 font-bold border-b-2 text-xs transition-all whitespace-nowrap ${
+            activeTab === "collections"
+              ? "border-primary text-primary"
+              : "border-transparent text-outline hover:text-primary hover:border-outline-variant"
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span>Cobrança & Acordos</span>
+        </button>
 
-      {/* Driver Ledger Selector & Filters */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-container-lowest p-4 border border-outline-variant rounded-xl">
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-outline uppercase">Filtrar Motorista:</span>
-          <select
-            value={selectedDriverId}
-            onChange={(e) => setSelectedDriverId(e.target.value)}
-            className="px-4 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-primary/20 text-on-surface"
-          >
-            <option value="all">-- Todos os Lançamentos (Visão Global) --</option>
-            {drivers.map(d => (
-              <option key={d.id} value={d.id}>{d.name} ({d.cpf})</option>
-            ))}
-          </select>
-        </div>
-
-        <p className="text-[10px] text-outline font-bold uppercase tracking-wider">
-          Total de {filteredLedger.length} lançamentos encontrados
-        </p>
+        <button
+          onClick={() => setActiveTab("compliance")}
+          className={`flex items-center space-x-1.5 px-4 py-3 font-bold border-b-2 text-xs transition-all whitespace-nowrap ${
+            activeTab === "compliance"
+              ? "border-primary text-primary"
+              : "border-transparent text-outline hover:text-primary hover:border-outline-variant"
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4" />
+          <span>Auditoria & Compliance</span>
+        </button>
       </div>
 
-      {/* Ledger Table Display */}
-      {loading ? (
-        <div className="p-12 text-center bg-surface-container-lowest border border-outline-variant rounded-xl">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-on-surface-variant text-xs font-semibold">Carregando livro-razão...</p>
-        </div>
-      ) : filteredLedger.length === 0 ? (
-        <div className="p-12 text-center bg-surface-container-lowest border border-outline-variant rounded-xl text-on-surface-variant">
-          <FileText className="w-[40px] h-[40px] text-outline mx-auto mb-4" />
-          <p className="text-base font-semibold text-primary font-geist">Conta Corrente Sem Registros</p>
-          <p className="text-xs mt-1">Este motorista não possui movimentações financeiras registradas.</p>
+      {/* Main Tab views */}
+      {hub.loading ? (
+        <div className="p-16 text-center bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm">
+          <div className="w-9 h-9 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-on-surface-variant font-bold text-xs">Carregando dados consolidados do Financial Hub...</p>
         </div>
       ) : (
-        <section className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead className="bg-slate-50 border-b border-outline-variant">
-                <tr>
-                  <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase tracking-wider">Data do Lançamento</th>
-                  {selectedDriverId === "all" && (
-                    <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase tracking-wider">Motorista</th>
-                  )}
-                  <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase tracking-wider">Tipo</th>
-                  <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase tracking-wider">Descrição</th>
-                  <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase tracking-wider">Valor</th>
-                  <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase tracking-wider text-right">Estorno</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant/60">
-                {filteredLedger.slice().reverse().map((entry) => {
-                  const amt = Number(entry.amount || 0);
-                  return (
-                    <tr key={entry.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4 text-on-surface-variant font-mono">
-                        <div className="flex items-center space-x-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-outline" />
-                          <span>{entry.createdAt ? new Date(entry.createdAt).toLocaleString('pt-BR') : 'N/A'}</span>
-                        </div>
-                      </td>
-                      {selectedDriverId === "all" && (
-                        <td className="px-6 py-4 font-bold text-primary flex items-center space-x-2">
-                          <User className="w-3.5 h-3.5 text-outline" />
-                          <span>{getDriverName(entry.driverId)}</span>
-                        </td>
-                      )}
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold border ${
-                          entry.type === "daily" 
-                            ? "bg-slate-100 text-slate-700 border-slate-300"
-                            : entry.type === "fine"
-                            ? "bg-red-500/10 text-red-600 border-red-500/20"
-                            : entry.type === "bonus"
-                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                            : entry.type === "payment"
-                            ? "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                            : "bg-purple-500/10 text-purple-600 border-purple-500/20"
-                        }`}>
-                          {entry.type === "daily" ? "Diária" : entry.type === "fine" ? "Multa" : entry.type === "bonus" ? "Abono" : entry.type === "payment" ? "Pagamento" : "Ajuste"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-primary font-medium max-w-sm truncate" title={entry.description}>
-                        {entry.description}
-                      </td>
-                      <td className={`px-6 py-4 font-black ${amt >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                        {amt >= 0 ? "+" : ""} {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amt)}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        {can("driver_ledger.edit") && (
-                          <button
-                            onClick={() => handleDelete(entry.id)}
-                            className="p-1.5 text-outline hover:text-error hover:bg-red-500/5 rounded transition-all inline-flex items-center"
-                            title="Estornar Lançamento"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <div className="pt-2 animate-in fade-in duration-300">
+          {activeTab === "dashboard" && (
+            <TreasuryDashboard 
+              receivables={hub.receivables} 
+              transactions={hub.transactions} 
+              drivers={hub.drivers}
+              movements={hub.movements}
+            />
+          )}
+
+          {activeTab === "cashier" && (
+            <CashierConsole 
+              activeSession={hub.activeSession}
+              sessions={hub.sessions}
+              movements={hub.movements}
+              drivers={hub.drivers}
+              contracts={hub.contracts}
+              receivables={hub.receivables}
+              transactions={hub.transactions}
+              withdrawalRequests={hub.withdrawalRequests}
+              vehicles={hub.vehicles}
+              ledger={hub.ledger}
+              openCashier={hub.openCashier}
+              closeCashier={hub.closeCashier}
+              createAR={hub.createAR}
+              submitTransaction={hub.submitTransaction}
+              webhookApproveTransaction={hub.webhookApproveTransaction}
+              voidTransaction={hub.voidTransaction}
+              requestWithdrawal={hub.requestWithdrawal}
+              approveWithdrawal={hub.approveWithdrawal}
+              getDriverCreditScore={hub.getDriverCreditScore}
+              reload={hub.reload}
+            />
+          )}
+
+          {activeTab === "reconciliation" && (
+            <ReconciliationConsole 
+              transactions={hub.transactions}
+              drivers={hub.drivers}
+              reload={hub.reload}
+            />
+          )}
+
+          {activeTab === "collections" && (
+            <CollectionsEngine 
+              receivables={hub.receivables}
+              drivers={hub.drivers}
+              paymentPlans={hub.paymentPlans}
+              settlements={hub.settlements}
+              reload={hub.reload}
+            />
+          )}
+
+          {activeTab === "compliance" && (
+            <ComplianceConsole 
+              transactions={hub.transactions}
+              adjustments={hub.adjustments}
+              incidents={hub.incidents}
+              drivers={hub.drivers}
+              approveAdjustment={hub.approveAdjustment}
+              getDriverCreditScore={hub.getDriverCreditScore}
+              reload={hub.reload}
+            />
+          )}
+        </div>
       )}
 
-      {/* CREATE MANUAL ENTRY MODAL */}
-      {isModalOpen && (
+      {/* REQUEST MANUAL BALANCE ADJUSTMENT MODAL */}
+      {isAdjModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-obsidian-950/40 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-background border border-outline-variant rounded-xl shadow-2xl relative">
-            <div className="p-6 border-b border-outline-variant flex justify-between items-center">
+          <div className="w-full max-w-md bg-background border border-outline-variant rounded-xl shadow-2xl relative overflow-hidden">
+            <div className="p-5 border-b border-outline-variant flex justify-between items-center">
               <div>
-                <h3 className="text-lg font-bold text-primary font-geist">Lançamento Financeiro Manual</h3>
-                <p className="text-xs text-on-surface-variant mt-1">Lançar diárias de aluguel, bonificações, multas ou ajustes manuais diretamente na conta corrente.</p>
+                <h3 className="text-sm font-black text-primary font-geist uppercase tracking-wider flex items-center gap-1.5">
+                  <Scale className="w-5 h-5 text-primary" />
+                  <span>Solicitar Ajuste Manual de Saldo</span>
+                </h3>
+                <p className="text-[10px] text-on-surface-variant mt-0.5">Requer autorização em duas etapas por compliance.</p>
               </div>
               <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-lg text-outline hover:text-primary hover:bg-surface-container"
+                onClick={() => setIsAdjModalOpen(false)}
+                className="p-1.5 rounded hover:bg-surface-container"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4 text-outline" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateEntry} className="p-6 space-y-4">
+            <form onSubmit={handleRequestAdjustment} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-2">Motorista Beneficiário/Devedor</label>
+                <label className="block text-[10px] font-bold uppercase text-outline mb-1.5">Motorista Beneficiário / Devedor</label>
                 <select
                   required
-                  value={formData.driverId}
-                  onChange={(e) => setFormData({ ...formData, driverId: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20 text-on-surface"
+                  value={adjData.driverId}
+                  onChange={(e) => setAdjData({ ...adjData, driverId: e.target.value })}
+                  className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg font-bold outline-none"
                 >
-                  {drivers.map(d => (
+                  <option value="">Selecione o motorista</option>
+                  {hub.drivers.map(d => (
                     <option key={d.id} value={d.id}>{d.name} ({d.cpf})</option>
                   ))}
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-2">Tipo de Lançamento</label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-                    className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20 text-on-surface"
-                  >
-                    <option value="daily">Débito: Diária</option>
-                    <option value="fine">Débito: Multa</option>
-                    <option value="bonus">Crédito: Abono</option>
-                    <option value="payment">Crédito: Pagamento</option>
-                    <option value="adjustment">Crédito: Ajuste Positivo</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-2">Valor (R$)</label>
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-outline mb-1.5">Valor do Ajuste (R$)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2 font-bold text-outline">R$</span>
                   <input
                     type="number"
+                    step="any"
                     required
-                    placeholder="Ex: 120"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20 text-on-surface"
+                    placeholder="Ex: 150.00 para crédito, -100.00 para débito"
+                    value={adjData.amount}
+                    onChange={(e) => setAdjData({ ...adjData, amount: e.target.value })}
+                    className="w-full pl-8 pr-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg font-bold outline-none"
                   />
                 </div>
+                <span className="text-[9px] text-outline mt-1 block">Insira um valor positivo para adicionar crédito, ou negativo para lançar débito.</span>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-2">Descrição da Operação</label>
-                <input
-                  type="text"
+                <label className="block text-[10px] font-bold uppercase text-outline mb-1.5">Justificativa Operacional / Auditoria</label>
+                <textarea
                   required
-                  placeholder="Ex: Multa radar Av. dos Bandeirantes, Km 3"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20 text-on-surface"
+                  rows={3}
+                  placeholder="Explique o motivo deste ajuste de saldo (ex: correção de diária duplicada)"
+                  value={adjData.reason}
+                  onChange={(e) => setAdjData({ ...adjData, reason: e.target.value })}
+                  className="w-full p-2.5 bg-surface-container-low border border-outline-variant rounded-lg outline-none"
                 />
               </div>
 
-              <div className="flex justify-end space-x-3 pt-3 border-t border-outline-variant">
+              <div className="flex justify-end space-x-3 pt-4 border-t">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-lg bg-surface-container border border-outline-variant text-on-surface-variant text-xs font-semibold"
+                  onClick={() => setIsAdjModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 border border-outline-variant rounded-lg font-bold"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 rounded-lg bg-primary text-on-primary text-xs font-bold"
+                  className="px-6 py-2 bg-primary text-on-primary font-bold rounded-lg hover:opacity-90"
                 >
-                  Confirmar Lançamento
+                  Solicitar Ajuste
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
     </div>
+  );
+}
+
+export default function FinancialPage() {
+  return (
+    <Suspense fallback={
+      <div className="p-16 text-center bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm">
+        <div className="w-9 h-9 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-on-surface-variant font-bold text-xs">Carregando dados consolidados do Financial Hub...</p>
+      </div>
+    }>
+      <FinancialPageContent />
+    </Suspense>
   );
 }

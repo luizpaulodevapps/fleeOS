@@ -84,6 +84,19 @@ export function DriverProntuarioModal({
 }: DriverProntuarioModalProps) {
   const [activeTab, setActiveTab] = useState("personal");
 
+  const defaultAddrFull = {
+    street: "",
+    number: "",
+    zipCode: "",
+    city: "",
+    state: "",
+    complement: "",
+    neighborhood: "",
+    hasGarage: false,
+    garageType: "",
+    garageStyle: ""
+  };
+
   // Form states - Dados Pessoais
   const [formData, setFormData] = useState<DriverFormData>({
     name: "",
@@ -100,6 +113,7 @@ export function DriverProntuarioModal({
     cnhSuspended: false,
     cnhObservation: "",
     address: "",
+    addressFull: defaultAddrFull,
     emergencyContact: "",
     photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
     status: "active",
@@ -109,6 +123,68 @@ export function DriverProntuarioModal({
     admissionDate: "",
     exitDate: ""
   });
+
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState("");
+
+  const handleCepSearch = async (cep: string) => {
+    const cleanCep = cep.replace(/\D/g, "");
+    if (cleanCep.length !== 8) {
+      setCepError("CEP deve conter 8 dígitos");
+      return;
+    }
+    setCepLoading(true);
+    setCepError("");
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await response.json();
+      if (data.erro) {
+        setCepError("CEP não encontrado");
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          addressFull: {
+            ...(prev.addressFull || defaultAddrFull),
+            zipCode: data.cep || cleanCep,
+            street: data.logradouro || "",
+            neighborhood: data.bairro || "",
+            city: data.localidade || "",
+            state: data.uf || "",
+            complement: data.complemento || prev.addressFull?.complement || ""
+          }
+        }));
+        // Programmatically focus the number input field
+        setTimeout(() => {
+          const numberInput = document.getElementById("p-addr-number");
+          if (numberInput) numberInput.focus();
+        }, 100);
+      }
+    } catch (err) {
+      console.error(err);
+      setCepError("Erro ao buscar o CEP");
+    } finally {
+      setCepLoading(false);
+    }
+  };
+
+  const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    const clean = val.replace(/\D/g, "").slice(0, 8);
+    let formatted = clean;
+    if (clean.length > 5) {
+      formatted = `${clean.slice(0, 5)}-${clean.slice(5)}`;
+    }
+    setFormData(prev => ({
+      ...prev,
+      addressFull: {
+        ...(prev.addressFull || defaultAddrFull),
+        zipCode: formatted
+      }
+    }));
+    if (clean.length === 8) {
+      handleCepSearch(clean);
+    }
+  };
 
   // Locks Form State
   const [driverLocks, setDriverLocks] = useState<string[]>([]);
@@ -173,6 +249,18 @@ export function DriverProntuarioModal({
         cnhSuspended: selectedDriver.cnhSuspended || false,
         cnhObservation: selectedDriver.cnhObservation || "",
         address: selectedDriver.address || "",
+        addressFull: selectedDriver.addressFull || {
+          street: selectedDriver.address ? selectedDriver.address.split(",")[0] || "" : "",
+          number: selectedDriver.address ? selectedDriver.address.split(",")[1]?.split("-")[0]?.trim() || "" : "",
+          zipCode: "",
+          city: "São Paulo",
+          state: "SP",
+          complement: "",
+          neighborhood: "",
+          hasGarage: false,
+          garageType: "",
+          garageStyle: ""
+        },
         emergencyContact: selectedDriver.emergencyContact || "",
         photoUrl: selectedDriver.photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
         status: selectedDriver.status || "active",
@@ -206,6 +294,7 @@ export function DriverProntuarioModal({
         cnhSuspended: false,
         cnhObservation: "",
         address: "",
+        addressFull: defaultAddrFull,
         emergencyContact: "",
         photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
         status: "active",
@@ -224,7 +313,28 @@ export function DriverProntuarioModal({
 
   const handleSavePersonal = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSavePersonalData(selectedDriver, formData);
+
+    const addr = formData.addressFull;
+    let consolidatedAddress = formData.address;
+    if (addr && (addr.street || addr.city)) {
+      const parts = [
+        addr.street,
+        addr.number ? `, ${addr.number}` : '',
+        addr.complement ? ` - ${addr.complement}` : '',
+        addr.neighborhood ? `, ${addr.neighborhood}` : '',
+        addr.city ? `, ${addr.city}` : '',
+        addr.state ? ` - ${addr.state}` : '',
+        addr.zipCode ? ` (CEP: ${addr.zipCode})` : ''
+      ].filter(Boolean).join('');
+      consolidatedAddress = parts;
+    }
+
+    const payload = {
+      ...formData,
+      address: consolidatedAddress
+    };
+
+    await onSavePersonalData(selectedDriver, payload);
   };
 
   const handleSaveLocksForm = async () => {
@@ -575,20 +685,265 @@ export function DriverProntuarioModal({
                     </label>
                   </div>
 
-                  <div className="md:col-span-2 floating-label-group">
-                    <input
-                      type="text"
-                      required
-                      disabled={selectedDriver ? isReadOnly(selectedDriver) : false}
-                      placeholder=" "
-                      value={formData.address}
-                      onChange={e => setFormData({ ...formData, address: e.target.value })}
-                      className="w-full pl-3 pr-3 text-xs"
-                      id="p-addr"
-                    />
-                    <label htmlFor="p-addr" className="text-xs font-semibold text-outline">
-                      Endereço Completo
-                    </label>
+                  {/* CEP & Address Fields */}
+                  <div className="md:col-span-2 bg-slate-50 border border-outline-variant rounded-xl p-5 space-y-4">
+                    <h4 className="font-bold text-primary text-xs uppercase tracking-wider flex items-center gap-1.5">
+                      <FileText className="w-4 h-4 text-primary" />
+                      <span>Endereço Residencial</span>
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      {/* CEP */}
+                      <div className="floating-label-group md:col-span-1 relative">
+                        <input
+                          type="text"
+                          required
+                          placeholder=" "
+                          disabled={selectedDriver ? isReadOnly(selectedDriver) : false}
+                          value={formData.addressFull?.zipCode || ""}
+                          onChange={handleCepChange}
+                          className="w-full pl-3 pr-10 text-xs font-mono"
+                          id="p-addr-cep"
+                        />
+                        <label htmlFor="p-addr-cep" className="text-xs font-semibold text-outline">
+                          CEP
+                        </label>
+                        {cepLoading ? (
+                          <div className="absolute right-3 top-2.5 w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleCepSearch(formData.addressFull?.zipCode || "")}
+                            disabled={selectedDriver ? isReadOnly(selectedDriver) : false}
+                            className="absolute right-3 top-2 text-outline hover:text-primary transition-colors"
+                            title="Buscar CEP"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                          </button>
+                        )}
+                        {cepError && (
+                          <span className="text-[10px] text-red-500 font-semibold absolute left-3 -bottom-4 bg-transparent">
+                            {cepError}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Logradouro */}
+                      <div className="floating-label-group md:col-span-3">
+                        <input
+                          type="text"
+                          required
+                          placeholder=" "
+                          disabled={selectedDriver ? isReadOnly(selectedDriver) : false}
+                          value={formData.addressFull?.street || ""}
+                          onChange={e => setFormData({
+                            ...formData,
+                            addressFull: {
+                              ...(formData.addressFull || defaultAddrFull),
+                              street: e.target.value
+                            }
+                          })}
+                          className="w-full pl-3 pr-3 text-xs"
+                          id="p-addr-street"
+                        />
+                        <label htmlFor="p-addr-street" className="text-xs font-semibold text-outline">
+                          Logradouro / Rua
+                        </label>
+                      </div>
+
+                      {/* Número */}
+                      <div className="floating-label-group md:col-span-1">
+                        <input
+                          type="text"
+                          required
+                          placeholder=" "
+                          disabled={selectedDriver ? isReadOnly(selectedDriver) : false}
+                          value={formData.addressFull?.number || ""}
+                          onChange={e => setFormData({
+                            ...formData,
+                            addressFull: {
+                              ...(formData.addressFull || defaultAddrFull),
+                              number: e.target.value
+                            }
+                          })}
+                          className="w-full pl-3 pr-3 text-xs font-mono"
+                          id="p-addr-number"
+                        />
+                        <label htmlFor="p-addr-number" className="text-xs font-semibold text-outline">
+                          Número
+                        </label>
+                      </div>
+
+                      {/* Complemento */}
+                      <div className="floating-label-group md:col-span-2">
+                        <input
+                          type="text"
+                          placeholder=" "
+                          disabled={selectedDriver ? isReadOnly(selectedDriver) : false}
+                          value={formData.addressFull?.complement || ""}
+                          onChange={e => setFormData({
+                            ...formData,
+                            addressFull: {
+                              ...(formData.addressFull || defaultAddrFull),
+                              complement: e.target.value
+                            }
+                          })}
+                          className="w-full pl-3 pr-3 text-xs"
+                          id="p-addr-complement"
+                        />
+                        <label htmlFor="p-addr-complement" className="text-xs font-semibold text-outline">
+                          Complemento (Apto, Bloco, etc.)
+                        </label>
+                      </div>
+
+                      {/* Bairro */}
+                      <div className="floating-label-group md:col-span-1">
+                        <input
+                          type="text"
+                          required
+                          placeholder=" "
+                          disabled={selectedDriver ? isReadOnly(selectedDriver) : false}
+                          value={formData.addressFull?.neighborhood || ""}
+                          onChange={e => setFormData({
+                            ...formData,
+                            addressFull: {
+                              ...(formData.addressFull || defaultAddrFull),
+                              neighborhood: e.target.value
+                            }
+                          })}
+                          className="w-full pl-3 pr-3 text-xs"
+                          id="p-addr-neighborhood"
+                        />
+                        <label htmlFor="p-addr-neighborhood" className="text-xs font-semibold text-outline">
+                          Bairro
+                        </label>
+                      </div>
+
+                      {/* Cidade */}
+                      <div className="floating-label-group md:col-span-3">
+                        <input
+                          type="text"
+                          required
+                          placeholder=" "
+                          disabled={selectedDriver ? isReadOnly(selectedDriver) : false}
+                          value={formData.addressFull?.city || ""}
+                          onChange={e => setFormData({
+                            ...formData,
+                            addressFull: {
+                              ...(formData.addressFull || defaultAddrFull),
+                              city: e.target.value
+                            }
+                          })}
+                          className="w-full pl-3 pr-3 text-xs"
+                          id="p-addr-city"
+                        />
+                        <label htmlFor="p-addr-city" className="text-xs font-semibold text-outline">
+                          Cidade
+                        </label>
+                      </div>
+
+                      {/* Estado */}
+                      <div className="floating-label-group md:col-span-1">
+                        <input
+                          type="text"
+                          required
+                          placeholder=" "
+                          disabled={selectedDriver ? isReadOnly(selectedDriver) : false}
+                          value={formData.addressFull?.state || ""}
+                          onChange={e => setFormData({
+                            ...formData,
+                            addressFull: {
+                              ...(formData.addressFull || defaultAddrFull),
+                              state: e.target.value
+                            }
+                          })}
+                          className="w-full pl-3 pr-3 text-xs font-mono uppercase"
+                          maxLength={2}
+                          id="p-addr-state"
+                        />
+                        <label htmlFor="p-addr-state" className="text-xs font-semibold text-outline">
+                          Estado (UF)
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Garagem / Estacionamento info */}
+                    <div className="mt-4 pt-4 border-t border-outline-variant space-y-4">
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          disabled={selectedDriver ? isReadOnly(selectedDriver) : false}
+                          checked={formData.addressFull?.hasGarage || false}
+                          onChange={e => setFormData({
+                            ...formData,
+                            addressFull: {
+                              ...(formData.addressFull || defaultAddrFull),
+                              hasGarage: e.target.checked
+                            }
+                          })}
+                          className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary accent-primary"
+                        />
+                        <span className="text-xs font-bold text-primary flex items-center gap-1">
+                          Possui Garagem / Vaga Segura para o Veículo?
+                        </span>
+                      </label>
+
+                      {formData.addressFull?.hasGarage && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fadeIn">
+                          {/* Tipo de Garagem */}
+                          <div className="floating-label-group">
+                            <select
+                              disabled={selectedDriver ? isReadOnly(selectedDriver) : false}
+                              value={formData.addressFull?.garageType || ""}
+                              onChange={e => setFormData({
+                                ...formData,
+                                addressFull: {
+                                  ...(formData.addressFull || defaultAddrFull),
+                                  garageType: e.target.value
+                                }
+                              })}
+                              className="w-full pl-3 pr-3 text-xs appearance-none"
+                              id="p-garage-type"
+                            >
+                              <option value="">Selecione...</option>
+                              <option value="coberta">Coberta</option>
+                              <option value="descoberta">Descoberta</option>
+                            </select>
+                            <label htmlFor="p-garage-type" className="text-xs font-semibold text-outline">
+                              Tipo de Vaga
+                            </label>
+                          </div>
+
+                          {/* Modalidade de Garagem */}
+                          <div className="floating-label-group">
+                            <select
+                              disabled={selectedDriver ? isReadOnly(selectedDriver) : false}
+                              value={formData.addressFull?.garageStyle || ""}
+                              onChange={e => setFormData({
+                                ...formData,
+                                addressFull: {
+                                  ...(formData.addressFull || defaultAddrFull),
+                                  garageStyle: e.target.value
+                                }
+                              })}
+                              className="w-full pl-3 pr-3 text-xs appearance-none"
+                              id="p-garage-style"
+                            >
+                              <option value="">Selecione...</option>
+                              <option value="condominio">Condomínio (Prédio)</option>
+                              <option value="estacionamento">Estacionamento Comercial</option>
+                              <option value="privativa">Residencial Privativa (Casa)</option>
+                              <option value="outro">Outro / Via Pública</option>
+                            </select>
+                            <label htmlFor="p-garage-style" className="text-xs font-semibold text-outline">
+                              Modalidade / Local
+                            </label>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 

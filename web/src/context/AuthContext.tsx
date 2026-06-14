@@ -825,6 +825,59 @@ const DEFAULT_SEEDS = {
       notes: "Moldura plástica externa quebrada",
       createdAt: "2026-06-11T10:15:00Z"
     }
+  ],
+  taxi_points: [
+    { id: "point-1", tenantId: "tenant-1", code: "PONTO-87", name: "Aeroporto de Congonhas", address: "Av. Washington Luís, s/n", expirationDate: "2026-11-15", status: "active" },
+    { id: "point-2", tenantId: "tenant-1", code: "PONTO-42", name: "Terminal Rodoviário Tietê", address: "Av. Cruzeiro do Sul, 1800", expirationDate: "2026-05-31", status: "active" }
+  ],
+  regulatory_dispatchers: [
+    { id: "dispatcher-1", tenantId: "tenant-1", name: "Despachante Paulista", type: "company", phone: "(11) 3333-4400", email: "operacao@despachantepaulista.com.br", status: "active" },
+    { id: "dispatcher-2", tenantId: "tenant-1", name: "Carlos Mendes", type: "internal", phone: "(11) 98888-2200", email: "carlos@fleetos.com", status: "active" }
+  ],
+  permits: [
+    { id: "permit-1", tenantId: "tenant-1", permitNumber: "12345", ownerId: "owner-1", ownerName: "Frota Michelines", permissionHolder: "Frota Michelines", currentVehicleId: "veh-1", pointId: "point-1", expirationDate: "2027-04-30", status: "linked", history: [{ date: "2026-01-01", vehicleId: "veh-1", action: "Vinculado ao veículo" }] },
+    { id: "permit-2", tenantId: "tenant-1", permitNumber: "67890", ownerId: "owner-2", ownerName: "Frota Michelines", permissionHolder: "Frota Michelines", currentVehicleId: "veh-2", pointId: "point-2", expirationDate: "2026-10-20", status: "linked", history: [{ date: "2026-01-01", vehicleId: "veh-2", action: "Vinculado ao veículo" }] },
+    { id: "permit-3", tenantId: "tenant-1", permitNumber: "11122", ownerId: "owner-3", ownerName: "Frota Michelines", permissionHolder: "Frota Michelines", currentVehicleId: null, pointId: "point-1", expirationDate: "2027-01-15", status: "available", history: [{ date: "2026-05-10", vehicleId: null, action: "Liberado para estoque" }] },
+    { id: "permit-4", tenantId: "tenant-1", permitNumber: "33344", ownerId: "owner-4", ownerName: "Frota Michelines", permissionHolder: "Frota Michelines", currentVehicleId: null, pointId: null, expirationDate: "2026-12-01", status: "deposited", history: [{ date: "2026-04-18", vehicleId: null, action: "Depositado sem veículo" }] }
+  ],
+  regulatory_processes: [
+    { id: "reg-process-1", tenantId: "tenant-1", permitId: "permit-1", oldVehicleId: "veh-1", newVehicleId: "veh-3", processType: "replacement", status: "in_progress", stage: "dismantling", workOrderNumber: "OS-REG-2026-0001", dispatcherId: "dispatcher-1", responsibleUser: "Patricia Alves", deadline: "2026-06-30", estimatedCost: 8900, actualCost: 1800, checklist: { removeTaximeter: true, removeIpemSeal: true, closeOperation: true, issueExitDocuments: false, unlinkDtp: false, releasePermit: false } },
+    { id: "reg-process-2", tenantId: "tenant-1", permitId: "permit-3", oldVehicleId: null, newVehicleId: "veh-4", processType: "accreditation", status: "in_progress", stage: "preparing_vehicle", workOrderNumber: "OS-REG-2026-0002", dispatcherId: "dispatcher-2", responsibleUser: "Patricia Alves", deadline: "2026-07-05", estimatedCost: 7600, actualCost: 1450, checklist: { invoice: true, detranRegistration: true, plates: true, renavam: true, dtpPreRegistration: false, installTaximeter: false, installNumberKit: false, ipemInspection: false, dtpApproval: false, linkPermit: false } }
+  ],
+  driver_regulatory: [
+    { id: "drg-1", tenantId: "tenant-1", driverId: "drv-1", condutaxNumber: "C-54321", issueDate: "2023-11-20", expirationDate: "2028-11-20", status: "active", cnhExpirationDate: "2029-12-31", courseExpirationDate: "2028-06-15", dtpBlocked: false, observations: "Condutor em situação regular." },
+    { id: "drg-2", tenantId: "tenant-1", driverId: "drv-2", condutaxNumber: "C-98765", issueDate: "2021-06-25", expirationDate: "2026-06-25", status: "expired", cnhExpirationDate: "2028-06-15", courseExpirationDate: "2025-06-25", dtpBlocked: false, observations: "CONDUTAX expirado." },
+    { id: "drg-3", tenantId: "tenant-1", driverId: "drv-3", condutaxNumber: "C-11223", issueDate: "2024-02-15", expirationDate: "2029-02-15", status: "blocked_dtp", cnhExpirationDate: "2027-10-10", courseExpirationDate: "2029-02-15", dtpBlocked: true, observations: "Bloqueado pelo DTP devido a pendência administrativa." }
+  ],
+  infractions: [
+    { id: "inf-1", tenantId: "tenant-1", vehicleId: "veh-1", driverId: "drv-1", autoNumber: "A-987654", orgao: "DSV/CET", description: "Transitar em velocidade superior à máxima permitida em até 20%", valor: 195.23, pontuacao: 4, vencimento: "2026-07-10", responsavel: "driver", status: "pending", createdAt: new Date().toISOString() },
+    { id: "inf-2", tenantId: "tenant-1", vehicleId: "veh-1", driverId: "drv-1", autoNumber: "B-123456", orgao: "DER", description: "Transitar em velocidade superior à máxima permitida de 20% a 50%", valor: 130.15, pontuacao: 3, vencimento: "2026-06-20", responsavel: "company", status: "paid", createdAt: new Date().toISOString() },
+    { id: "inf-3", tenantId: "tenant-1", vehicleId: "veh-2", driverId: "drv-2", autoNumber: "C-456789", orgao: "PRF", description: "Não manter acesa a luz baixa de dia, nas rodovias", valor: 880.41, pontuacao: 7, vencimento: "2026-08-01", responsavel: "undetermined", status: "pending", createdAt: new Date().toISOString() }
+  ],
+  vehicle_lifecycle_processes: [
+    { id: "vlp-1", tenantId: "tenant-1", vehicleId: "veh-1", operationType: "taxi", phase: "operation", step: "active", status: "completed", startedAt: "2026-01-01T08:00:00Z", checklistCompletion: 100 },
+    { id: "vlp-2", tenantId: "tenant-1", vehicleId: "veh-2", operationType: "taxi", phase: "operation", step: "active", status: "completed", startedAt: "2026-01-01T08:00:00Z", checklistCompletion: 100 },
+    { id: "vlp-3", tenantId: "tenant-1", vehicleId: "veh-3", operationType: "taxi", phase: "entry", step: "gnv", status: "in_progress", startedAt: "2026-06-10T10:00:00Z", checklistCompletion: 62 },
+    { id: "vlp-4", tenantId: "tenant-1", vehicleId: "veh-4", operationType: "taxi", phase: "entry", step: "taximetro", status: "in_progress", startedAt: "2026-06-12T09:00:00Z", checklistCompletion: 37 }
+  ],
+  vehicle_compliance_scores: [
+    { id: "vcs-1", tenantId: "tenant-1", vehicleId: "veh-1", score: 98, status: "excellent", lastCalculated: new Date().toISOString() },
+    { id: "vcs-2", tenantId: "tenant-1", vehicleId: "veh-2", score: 85, status: "warning", lastCalculated: new Date().toISOString() },
+    { id: "vcs-3", tenantId: "tenant-1", vehicleId: "veh-3", score: 62, status: "critical", lastCalculated: new Date().toISOString() },
+    { id: "vcs-4", tenantId: "tenant-1", vehicleId: "veh-4", score: 37, status: "critical", lastCalculated: new Date().toISOString() }
+  ],
+  annual_inspections: [
+    { id: "ai-1", tenantId: "tenant-1", vehicleId: "veh-1", damspPaid: true, inspectionDate: "2026-02-10", oiaNumber: "OIA-998811", result: "approved", permitIssued: true, year: 2026 },
+    { id: "ai-2", tenantId: "tenant-1", vehicleId: "veh-2", damspPaid: true, inspectionDate: "2026-05-18", oiaNumber: "OIA-775533", result: "approved", permitIssued: true, year: 2026 }
+  ],
+  taximeter_adjustments: [
+    { id: "ta-1", tenantId: "tenant-1", vehicleId: "veh-1", tariffVersion: "Tarifa 2026", adjustmentDate: "2026-03-01", workshop: "Taxímetros Jabaquara", status: "completed" },
+    { id: "ta-2", tenantId: "tenant-1", vehicleId: "veh-2", tariffVersion: "Tarifa 2026", adjustmentDate: "2026-03-02", workshop: "Taxímetros Lapa", status: "completed" }
+  ],
+  gnv_registries: [
+    { id: "gr-1", tenantId: "tenant-1", vehicleId: "veh-1", cylinderNumber: "GNV-554433", installationCompany: "Gás Tecnologia Ltda", certificationDate: "2026-01-10", expirationDate: "2027-01-10", status: "valid" },
+    { id: "gr-2", tenantId: "tenant-1", vehicleId: "veh-2", cylinderNumber: "GNV-998877", installationCompany: "Convertedora Ipiranga", certificationDate: "2025-06-25", expirationDate: "2026-06-25", status: "warning" },
+    { id: "gr-3", tenantId: "tenant-1", vehicleId: "veh-3", cylinderNumber: "GNV-112233", installationCompany: "Convertedora Centro", certificationDate: "2024-05-10", expirationDate: "2025-05-10", status: "expired" }
   ]
 };
 
@@ -1162,7 +1215,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Initialize mock database in localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const forceReSeed = !localStorage.getItem("fleetos_volume_seeded_v1") || 
+      const forceReSeed = !localStorage.getItem("fleetos_volume_seeded_v3") ||
         (localStorage.getItem("fleetos_drivers") && JSON.parse(localStorage.getItem("fleetos_drivers") || "[]").length <= 2);
 
       if (forceReSeed) {
@@ -1180,10 +1233,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           "claim_reports", "claim_third_parties", "claim_damage_items", "damage_price_table", "claim_budgets",
           "claim_installments", "claim_approvals", "inventory_items", "suppliers", "purchase_orders",
           "purchase_order_items", "work_orders", "work_order_items", "inventory_movements", "vehicle_expenses",
-          "inventory_pending_items"
+          "inventory_pending_items", "permits", "regulatory_processes", "regulatory_dispatchers", "taxi_points", "driver_regulatory", "infractions", "vehicle_lifecycle_processes",
+          "vehicle_compliance_scores", "annual_inspections", "taximeter_adjustments", "gnv_registries"
         ].forEach(key => localStorage.removeItem(`fleetos_${key}`));
         
-        localStorage.setItem("fleetos_volume_seeded_v1", "true");
+        localStorage.setItem("fleetos_volume_seeded_v3", "true");
       }
 
       const volumeMocks = generateVolumeMocks();
@@ -1204,7 +1258,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         "pricing_packages", "contract_billing_profiles", "pricing_calendar", "pricing_exemptions", "contract_billing",
         "inventory_items", "suppliers", "purchase_orders", "purchase_order_items", "work_orders", "work_order_items", "inventory_movements", "vehicle_expenses",
         "inventory_pending_items", "operation_types", "pricing_subcategories", "contract_types", "billing_profiles",
-        "calendar_rules", "pricing_promotions", "pricing_table_versions"
+        "calendar_rules", "pricing_promotions", "pricing_table_versions", "permits", "regulatory_processes", "regulatory_dispatchers", "taxi_points", "driver_regulatory", "infractions",
+        "vehicle_lifecycle_processes", "vehicle_compliance_scores", "annual_inspections", "taximeter_adjustments", "gnv_registries"
       ].forEach((key) => {
         if (!localStorage.getItem(`fleetos_${key}`)) {
           localStorage.setItem(`fleetos_${key}`, JSON.stringify(mergedSeeds[key as keyof typeof mergedSeeds]));

@@ -4,7 +4,7 @@ import React from "react";
 import { 
   X, ShieldAlert, Settings, Banknote, TrendingUp, Zap, 
   User, Tag, AlertTriangle, Wrench, ClipboardList, Paperclip, 
-  Activity, Printer 
+  Activity, Printer, Scale 
 } from "lucide-react";
 
 import { VehicleSpecsTab } from "./VehicleSpecsTab";
@@ -19,6 +19,7 @@ import { VehicleMaintTab } from "./VehicleMaintTab";
 import { VehicleChecklistsTab } from "./VehicleChecklistsTab";
 import { VehicleDocsTab } from "./VehicleDocsTab";
 import { VehicleHistoryTab } from "./VehicleHistoryTab";
+import { VehicleComplianceTab } from "./VehicleComplianceTab";
 
 interface VehicleModalProps {
   isModalOpen: boolean;
@@ -72,6 +73,16 @@ interface VehicleModalProps {
   attachments: any[];
   timeline: any[];
   categories: any[];
+  regulatoryProcesses: any[];
+  regulatoryInspections: any[];
+  taximeterRegistries: any[];
+  municipalRegulations: any[];
+
+  // Handlers
+  handleSaveRegulatoryProcess: (vehicleId: string, data: any) => Promise<void>;
+  handleSaveTaximeterRegistry: (vehicleId: string, data: any) => Promise<void>;
+  handleSaveRegulatoryInspection: (vehicleId: string, data: any) => Promise<void>;
+  handleDeleteRegulatoryInspection: (inspectionId: string) => Promise<void>;
 }
 
 export function VehicleModal({
@@ -121,7 +132,15 @@ export function VehicleModal({
   checklists,
   attachments,
   timeline,
-  categories
+  categories,
+  regulatoryProcesses,
+  regulatoryInspections,
+  taximeterRegistries,
+  municipalRegulations,
+  handleSaveRegulatoryProcess,
+  handleSaveTaximeterRegistry,
+  handleSaveRegulatoryInspection,
+  handleDeleteRegulatoryInspection
 }: VehicleModalProps) {
   if (!isModalOpen) return null;
 
@@ -132,6 +151,7 @@ export function VehicleModal({
     { id: "acquisition", label: "Patrimônio", icon: Banknote, requiresVehicle: true, highlight: true },
     { id: "performance", label: "Performance", icon: TrendingUp, requiresVehicle: true, highlight: true },
     { id: "current_op", label: "Operação Atual", icon: Zap, requiresVehicle: true, highlight: true },
+    { id: "compliance", label: "🚖 Compliance & Regulação", icon: Scale, requiresVehicle: true, highlight: true },
     { id: "locks", label: "Bloqueios & Travas", icon: ShieldAlert, requiresVehicle: true },
     { id: "drivers", label: "Histórico Motoristas", icon: User, requiresVehicle: true },
     { id: "assets", label: "Equipamentos (Assets)", icon: Tag, requiresVehicle: true },
@@ -288,6 +308,24 @@ export function VehicleModal({
                 drivers={drivers}
                 contracts={contracts}
                 maintenancePlan={maintenancePlan}
+              />
+            )}
+
+            {activeTab === "compliance" && selectedVehicle && (
+              <VehicleComplianceTab
+                selectedVehicle={selectedVehicle}
+                regulatoryProcesses={regulatoryProcesses}
+                regulatoryInspections={regulatoryInspections}
+                taximeterRegistries={taximeterRegistries}
+                municipalRegulations={municipalRegulations}
+                handleSaveRegulatoryProcess={handleSaveRegulatoryProcess}
+                handleSaveTaximeterRegistry={handleSaveTaximeterRegistry}
+                handleSaveRegulatoryInspection={handleSaveRegulatoryInspection}
+                handleDeleteRegulatoryInspection={handleDeleteRegulatoryInspection}
+                isReadOnly={isReadOnly}
+                drivers={drivers}
+                assignments={assignments}
+                contracts={contracts}
               />
             )}
 

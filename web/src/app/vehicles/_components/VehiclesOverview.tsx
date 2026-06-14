@@ -13,6 +13,8 @@ interface VehiclesOverviewProps {
   handleDeleteVehicle: (id: string) => void;
   getActiveDriver: (vehicleId: string) => string | null;
   getExpirationBadge: (dateStr: string) => React.ReactNode;
+  regulatoryProcesses: any[];
+  municipalRegulations: any[];
 }
 
 export const VehiclesOverview: React.FC<VehiclesOverviewProps> = ({
@@ -24,14 +26,145 @@ export const VehiclesOverview: React.FC<VehiclesOverviewProps> = ({
   handleOpenDossier,
   handleDeleteVehicle,
   getActiveDriver,
-  getExpirationBadge
+  getExpirationBadge,
+  regulatoryProcesses = [],
+  municipalRegulations = []
 }) => {
+  // Helper for Status Badge and Operational Checklist Block mapping
+  const getStatusBadge = (veh: any) => {
+    const status = veh.status;
+    const process = regulatoryProcesses.find(rp => rp.vehicleId === veh.id);
+    let isNonLocatable = false;
+    let pendingReasons: string[] = [];
+
+    if (status === "active" && process) {
+      const reg = municipalRegulations.find(r => r.city === process.city);
+      const checklist = process.checklist;
+      if (checklist) {
+        const needsTaximeter = process.operationType === "taxi" && (!reg || reg.requiresTaxiMeter);
+        const needsDtp = process.operationType === "taxi" && (!reg || reg.requiresPermitInspection);
+
+        if (!checklist.invoice) pendingReasons.push("NF");
+        if (!checklist.crv) pendingReasons.push("CRV");
+        if (!checklist.renavam) pendingReasons.push("Renavam");
+        if (!checklist.insuranceActive) pendingReasons.push("Seguro");
+        if (!checklist.trackerInstalled) pendingReasons.push("Rastreador");
+        if (needsTaximeter && (!checklist.taximeterInstalled || !checklist.taximeterCalibrated)) pendingReasons.push("Taxímetro");
+        if (process.operationType === "taxi" && !checklist.permitIssued) pendingReasons.push("Alvará");
+        if (needsDtp && !checklist.dtpInspectionApproved) pendingReasons.push("Vistoria DTP");
+
+        if (pendingReasons.length > 0) {
+          isNonLocatable = true;
+        }
+      }
+    }
+
+    const badgeStyles: Record<string, string> = {
+      active: "bg-emerald-100 text-emerald-700",
+      locado: "bg-blue-100 text-blue-700",
+      maintenance: "bg-amber-100 text-amber-700",
+      sinistrado: "bg-red-100 text-red-700",
+      acquisition: "bg-purple-100 text-purple-750 text-purple-700",
+      awaiting_docs: "bg-indigo-100 text-indigo-700",
+      in_registration: "bg-cyan-100 text-cyan-700",
+      awaiting_dtp: "bg-teal-100 text-teal-700",
+      awaiting_taximeter: "bg-orange-100 text-orange-700",
+      awaiting_gnv: "bg-rose-100 text-rose-700",
+      homologated: "bg-lime-100 text-lime-700",
+      blocked_regulatory: "bg-red-105 bg-red-100 text-red-800 border border-red-200",
+      decommissioning: "bg-yellow-100 text-yellow-850 text-yellow-700",
+      for_sale: "bg-stone-100 text-stone-700",
+      sold: "bg-gray-100 text-gray-500 line-through"
+    };
+
+    const badgeLabels: Record<string, string> = {
+      active: "Disponível",
+      locado: "Locado",
+      maintenance: "Oficina",
+      sinistrado: "Sinistrado",
+      acquisition: "Em aquisição",
+      awaiting_docs: "Aguardando docs",
+      in_registration: "Em credenciamento",
+      awaiting_dtp: "Aguardando DTP",
+      awaiting_taximeter: "Aguardando taxímetro",
+      awaiting_gnv: "Aguardando GNV",
+      homologated: "Homologado",
+      blocked_regulatory: "Bloqueio Reg.",
+      decommissioning: "Descredenciando",
+      for_sale: "À venda",
+      sold: "Vendido"
+    };
+
+    const style = badgeStyles[status] || "bg-slate-100 text-slate-700";
+    const label = badgeLabels[status] || status;
+
+    return (
+      <div className="flex flex-col gap-1 items-start">
+        <span className={`px-2 py-0.5 font-black text-[9px] uppercase rounded ${style}`}>
+          {label}
+        </span>
+        {isNonLocatable && (
+          <span className="px-1.5 py-0.5 bg-amber-500 text-white font-black text-[8.5px] leading-none rounded flex items-center gap-1 shadow-sm" title={`Pendente: ${pendingReasons.join(", ")}`}>
+            <ShieldAlert className="w-2.5 h-2.5" />
+            NÃO LOCÁVEL ({pendingReasons.join(", ")})
+          </span>
+        )}
+        {veh.activeLocks && veh.activeLocks.length > 0 && (
+          <span className="px-1.5 py-0.5 bg-red-500 text-white font-black text-[8px] rounded flex items-center gap-0.5">
+            <ShieldAlert className="w-2.5 h-2.5" />
+            BLOQUEADO
+          </span>
+        )}
+      </div>
+    );
+  };
+
   // Stats counters
   const total = filteredVehicles.length;
   const active = filteredVehicles.filter(v => v.status === "active").length;
   const locado = filteredVehicles.filter(v => v.status === "locado").length;
   const maint = filteredVehicles.filter(v => v.status === "maintenance").length;
-  const locked = filteredVehicles.filter(v => v.activeLocks && v.activeLocks.length > 0).length;
+  
+  // Custom locked/blocked/non-locatable calculation
+  const locked = filteredVehicles.filter(v => {
+    if (v.status === "blocked_regulatory") return true;
+    if (v.activeLocks && v.activeLocks.length > 0) return true;
+    
+    // Check if non-locatable active
+    const process = regulatoryProcesses.find(rp => rp.vehicleId === v.id);
+    if (v.status === "active" && process) {
+      const reg = municipalRegulations.find(r => r.city === process.city);
+      const checklist = process.checklist;
+      if (checklist) {
+        const needsTaximeter = process.operationType === "taxi" && (!reg || reg.requiresTaxiMeter);
+        const needsDtp = process.operationType === "taxi" && (!reg || reg.requiresPermitInspection);
+        
+        if (!checklist.invoice || !checklist.crv || !checklist.renavam || !checklist.insuranceActive || !checklist.trackerInstalled) return true;
+        if (needsTaximeter && (!checklist.taximeterInstalled || !checklist.taximeterCalibrated)) return true;
+        if (process.operationType === "taxi" && !checklist.permitIssued) return true;
+        if (needsDtp && !checklist.dtpInspectionApproved) return true;
+      }
+    }
+    return false;
+  }).length;
+
+  // GNV/Taximeter alarm alerts
+  const gnvAlerts = filteredVehicles.filter(v => {
+    const process = regulatoryProcesses.find(rp => rp.vehicleId === v.id);
+    if (!process || !process.gnvDetails?.hasGnv || !process.gnvDetails?.cylinderExpiry) return false;
+    const expiry = new Date(process.gnvDetails.cylinderExpiry);
+    const today = new Date();
+    const diffTime = expiry.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 60;
+  }).length;
+
+  const taximeterAlerts = filteredVehicles.filter(v => {
+    const process = regulatoryProcesses.find(rp => rp.vehicleId === v.id);
+    if (!process || process.operationType !== "taxi") return false;
+    const checklist = process.checklist;
+    return checklist && (!checklist.taximeterInstalled || !checklist.taximeterCalibrated);
+  }).length;
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -50,6 +183,24 @@ export const VehiclesOverview: React.FC<VehiclesOverviewProps> = ({
           </div>
         ))}
       </div>
+
+      {/* Alarm Badges */}
+      {(gnvAlerts > 0 || taximeterAlerts > 0) && (
+        <div className="flex gap-2 flex-wrap bg-white p-3 border border-outline-variant rounded-xl shadow-sm">
+          {gnvAlerts > 0 && (
+            <span className="px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-full text-[10px] font-bold flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping" />
+              {gnvAlerts} cilindro(s) GNV vencendo em 60 dias
+            </span>
+          )}
+          {taximeterAlerts > 0 && (
+            <span className="px-3 py-1 bg-red-50 border border-red-200 text-red-700 rounded-full text-[10px] font-bold flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />
+              {taximeterAlerts} taxímetro(s) irregular(es) ou sem calibragem
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
@@ -137,27 +288,7 @@ export const VehiclesOverview: React.FC<VehiclesOverviewProps> = ({
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex flex-col gap-1 items-start">
-                      <span className={`px-2 py-0.5 font-black text-[9px] uppercase rounded ${
-                        veh.status === "active" ? "bg-emerald-100 text-emerald-700" :
-                        veh.status === "locado" ? "bg-blue-100 text-blue-700" :
-                        veh.status === "maintenance" ? "bg-amber-100 text-amber-700" :
-                        veh.status === "sinistrado" ? "bg-red-100 text-red-700" :
-                        "bg-slate-100 text-slate-700"
-                      }`}>
-                        {veh.status === "active" ? "Disponível" :
-                         veh.status === "locado" ? "Locado" :
-                         veh.status === "maintenance" ? "Oficina" :
-                         veh.status === "sinistrado" ? "Sinistrado" :
-                         veh.status}
-                      </span>
-                      {veh.activeLocks && veh.activeLocks.length > 0 && (
-                        <span className="px-1.5 py-0.5 bg-red-500 text-white font-black text-[8px] rounded flex items-center gap-0.5">
-                          <ShieldAlert className="w-2.5 h-2.5" />
-                          BLOQUEADO
-                        </span>
-                      )}
-                    </div>
+                    {getStatusBadge(veh)}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex gap-2 justify-end">

@@ -2,321 +2,322 @@
 
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
-import { 
-  Car, 
-  Users, 
-  FileText, 
-  Wrench,
-  AlertTriangle,
-  ClipboardList
-} from "lucide-react";
+import { useDashboardData } from "./_hooks/useDashboardData";
+import { AttentionSection } from "./_components/AttentionSection";
+import { ExecutiveBlock } from "./_components/ExecutiveBlock";
+import { FinancialBlock } from "./_components/FinancialBlock";
+import { OperationalBlock } from "./_components/OperationalBlock";
+import { WorkshopBlock } from "./_components/WorkshopBlock";
+import { ComplianceWidget } from "./_components/ComplianceWidget";
+import { Clock, CheckCircle, AlertCircle, AlertOctagon, HelpCircle, X } from "lucide-react";
 
 export default function Dashboard() {
-  const { currentUser, getCollection } = useAuth();
-  const router = useRouter();
-  const [stats, setStats] = useState({
-    totalVehicles: 0,
-    activeVehicles: 0,
-    maintenanceVehicles: 0,
-    totalDrivers: 0,
-    activeDrivers: 0,
-    monthlyRevenue: 0,
-    activeContracts: 0,
-  });
-  const [loading, setLoading] = useState(true);
+  const { currentUser } = useAuth();
+  const {
+    vehicles,
+    timeline,
+    inventory,
+    workOrders,
+    cashierMovements,
+    loading,
+    calculations,
+    groupedAlerts
+  } = useDashboardData();
 
+  // Simulated profile state for visualization
+  const [simulatedProfile, setSimulatedProfile] = useState<string>("role-owner");
+
+  // Push notifications state
+  const [toasts, setToasts] = useState<{ id: string; title: string; desc: string; type: "info" | "warning" | "error" | "success" }[]>([]);
+
+  // Initialize profile once user is loaded
   useEffect(() => {
-    async function loadDashboardData() {
-      if (!currentUser) return;
-      try {
-        setLoading(true);
-        const [vehiclesList, driversList, contractsList] = await Promise.all([
-          getCollection("vehicles"),
-          getCollection("drivers"),
-          getCollection("contracts"),
-        ]);
+    if (currentUser) {
+      setSimulatedProfile(currentUser.roleId || "role-owner");
+    }
+  }, [currentUser]);
 
-        const totalVehicles = vehiclesList.length;
-        const activeVehicles = vehiclesList.filter((v: any) => v.status === "active").length;
-        const maintenanceVehicles = vehiclesList.filter((v: any) => v.status === "maintenance").length;
-        
-        const totalDrivers = driversList.length;
-        const activeDrivers = driversList.filter((d: any) => d.status === "active").length;
+  // Calculate total fleet mileage for cost-per-km metrics
+  const totalFleetMileage = vehicles.reduce((sum, v) => sum + (v.mileage || 0), 0);
 
-        const activeContracts = contractsList.filter((c: any) => c.status === "active").length;
+  // Trigger toast notifications on profile change or load
+  useEffect(() => {
+    if (loading) return;
 
-        // Calculate Monthly Revenue based on active contracts
-        const monthlyRevenue = contractsList
-          .filter((c: any) => c.status === "active")
-          .reduce((sum: number, c: any) => sum + (c.monthlyRate || 0), 0);
+    setToasts([]);
 
-        setStats({
-          totalVehicles,
-          activeVehicles,
-          maintenanceVehicles,
-          totalDrivers,
-          activeDrivers,
-          monthlyRevenue,
-          activeContracts,
+    const newToasts: any[] = [];
+
+    if (simulatedProfile === "role-owner") {
+      newToasts.push({
+        id: "owner-1",
+        title: "Balanço Patrimonial",
+        desc: `Patrimônio Líquido atual consolidado em ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(calculations.patrimonioLiquido)}.`,
+        type: "success"
+      });
+      if (calculations.inadimplencia > 0) {
+        newToasts.push({
+          id: "owner-2",
+          title: "Aviso de Cobrança",
+          desc: `Há faturas vencidas acumulando ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(calculations.inadimplencia)} em inadimplência.`,
+          type: "error"
         });
-      } catch (error) {
-        console.error("Erro ao carregar dados do dashboard", error);
-      } finally {
-        setLoading(false);
       }
+      newToasts.push({
+        id: "owner-3",
+        title: "Desempenho de Frota",
+        desc: `Custo médio operacional por KM da frota calculado em R$ ${(calculations.totalMaintCosts / Math.max(1, totalFleetMileage)).toFixed(2)}.`,
+        type: "info"
+      });
+    } else if (simulatedProfile === "role-financial") {
+      if (!calculations.openCashier) {
+        newToasts.push({
+          id: "fin-1",
+          title: "Caixa Fechado",
+          desc: "Atenção: Não há nenhuma sessão de caixa operacional aberta no momento.",
+          type: "warning"
+        });
+      } else {
+        newToasts.push({
+          id: "fin-1-open",
+          title: "Caixa Operacional Ativo",
+          desc: `Sessão aberta. Saldo atual do dia: R$ ${(calculations.openCashier.openingAmount + cashierMovements.reduce((sum: number, m: any) => sum + m.amount, 0)).toLocaleString()}`,
+          type: "success"
+        });
+      }
+      newToasts.push({
+        id: "fin-2",
+        title: "Projeção Financeira",
+        desc: `Faturamento mensal contratado estimado em ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(calculations.receitaContratada)}.`,
+        type: "info"
+      });
+    } else if (simulatedProfile === "role-operational") {
+      if (groupedAlerts.docs.length > 0) {
+        newToasts.push({
+          id: "op-1",
+          title: "Vencimento de Documentos",
+          desc: `Existem ${groupedAlerts.docs.length} documentos operacionais (CNH, seguro ou alvará) vencendo em até 30 dias.`,
+          type: "warning"
+        });
+      }
+      newToasts.push({
+        id: "op-2",
+        title: "Taxa de Ocupação",
+        desc: `Frota rodando com taxa de ocupação ativa em ${calculations.occupancyRate.toFixed(1)}%.`,
+        type: "success"
+      });
+    } else if (simulatedProfile === "role-workshop") {
+      const lowStock = inventory.filter(i => i.currentQty < i.minQty).length;
+      if (lowStock > 0) {
+        newToasts.push({
+          id: "work-1",
+          title: "Estoque Crítico",
+          desc: `Atenção: ${lowStock} itens do almoxarifado estão abaixo do estoque de segurança.`,
+          type: "error"
+        });
+      }
+      const activeWOs = workOrders.filter(w => w.status === "in_progress").length;
+      newToasts.push({
+        id: "work-2",
+        title: "OS em Andamento",
+        desc: `Existem ${activeWOs} ordens de serviço sendo executadas na oficina parceira.`,
+        type: "info"
+      });
     }
 
-    loadDashboardData();
-  }, [currentUser]);
+    newToasts.forEach((toast, idx) => {
+      setTimeout(() => {
+        setToasts(prev => {
+          if (prev.find(t => t.id === toast.id)) return prev;
+          return [...prev, toast];
+        });
+
+        // Auto remove after 6 seconds
+        setTimeout(() => {
+          setToasts(prev => prev.filter(t => t.id !== toast.id));
+        }, 6000);
+      }, idx * 1200);
+    });
+  }, [simulatedProfile, loading, calculations, groupedAlerts, cashierMovements, inventory, workOrders, totalFleetMileage]);
 
   if (loading) {
     return (
       <div className="flex-grow flex items-center justify-center min-h-[60vh]">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        <div className="flex flex-col items-center space-y-4">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-on-surface-variant text-xs font-semibold tracking-wide">Carregando painel analítico...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-stack-lg max-w-[1400px] mx-auto">
-      {/* Quick Action Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-stack-lg max-w-[1450px] mx-auto">
+      
+      {/* Header and Visual Profile Simulator */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 border border-outline-variant rounded-2xl shadow-sm">
         <div>
-          <h2 className="font-geist text-headline-md font-semibold text-primary">Fleet Command Center</h2>
-          <p className="text-on-surface-variant text-xs">Visão geral do desempenho e saúde operacional em tempo real.</p>
+          <h2 className="font-geist text-headline-md font-semibold text-primary flex items-center gap-2">
+            <span>Fleet Command Center</span>
+            <span className="text-[10px] bg-primary/10 border border-primary/20 text-primary uppercase px-2 py-0.5 rounded font-black tracking-widest font-mono">v4.0</span>
+          </h2>
+          <p className="text-on-surface-variant text-xs mt-1">Visão geral unificada de operações, faturamento, patrimônio e ROI.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => router.push("/drivers")}
-            className="flex items-center gap-2 px-4 py-2 bg-surface-container-lowest border border-outline-variant text-on-surface text-xs font-semibold rounded-lg hover:bg-surface-container transition-all"
-          >
-            <span className="material-symbols-outlined text-[18px]">person_add</span>
-            Cadastrar Motorista
-          </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider font-mono">Simular Perfil:</span>
+            <select
+              value={simulatedProfile}
+              onChange={(e) => setSimulatedProfile(e.target.value)}
+              className="bg-surface-container-low border border-outline-variant text-xs font-bold px-3 py-1.5 rounded-lg text-primary focus:ring-2 focus:ring-primary/20 outline-none"
+            >
+              <option value="role-owner">Proprietário (BI & Patrimônio)</option>
+              <option value="role-financial">Financeiro & Caixa</option>
+              <option value="role-operational">Operador & Vínculos</option>
+              <option value="role-workshop">Oficina Parceira & OS</option>
+            </select>
+          </div>
           <button 
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 bg-surface-container-lowest border border-outline-variant text-on-surface text-xs font-semibold rounded-lg hover:bg-surface-container transition-all"
+            className="flex items-center gap-2 px-4 py-2 bg-surface-container-lowest border border-outline-variant text-on-surface text-xs font-bold rounded-lg hover:bg-surface-container transition-all"
           >
-            <span className="material-symbols-outlined text-[18px]">file_download</span>
-            Gerar Relatório
+            <span className="material-symbols-outlined text-[16px]">print</span>
+            <span>Imprimir Relatório</span>
           </button>
         </div>
       </div>
 
-      {/* KPI Grid */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
-        {/* Card 1 */}
-        <div className="bg-surface-container-lowest p-stack-md border border-outline-variant rounded-xl hover:border-primary transition-all">
-          <div className="flex justify-between items-start mb-2">
-            <span className="p-2 bg-primary-fixed-dim/30 rounded-lg text-primary">
-              <span className="material-symbols-outlined text-[20px]">local_shipping</span>
-            </span>
-            <span className="text-accent-green text-[11px] font-bold">Ativo</span>
-          </div>
-          <div className="text-3xl font-black font-geist text-primary">{stats.totalVehicles}</div>
-          <div className="text-on-surface-variant text-[10px] font-bold uppercase tracking-wider mt-1">Veículos na Frota</div>
-        </div>
+      {/* 🚨 BLOCO 1: ATENÇÃO HOJE (ALERTAS DE ALTO IMPACTO) */}
+      <AttentionSection alerts={calculations.attentionAlerts} />
 
-        {/* Card 2 */}
-        <div className="bg-surface-container-lowest p-stack-md border border-outline-variant rounded-xl hover:border-primary transition-all">
-          <div className="flex justify-between items-start mb-2">
-            <span className="p-2 bg-primary-fixed-dim/30 rounded-lg text-primary">
-              <span className="material-symbols-outlined text-[20px]">groups</span>
-            </span>
-            <span className="text-accent-green text-[11px] font-bold">Ativo</span>
-          </div>
-          <div className="text-3xl font-black font-geist text-primary">{stats.activeDrivers}</div>
-          <div className="text-on-surface-variant text-[10px] font-bold uppercase tracking-wider mt-1">Motoristas Ativos</div>
-        </div>
+      {/* Compliance Statistics Cockpit */}
+      {(simulatedProfile === "role-owner" || simulatedProfile === "role-operational") && (
+        <ComplianceWidget calculations={calculations} />
+      )}
 
-        {/* Card 3 */}
-        <div className="bg-surface-container-lowest p-stack-md border border-outline-variant rounded-xl hover:border-primary transition-all">
-          <div className="flex justify-between items-start mb-2">
-            <span className="p-2 bg-primary-fixed-dim/30 rounded-lg text-primary">
-              <span className="material-symbols-outlined text-[20px]">payments</span>
-            </span>
-            <div className="flex items-center gap-0.5 text-accent-green">
-              <span className="material-symbols-outlined text-[14px]">trending_up</span>
-              <span className="text-[11px] font-bold">12%</span>
-            </div>
-          </div>
-          <div className="text-3xl font-black font-geist text-primary">
-            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(stats.monthlyRevenue)}
-          </div>
-          <div className="text-on-surface-variant text-[10px] font-bold uppercase tracking-wider mt-1">Faturamento Mensal</div>
-        </div>
+      {/* ==========================================
+          DYNAMIC ROLE-BASED DASHBOARD BLOCKS
+         ========================================== */}
+      
+      {/* View 1: Proprietário (Nível 3 - BI, ROI & Patrimônio) */}
+      {simulatedProfile === "role-owner" && (
+        <ExecutiveBlock 
+          calculations={calculations} 
+          totalMileage={totalFleetMileage} 
+        />
+      )}
 
-        {/* Card 4 */}
-        <div className="bg-surface-container-lowest p-stack-md border border-outline-variant rounded-xl hover:border-primary transition-all">
-          <div className="flex justify-between items-start mb-2">
-            <span className="p-2 bg-error-container/20 rounded-lg text-error">
-              <span className="material-symbols-outlined text-[20px]">build</span>
-            </span>
-            <span className="text-error text-[10px] font-bold uppercase">Prioridade</span>
-          </div>
-          <div className="text-3xl font-black font-geist text-primary">{stats.maintenanceVehicles}</div>
-          <div className="text-on-surface-variant text-[10px] font-bold uppercase tracking-wider mt-1">Veículos em Manutenção</div>
-        </div>
-      </section>
+      {/* View 2: Financeiro (Nível 2 - Fluxo de Caixa, Faturamento & Custos) */}
+      {simulatedProfile === "role-financial" && (
+        <FinancialBlock 
+          calculations={calculations} 
+          cashierMovements={cashierMovements} 
+        />
+      )}
 
-      {/* Live Fleet Overview Section */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
-        <div className="lg:col-span-2 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden flex flex-col min-h-[450px]">
-          <div className="p-stack-md border-b border-outline-variant flex justify-between items-center bg-white">
-            <h3 className="font-geist text-sm font-bold text-primary flex items-center gap-2">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-green opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent-green"></span>
-              </span>
-              Telemetria da Frota (Tempo Real)
-            </h3>
-            <div className="flex items-center gap-2 bg-surface-container-low p-1 rounded-lg">
-              <button className="px-3 py-1 bg-white shadow-sm rounded-md text-[10px] font-semibold text-primary">Mapa</button>
-              <button className="px-3 py-1 text-[10px] text-on-surface-variant font-medium">Satélite</button>
-            </div>
-          </div>
-          
-          <div className="flex-1 relative bg-slate-100 overflow-hidden">
-            {/* Simulated Map Placeholder */}
-            <div className="absolute inset-0 grayscale opacity-40">
-              <img 
-                className="w-full h-full object-cover" 
-                alt="Minimalist digital map" 
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCsbU1uoBZdozS4ZaNSY0N1p5cq10qPU9wxZN-CGeGQo9_FNZxQtG2zyNyKCpP3ktapyt8pFIGxlPQHyJf6OXQ74CTUKUeyyVYNypyuD-QZnDVdRr5omYKO08KwiVN_5HHAlBM2mNfx0_ppKeun-UYvvHriGFyPnMn8qqpKnMGvxuBytTg1Oz__QQBHZO6KzIAxnCRDcAM_8cnt0FCr9lgMo228vEhIl0nhalMEQAvnXgwAxwHGxmgnOogNMJ2qsueFLel4kJv3kg"
-              />
-            </div>
-            
-            {/* Vehicle Pings */}
-            <div className="absolute top-[30%] left-[40%] group cursor-pointer">
-              <div className="map-ping absolute inset-0 bg-accent-green rounded-full w-6 h-6"></div>
-              <div className="relative bg-primary text-white px-2 py-1 rounded shadow-xl text-[9px] font-bold">V-402</div>
-            </div>
-            <div className="absolute top-[60%] left-[25%] group cursor-pointer">
-              <div className="map-ping absolute inset-0 bg-accent-green rounded-full w-6 h-6"></div>
-              <div className="relative bg-primary text-white px-2 py-1 rounded shadow-xl text-[9px] font-bold">V-118</div>
-            </div>
-            <div className="absolute top-[45%] left-[70%] group cursor-pointer">
-              <div className="map-ping absolute inset-0 bg-error rounded-full w-6 h-6"></div>
-              <div className="relative bg-error text-white px-2 py-1 rounded shadow-xl text-[9px] font-bold">V-901</div>
-            </div>
+      {/* View 3: Operador (Nível 1 - Atalhos de Central de Vínculos & Telemetria) */}
+      {simulatedProfile === "role-operational" && (
+        <OperationalBlock 
+          vehicles={vehicles} 
+          groupedAlerts={groupedAlerts} 
+        />
+      )}
 
-            {/* Map Controls */}
-            <div className="absolute right-4 bottom-4 flex flex-col gap-2">
-              <button className="bg-white p-1.5 rounded-lg border border-outline-variant shadow-sm hover:bg-slate-50 text-xs font-bold text-primary">+</button>
-              <button className="bg-white p-1.5 rounded-lg border border-outline-variant shadow-sm hover:bg-slate-50 text-xs font-bold text-primary">-</button>
-            </div>
-          </div>
-        </div>
+      {/* View 4: Oficina & Almoxarifado (Parceiros e Manutenções) */}
+      {simulatedProfile === "role-workshop" && (
+        <WorkshopBlock 
+          calculations={calculations} 
+          inventory={inventory} 
+          workOrders={workOrders} 
+          vehicles={vehicles} 
+        />
+      )}
 
-        {/* Critical Alerts Log */}
-        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl flex flex-col h-full">
-          <div className="p-stack-md border-b border-outline-variant flex items-center justify-between">
-            <h3 className="font-geist text-sm font-bold text-primary">Alertas Críticos</h3>
-            <span className="bg-error/10 text-error px-2 py-0.5 rounded-full text-[10px] font-bold">3 Ativos</span>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto divide-y divide-outline-variant/60">
-            {/* Alert Item 1 */}
-            <div className="p-4 hover:bg-surface-container-low transition-all cursor-pointer group">
-              <div className="flex gap-3">
-                <div className="text-error mt-0.5"><AlertTriangle className="w-4 h-4" /></div>
-                <div>
-                  <p className="text-xs font-bold text-primary">Falha no Motor: Toyota Corolla</p>
-                  <p className="text-[11px] text-on-surface-variant leading-relaxed">V-901 • Queda de pressão no cilindro 3. Manutenção solicitada.</p>
-                  <div className="mt-2 flex items-center gap-3">
-                    <span className="text-[9px] text-outline font-mono">12 MIN AGO</span>
-                    <button className="text-primary text-[10px] font-bold underline opacity-0 group-hover:opacity-100 transition-opacity">Verificar</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Alert Item 2 */}
-            <div className="p-4 hover:bg-surface-container-low transition-all cursor-pointer group">
-              <div className="flex gap-3">
-                <div className="text-error mt-0.5"><AlertTriangle className="w-4 h-4" /></div>
-                <div>
-                  <p className="text-xs font-bold text-primary">Excesso de Velocidade</p>
-                  <p className="text-[11px] text-on-surface-variant leading-relaxed">V-112 • Carlos Santos atingiu 110 km/h em via de 80 km/h.</p>
-                  <div className="mt-2 flex items-center gap-3">
-                    <span className="text-[9px] text-outline font-mono">45 MIN AGO</span>
-                    <button className="text-primary text-[10px] font-bold underline opacity-0 group-hover:opacity-100 transition-opacity">Contatar</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Alert Item 3 */}
-            <div className="p-4 hover:bg-surface-container-low transition-all cursor-pointer group">
-              <div className="flex gap-3">
-                <div className="text-amber-500 mt-0.5"><AlertTriangle className="w-4 h-4" /></div>
-                <div>
-                  <p className="text-xs font-bold text-primary">Vencimento de Apólice</p>
-                  <p className="text-[11px] text-on-surface-variant leading-relaxed">Toyota Corolla • Seguro vence em 2 dias. Renovar apólice.</p>
-                  <div className="mt-2 flex items-center gap-3">
-                    <span className="text-[9px] text-outline font-mono">2 HORAS AGO</span>
-                    <button className="text-primary text-[10px] font-bold underline opacity-0 group-hover:opacity-100 transition-opacity">Visualizar</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Recent Activity Table */}
+      {/* ==========================================
+          SHARED DYNAMIC BOTTOM TIMELINE
+         ========================================== */}
       <section className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
         <div className="p-stack-md border-b border-outline-variant flex justify-between items-center bg-white">
-          <h3 className="font-geist text-sm font-bold text-primary">Atividade Recente da Frota</h3>
-          <div className="flex gap-2">
-            <button className="px-3 py-1.5 border border-outline-variant rounded-md text-[10px] font-bold hover:bg-surface-container transition-all">Filtrar</button>
-            <button className="px-3 py-1.5 border border-outline-variant rounded-md text-[10px] font-bold hover:bg-surface-container transition-all">Exportar</button>
-          </div>
+          <h3 className="font-geist text-sm font-bold text-primary flex items-center gap-1.5">
+            <Clock className="w-4 h-4 text-outline" />
+            Atividade Recente e Logs de Audit (Histórico de Eventos)
+          </h3>
+          <span className="text-[9px] bg-slate-100 text-outline px-2 py-0.5 rounded font-black font-mono">Últimas Atualizações</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead className="bg-surface-container-low/50">
               <tr className="border-b border-outline-variant">
                 <th className="px-6 py-3 font-semibold text-on-surface-variant uppercase tracking-wider">Horário</th>
-                <th className="px-6 py-3 font-semibold text-on-surface-variant uppercase tracking-wider">Veículo Placa</th>
-                <th className="px-6 py-3 font-semibold text-on-surface-variant uppercase tracking-wider">Motorista</th>
+                <th className="px-6 py-3 font-semibold text-on-surface-variant uppercase tracking-wider">Categoria</th>
                 <th className="px-6 py-3 font-semibold text-on-surface-variant uppercase tracking-wider">Evento</th>
-                <th className="px-6 py-3 font-semibold text-on-surface-variant uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 font-semibold text-on-surface-variant uppercase tracking-wider">Descrição</th>
+                <th className="px-6 py-3 font-semibold text-on-surface-variant uppercase tracking-wider">Responsável</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/60">
-              <tr className="hover:bg-surface-container-low/30 transition-colors">
-                <td className="px-6 py-4 font-mono text-on-surface-variant">14:23:05</td>
-                <td className="px-6 py-4 font-semibold text-primary">ABC-1234</td>
-                <td className="px-6 py-4 font-medium text-primary">Carlos Santos</td>
-                <td className="px-6 py-4">Corrida Concluída</td>
-                <td className="px-6 py-4">
-                  <span className="px-2 py-0.5 bg-accent-green/10 text-accent-green rounded-full font-semibold">Finalizado</span>
-                </td>
-              </tr>
-              <tr className="hover:bg-surface-container-low/30 transition-colors">
-                <td className="px-6 py-4 font-mono text-on-surface-variant">14:15:32</td>
-                <td className="px-6 py-4 font-semibold text-primary">XYZ-5678</td>
-                <td className="px-6 py-4 font-medium text-primary">Ana Julia</td>
-                <td className="px-6 py-4">Entrada em Manutenção (Troca de óleo)</td>
-                <td className="px-6 py-4">
-                  <span className="px-2 py-0.5 bg-secondary-container text-on-secondary-container rounded-full font-semibold">Em Curso</span>
-                </td>
-              </tr>
-              <tr className="hover:bg-surface-container-low/30 transition-colors">
-                <td className="px-6 py-4 font-mono text-on-surface-variant">13:42:00</td>
-                <td className="px-6 py-4 font-semibold text-primary">ABC-1234</td>
-                <td className="px-6 py-4 font-medium text-primary">Carlos Santos</td>
-                <td className="px-6 py-4">Início de Turno (Check-in do ativo)</td>
-                <td className="px-6 py-4">
-                  <span className="px-2 py-0.5 bg-primary-container text-on-primary-container rounded-full font-semibold">Ativo</span>
-                </td>
-              </tr>
+              {timeline.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-on-surface-variant">Nenhum evento registrado no histórico.</td>
+                </tr>
+              ) : (
+                timeline.slice(0, 5).map((log) => (
+                  <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-4 font-mono text-on-surface-variant">
+                      {new Date(log.createdAt).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="px-2.5 py-0.5 bg-primary/10 text-primary rounded-full text-[9px] font-black uppercase">
+                        {log.entityType}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 font-semibold text-primary">
+                      {log.title}
+                    </td>
+                    <td className="px-6 py-4 text-on-surface-variant">
+                      {log.description}
+                    </td>
+                    <td className="px-6 py-4 font-medium text-primary">
+                      {log.createdBy || "Sistema"}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </section>
+
+      {/* Dynamic Push Toast Notification Container */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none">
+        {toasts.map(toast => (
+          <div
+            key={toast.id}
+            className="p-4 rounded-2xl border shadow-2xl flex gap-3 items-start pointer-events-auto transition-all duration-300 transform translate-y-0 scale-100 bg-white"
+            style={{
+              borderColor: toast.type === "success" ? "#bbf7d0" : toast.type === "warning" ? "#fde68a" : toast.type === "error" ? "#fecdd3" : "#bfdbfe",
+              backgroundColor: toast.type === "success" ? "#f0fdf4" : toast.type === "warning" ? "#fffbeb" : toast.type === "error" ? "#fff5f5" : "#eff6ff"
+            }}
+          >
+            <div className="mt-0.5 flex-shrink-0">
+              {toast.type === "success" && <CheckCircle className="w-4 h-4 text-emerald-600" />}
+              {toast.type === "warning" && <AlertCircle className="w-4 h-4 text-amber-600" />}
+              {toast.type === "error" && <AlertOctagon className="w-4 h-4 text-rose-600" />}
+              {toast.type === "info" && <HelpCircle className="w-4 h-4 text-blue-600" />}
+            </div>
+            <div className="flex-1">
+              <h4 className="text-xs font-bold text-primary">{toast.title}</h4>
+              <p className="text-[10px] text-on-surface-variant mt-0.5 leading-relaxed">{toast.desc}</p>
+            </div>
+            <button 
+              onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+              className="text-primary hover:text-black p-0.5 rounded transition-colors flex-shrink-0"
+            >
+              <X className="w-3.5 h-3.5 opacity-60" />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -49,13 +49,21 @@ export default function DriversManager() {
   const [isDossierMode, setIsDossierMode] = useState(false);
   const [dossierDriver, setDossierDriver] = useState<any | null>(null);
 
-  // Filter List
-  const filteredDrivers = useMemo(() => {
-    return drivers.filter(d =>
-      d.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      d.cpf?.includes(searchTerm)
-    );
-  }, [drivers, searchTerm]);
+  // Workspace active driver
+  const [activeDriver, setActiveDriver] = useState<any | null>(null);
+
+  // Sync active driver with latest list updates (e.g. balance, edit form saves)
+  React.useEffect(() => {
+    if (activeDriver) {
+      const latest = drivers.find(d => d.id === activeDriver.id);
+      if (latest) {
+        setActiveDriver(latest);
+      } else {
+        // If driver was deleted or archived, clear workspace selection
+        setActiveDriver(null);
+      }
+    }
+  }, [drivers, activeDriver]);
 
   // Handlers
   const handleOpenNewDriver = () => {
@@ -71,6 +79,13 @@ export default function DriversManager() {
   const handleOpenDossier = (driver: any) => {
     setDossierDriver(driver);
     setIsDossierMode(true);
+  };
+
+  const handleDeleteDriverWithClear = async (id: string) => {
+    await deleteDriver(id);
+    if (activeDriver && activeDriver.id === id) {
+      setActiveDriver(null);
+    }
   };
 
   if (isDossierMode && dossierDriver) {
@@ -131,7 +146,9 @@ export default function DriversManager() {
         </div>
       ) : (
         <DriversTable
-          filteredDrivers={filteredDrivers}
+          drivers={drivers}
+          activeDriver={activeDriver}
+          setActiveDriver={setActiveDriver}
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
           getDriverBalance={getDriverBalance}
@@ -140,9 +157,10 @@ export default function DriversManager() {
           occurrences={occurrences}
           claims={claims}
           infractions={infractions}
+          timeline={timeline}
           onOpenProntuario={handleOpenProntuario}
           onOpenDossier={handleOpenDossier}
-          onDeleteDriver={deleteDriver}
+          onDeleteDriver={handleDeleteDriverWithClear}
           can={can}
         />
       )}

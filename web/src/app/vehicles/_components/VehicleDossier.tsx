@@ -119,17 +119,112 @@ export const VehicleDossier: React.FC<VehicleDossierProps> = ({
         <div className="text-xs border-b pb-6 border-slate-200">
           <h3 className="font-bold text-slate-800 text-sm mb-3">Dados Patrimoniais e Aquisição</h3>
           {acq ? (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="mb-1"><strong>Tipo de Aquisição:</strong> {acq.acquisitionType}</p>
-                <p className="mb-1"><strong>Data da Compra/Entrada:</strong> {acq.purchaseDate ? new Date(acq.purchaseDate).toLocaleDateString("pt-BR") : "N/A"}</p>
-                <p className="mb-1"><strong>Valor Patrimonial:</strong> R$ {Number(acq.purchaseValue || 0).toFixed(2)}</p>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="mb-1"><strong>Tipo de Aquisição:</strong> {acq.acquisitionType}</p>
+                  <p className="mb-1"><strong>Data da Compra/Entrada:</strong> {acq.purchaseDate ? new Date(acq.purchaseDate).toLocaleDateString("pt-BR") : "N/A"}</p>
+                  <p className="mb-1"><strong>Valor Patrimonial:</strong> R$ {Number(acq.purchaseValue || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                </div>
+                <div>
+                  <p className="mb-1"><strong>Valor FIPE Atual:</strong> R$ {Number(acq.currentFipeValue || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="mb-1"><strong>Custo Seguro Anual:</strong> R$ {Number(acq.annualInsuranceCost || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                </div>
               </div>
+
+              {/* Impostos e Licenciamentos */}
               <div>
-                <p className="mb-1"><strong>Valor FIPE Atual:</strong> R$ {Number(acq.currentFipeValue || 0).toFixed(2)}</p>
-                <p className="mb-1"><strong>Custo Seguro Anual:</strong> R$ {Number(acq.annualInsuranceCost || 0).toFixed(2)}</p>
-                <p className="mb-1"><strong>Custo IPVA Anual:</strong> R$ {Number(acq.annualIpvaCost || 0).toFixed(2)}</p>
+                <h4 className="font-bold text-slate-500 text-[10px] uppercase tracking-wider mb-2">📜 Impostos, Licenciamento e Vistorias</h4>
+                <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                  <div>
+                    <span className="text-[9px] text-slate-400 uppercase font-bold">IPVA Anual</span>
+                    <p className="font-bold text-slate-800 mt-0.5">R$ {Number(acq.annualIpvaCost || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <span className="text-[9px] text-slate-500 block">Vencimento: {acq.ipvaExpirationDate ? new Date(acq.ipvaExpirationDate).toLocaleDateString("pt-BR") : "N/A"}</span>
+                    <span className={`text-[9px] font-bold ${acq.ipvaPaidStatus === "paid" ? "text-emerald-600" : "text-amber-600"}`}>
+                      {acq.ipvaPaidStatus === "paid" ? "✓ Pago" : "• Pendente"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-slate-400 uppercase font-bold">Licenciamento CRLV</span>
+                    <p className="font-bold text-slate-800 mt-0.5">R$ {Number(acq.annualLicensingCost || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <span className="text-[9px] text-slate-500 block">Vencimento: {acq.licensingExpirationDate ? new Date(acq.licensingExpirationDate).toLocaleDateString("pt-BR") : "N/A"}</span>
+                    <span className={`text-[9px] font-bold ${acq.licensingPaidStatus === "paid" ? "text-emerald-600" : "text-amber-600"}`}>
+                      {acq.licensingPaidStatus === "paid" ? "✓ Pago" : "• Pendente"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-slate-400 uppercase font-bold">Vistoria GNV/Anual</span>
+                    <p className="font-bold text-slate-800 mt-0.5">R$ {Number(acq.annualInspectionCost || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <span className="text-[9px] text-slate-500 block">Vencimento: {acq.inspectionExpirationDate ? new Date(acq.inspectionExpirationDate).toLocaleDateString("pt-BR") : "N/A"}</span>
+                    <span className={`text-[9px] font-bold ${acq.inspectionPaidStatus === "paid" ? "text-emerald-600" : "text-amber-600"}`}>
+                      {acq.inspectionPaidStatus === "paid" ? "✓ Pago" : "• Pendente"}
+                    </span>
+                  </div>
+                </div>
               </div>
+
+              {/* Taxi Credentials */}
+              {acq.isTaxi && (
+                <div>
+                  <h4 className="font-bold text-slate-500 text-[10px] uppercase tracking-wider mb-2">🚖 Regulamentação Táxi (Alvará Municipal)</h4>
+                  <div className="grid grid-cols-4 gap-2 bg-amber-50/50 p-2.5 rounded-lg border border-amber-100">
+                    <div>
+                      <span className="text-[9px] text-amber-700 uppercase font-bold">Nº do Alvará</span>
+                      <p className="font-bold text-slate-800 mt-0.5">{acq.alvaraNumber || "N/A"}</p>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-amber-700 uppercase font-bold">Vencimento Alvará</span>
+                      <p className="font-bold text-slate-800 mt-0.5">{acq.alvaraExpirationDate ? new Date(acq.alvaraExpirationDate).toLocaleDateString("pt-BR") : "N/A"}</p>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-amber-700 uppercase font-bold">Renovação Anual</span>
+                      <p className="font-bold text-slate-800 mt-0.5">R$ {Number(acq.alvaraRenewalCost || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-amber-700 uppercase font-bold">Status Vistoria DTP</span>
+                      <p className={`font-bold mt-0.5 ${acq.municipalInspectionStatus === "approved" ? "text-emerald-600" : acq.municipalInspectionStatus === "failed" ? "text-red-600" : "text-amber-600"}`}>
+                        {acq.municipalInspectionStatus === "approved" ? "✓ Aprovada" : acq.municipalInspectionStatus === "failed" ? "✗ Reprovada" : "Pendente"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Setup Capex Preparation */}
+              {(Number(acq.taximeterCost) || Number(acq.rooftopLightCost) || Number(acq.initialInspectionCost) || Number(acq.paintOrDecalCost) || Number(acq.municipalRegistrationCost) || Number(acq.otherInitialCosts)) ? (
+                <div>
+                  <h4 className="font-bold text-slate-500 text-[10px] uppercase tracking-wider mb-2">🛠️ Custos de Equipagem e Preparação Inicial</h4>
+                  <div className="grid grid-cols-6 gap-2 bg-slate-50 p-2 text-[10px] border border-slate-200 rounded-lg">
+                    <div>
+                      <span className="text-slate-400 block uppercase text-[8px] font-bold">Taxímetro</span>
+                      <span className="font-mono text-slate-800 font-bold">R$ {Number(acq.taximeterCost || 0).toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block uppercase text-[8px] font-bold">Luminoso</span>
+                      <span className="font-mono text-slate-800 font-bold">R$ {Number(acq.rooftopLightCost || 0).toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block uppercase text-[8px] font-bold">Vistoria Inmetro</span>
+                      <span className="font-mono text-slate-800 font-bold">R$ {Number(acq.initialInspectionCost || 0).toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block uppercase text-[8px] font-bold">Plotagem</span>
+                      <span className="font-mono text-slate-800 font-bold">R$ {Number(acq.paintOrDecalCost || 0).toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block uppercase text-[8px] font-bold">Licença DTP</span>
+                      <span className="font-mono text-slate-800 font-bold">R$ {Number(acq.municipalRegistrationCost || 0).toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block uppercase text-[8px] font-bold">Outras taxas</span>
+                      <span className="font-mono text-slate-800 font-bold">R$ {Number(acq.otherInitialCosts || 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-700 mt-2 text-right">
+                    Custo total de ativação (Capex Inicial): <span className="font-mono font-black text-slate-900">R$ {((Number(acq.purchaseValue) || 0) + ((Number(acq.taximeterCost) || 0) + (Number(acq.rooftopLightCost) || 0) + (Number(acq.initialInspectionCost) || 0) + (Number(acq.paintOrDecalCost) || 0) + (Number(acq.municipalRegistrationCost) || 0) + (Number(acq.otherInitialCosts) || 0))).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </p>
+                </div>
+              ) : null}
             </div>
           ) : (
             <p className="text-slate-500 italic">Dados patrimoniais não cadastrados.</p>

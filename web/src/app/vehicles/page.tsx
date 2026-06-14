@@ -84,7 +84,15 @@ export default function VehiclesPage() {
     getDriverName,
     getActiveDriver,
     filteredVehicles,
-    categories
+    categories,
+    regulatoryProcesses,
+    regulatoryInspections,
+    taximeterRegistries,
+    municipalRegulations,
+    handleSaveRegulatoryProcess,
+    handleSaveTaximeterRegistry,
+    handleSaveRegulatoryInspection,
+    handleDeleteRegulatoryInspection
   } = useVehicles();
 
   const getExpirationBadge = (dateStr: string) => {
@@ -153,6 +161,8 @@ export default function VehiclesPage() {
         handleDeleteVehicle={handleDeleteVehicle}
         getActiveDriver={getActiveDriver}
         getExpirationBadge={getExpirationBadge}
+        regulatoryProcesses={regulatoryProcesses}
+        municipalRegulations={municipalRegulations}
       />
 
       <VehicleModal
@@ -203,6 +213,14 @@ export default function VehiclesPage() {
         attachments={attachments}
         timeline={timeline}
         categories={categories}
+        regulatoryProcesses={regulatoryProcesses}
+        regulatoryInspections={regulatoryInspections}
+        taximeterRegistries={taximeterRegistries}
+        municipalRegulations={municipalRegulations}
+        handleSaveRegulatoryProcess={handleSaveRegulatoryProcess}
+        handleSaveTaximeterRegistry={handleSaveTaximeterRegistry}
+        handleSaveRegulatoryInspection={handleSaveRegulatoryInspection}
+        handleDeleteRegulatoryInspection={handleDeleteRegulatoryInspection}
       />
 
       <AssignDriverModal

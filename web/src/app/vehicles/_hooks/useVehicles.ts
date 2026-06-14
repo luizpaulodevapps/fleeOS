@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { SpecsFormState, AcquisitionFormState, AssetFormState, IncidentFormState, MaintFormState, DocFormState } from "../_lib/types";
+import { SpecsFormState, AcquisitionFormState, AssetFormState, IncidentFormState, MaintFormState, DocFormState, VehicleRegulatoryProcess, RegulatoryInspection, TaximeterRegistry, MunicipalRegulation } from "../_lib/types";
 
 export function useVehicles() {
   const { currentUser, getCollection, addDocument, updateDocument, deleteDocument, can } = useAuth();
@@ -23,6 +23,13 @@ export function useVehicles() {
   const [ledger, setLedger] = useState<any[]>([]);
   const [vehicleExpenses, setVehicleExpenses] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+
+  // Compliance Engine states
+  const [regulatoryProcesses, setRegulatoryProcesses] = useState<VehicleRegulatoryProcess[]>([]);
+  const [regulatoryInspections, setRegulatoryInspections] = useState<RegulatoryInspection[]>([]);
+  const [taximeterRegistries, setTaximeterRegistries] = useState<TaximeterRegistry[]>([]);
+  const [municipalRegulations, setMunicipalRegulations] = useState<MunicipalRegulation[]>([]);
+
 
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
@@ -100,7 +107,26 @@ export function useVehicles() {
     annualInsuranceCost: "",
     annualIpvaCost: "",
     admissionMileage: "",
-    notes: ""
+    notes: "",
+    annualLicensingCost: "",
+    annualInspectionCost: "",
+    ipvaExpirationDate: "",
+    licensingExpirationDate: "",
+    inspectionExpirationDate: "",
+    ipvaPaidStatus: "pending",
+    licensingPaidStatus: "pending",
+    inspectionPaidStatus: "pending",
+    isTaxi: false,
+    alvaraNumber: "",
+    alvaraExpirationDate: "",
+    alvaraRenewalCost: "",
+    municipalInspectionStatus: "pending",
+    taximeterCost: "",
+    rooftopLightCost: "",
+    initialInspectionCost: "",
+    paintOrDecalCost: "",
+    municipalRegistrationCost: "",
+    otherInitialCosts: ""
   });
 
   // Equipment Form State
@@ -140,7 +166,12 @@ export function useVehicles() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [vehList, attList, asgList, drvList, assetList, incList, maintList, planList, chkList, timelineList, acqList, conList, payList, ledList, expList, catList] = await Promise.all([
+      const [
+        vehList, attList, asgList, drvList, assetList, incList, maintList, 
+        planList, chkList, timelineList, acqList, conList, payList, 
+        ledList, expList, catList, regProcessesList, regInspectionsList, 
+        taximeterRegList
+      ] = await Promise.all([
         getCollection("vehicles"),
         getCollection("attachments"),
         getCollection("vehicle_assignments"),
@@ -156,7 +187,10 @@ export function useVehicles() {
         getCollection("payments"),
         getCollection("driver_ledger"),
         getCollection("vehicle_expenses"),
-        getCollection("pricing_categories")
+        getCollection("pricing_categories"),
+        getCollection("vehicle_regulatory_process"),
+        getCollection("regulatory_inspections"),
+        getCollection("taximeter_registry")
       ]);
       setVehicles(vehList);
       setAttachments(attList);
@@ -174,6 +208,25 @@ export function useVehicles() {
       setLedger(ledList);
       setVehicleExpenses(expList);
       setCategories(catList);
+      setRegulatoryProcesses(regProcessesList || []);
+      setRegulatoryInspections(regInspectionsList || []);
+      setTaximeterRegistries(taximeterRegList || []);
+
+      // Seed municipal regulations if not exists
+      let munRegs = await getCollection("municipal_regulations");
+      if (!munRegs || munRegs.length === 0) {
+        const defaultMunicipalRegulations = [
+          { city: "São Paulo", requiresTaxiMeter: true, requiresPermitInspection: true, requiresGnvInspection: true },
+          { city: "Campinas", requiresTaxiMeter: true, requiresPermitInspection: false, requiresGnvInspection: true },
+          { city: "Rio de Janeiro", requiresTaxiMeter: true, requiresPermitInspection: true, requiresGnvInspection: true },
+          { city: "Belo Horizonte", requiresTaxiMeter: true, requiresPermitInspection: false, requiresGnvInspection: false }
+        ];
+        for (const r of defaultMunicipalRegulations) {
+          await addDocument("municipal_regulations", r);
+        }
+        munRegs = await getCollection("municipal_regulations");
+      }
+      setMunicipalRegulations(munRegs || []);
     } catch (e) {
       console.error("Erro ao carregar prontuários de veículos", e);
     } finally {
@@ -363,7 +416,26 @@ export function useVehicles() {
         annualInsuranceCost: acq.annualInsuranceCost?.toString() || "",
         annualIpvaCost: acq.annualIpvaCost?.toString() || "",
         admissionMileage: acq.admissionMileage?.toString() || "",
-        notes: acq.notes || ""
+        notes: acq.notes || "",
+        annualLicensingCost: acq.annualLicensingCost?.toString() || "",
+        annualInspectionCost: acq.annualInspectionCost?.toString() || "",
+        ipvaExpirationDate: acq.ipvaExpirationDate || "",
+        licensingExpirationDate: acq.licensingExpirationDate || "",
+        inspectionExpirationDate: acq.inspectionExpirationDate || "",
+        ipvaPaidStatus: acq.ipvaPaidStatus || "pending",
+        licensingPaidStatus: acq.licensingPaidStatus || "pending",
+        inspectionPaidStatus: acq.inspectionPaidStatus || "pending",
+        isTaxi: !!acq.isTaxi,
+        alvaraNumber: acq.alvaraNumber || "",
+        alvaraExpirationDate: acq.alvaraExpirationDate || "",
+        alvaraRenewalCost: acq.alvaraRenewalCost?.toString() || "",
+        municipalInspectionStatus: acq.municipalInspectionStatus || "pending",
+        taximeterCost: acq.taximeterCost?.toString() || "",
+        rooftopLightCost: acq.rooftopLightCost?.toString() || "",
+        initialInspectionCost: acq.initialInspectionCost?.toString() || "",
+        paintOrDecalCost: acq.paintOrDecalCost?.toString() || "",
+        municipalRegistrationCost: acq.municipalRegistrationCost?.toString() || "",
+        otherInitialCosts: acq.otherInitialCosts?.toString() || ""
       });
     } else {
       setAcqForm({
@@ -395,7 +467,26 @@ export function useVehicles() {
         annualInsuranceCost: "",
         annualIpvaCost: "",
         admissionMileage: "",
-        notes: ""
+        notes: "",
+        annualLicensingCost: "",
+        annualInspectionCost: "",
+        ipvaExpirationDate: "",
+        licensingExpirationDate: "",
+        inspectionExpirationDate: "",
+        ipvaPaidStatus: "pending",
+        licensingPaidStatus: "pending",
+        inspectionPaidStatus: "pending",
+        isTaxi: false,
+        alvaraNumber: "",
+        alvaraExpirationDate: "",
+        alvaraRenewalCost: "",
+        municipalInspectionStatus: "pending",
+        taximeterCost: "",
+        rooftopLightCost: "",
+        initialInspectionCost: "",
+        paintOrDecalCost: "",
+        municipalRegistrationCost: "",
+        otherInitialCosts: ""
       });
     }
 
@@ -439,7 +530,26 @@ export function useVehicles() {
         annualInsuranceCost: Number(acqForm.annualInsuranceCost) || 0,
         annualIpvaCost: Number(acqForm.annualIpvaCost) || 0,
         admissionMileage: Number(acqForm.admissionMileage) || 0,
-        notes: acqForm.notes
+        notes: acqForm.notes,
+        annualLicensingCost: Number(acqForm.annualLicensingCost) || 0,
+        annualInspectionCost: Number(acqForm.annualInspectionCost) || 0,
+        ipvaExpirationDate: acqForm.ipvaExpirationDate || "",
+        licensingExpirationDate: acqForm.licensingExpirationDate || "",
+        inspectionExpirationDate: acqForm.inspectionExpirationDate || "",
+        ipvaPaidStatus: acqForm.ipvaPaidStatus || "pending",
+        licensingPaidStatus: acqForm.licensingPaidStatus || "pending",
+        inspectionPaidStatus: acqForm.inspectionPaidStatus || "pending",
+        isTaxi: !!acqForm.isTaxi,
+        alvaraNumber: acqForm.alvaraNumber || "",
+        alvaraExpirationDate: acqForm.alvaraExpirationDate || "",
+        alvaraRenewalCost: Number(acqForm.alvaraRenewalCost) || 0,
+        municipalInspectionStatus: acqForm.municipalInspectionStatus || "pending",
+        taximeterCost: Number(acqForm.taximeterCost) || 0,
+        rooftopLightCost: Number(acqForm.rooftopLightCost) || 0,
+        initialInspectionCost: Number(acqForm.initialInspectionCost) || 0,
+        paintOrDecalCost: Number(acqForm.paintOrDecalCost) || 0,
+        municipalRegistrationCost: Number(acqForm.municipalRegistrationCost) || 0,
+        otherInitialCosts: Number(acqForm.otherInitialCosts) || 0
       };
 
       const existing = acquisitions.find(a => a.vehicleId === selectedVehicle.id);
@@ -754,6 +864,83 @@ export function useVehicles() {
     }
   };
 
+  const handleSaveRegulatoryProcess = async (vehicleId: string, payload: any) => {
+    try {
+      const existing = regulatoryProcesses.find(rp => rp.vehicleId === vehicleId);
+      if (existing && existing.id) {
+        await updateDocument("vehicle_regulatory_process", existing.id, payload);
+      } else {
+        await addDocument("vehicle_regulatory_process", { vehicleId, ...payload });
+      }
+      // Sync vehicle status
+      if (payload.status) {
+        await updateDocument("vehicles", vehicleId, { status: payload.status });
+      }
+      await addDocument("activity_timeline", {
+        entityType: "vehicle",
+        entityId: vehicleId,
+        eventType: "regulatory_update",
+        title: "Processo Regulatório Atualizado",
+        description: `Status regulatório definido para: ${payload.status || 'N/A'}. Cidade: ${payload.city || 'N/A'}.`,
+        metadata: payload,
+        createdBy: currentUser?.displayName || "Operador"
+      });
+      loadData();
+    } catch (e) {
+      console.error("Erro ao salvar processo regulatório", e);
+    }
+  };
+
+  const handleSaveTaximeterRegistry = async (vehicleId: string, payload: any) => {
+    try {
+      const existing = taximeterRegistries.find(t => t.vehicleId === vehicleId);
+      if (existing && existing.id) {
+        await updateDocument("taximeter_registry", existing.id, payload);
+      } else {
+        await addDocument("taximeter_registry", { vehicleId, ...payload });
+      }
+      await addDocument("activity_timeline", {
+        entityType: "vehicle",
+        entityId: vehicleId,
+        eventType: "taximeter_update",
+        title: "Registro de Taxímetro Atualizado",
+        description: `Taxímetro série ${payload.serialNumber} aferido/atualizado. Validade: ${payload.validUntil}`,
+        metadata: payload,
+        createdBy: currentUser?.displayName || "Operador"
+      });
+      loadData();
+    } catch (e) {
+      console.error("Erro ao salvar registro de taxímetro", e);
+    }
+  };
+
+  const handleSaveRegulatoryInspection = async (vehicleId: string, payload: any) => {
+    try {
+      await addDocument("regulatory_inspections", { vehicleId, ...payload });
+      await addDocument("activity_timeline", {
+        entityType: "vehicle",
+        entityId: vehicleId,
+        eventType: "inspection_created",
+        title: `Vistoria de ${payload.type} Registrada`,
+        description: `Vistoria realizada em ${payload.lastInspectionDate}. Validade: ${payload.validUntil}.`,
+        metadata: payload,
+        createdBy: currentUser?.displayName || "Operador"
+      });
+      loadData();
+    } catch (e) {
+      console.error("Erro ao salvar vistoria regulatória", e);
+    }
+  };
+
+  const handleDeleteRegulatoryInspection = async (id: string) => {
+    try {
+      await deleteDocument("regulatory_inspections", id);
+      loadData();
+    } catch (e) {
+      console.error("Erro ao excluir vistoria regulatória", e);
+    }
+  };
+
   const handleDeleteVehicle = async (id: string) => {
     if (confirm("⚠️ ATENÇÃO: Deseja realmente excluir este veículo?")) {
       try {
@@ -801,6 +988,10 @@ export function useVehicles() {
     ledger,
     vehicleExpenses,
     categories,
+    regulatoryProcesses,
+    regulatoryInspections,
+    taximeterRegistries,
+    municipalRegulations,
     
     // Status/UI
     searchTerm,
@@ -859,6 +1050,10 @@ export function useVehicles() {
     handleDeleteVehicle,
     getDriverName,
     getActiveDriver,
-    filteredVehicles
+    filteredVehicles,
+    handleSaveRegulatoryProcess,
+    handleSaveTaximeterRegistry,
+    handleSaveRegulatoryInspection,
+    handleDeleteRegulatoryInspection
   };
 }

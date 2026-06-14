@@ -7,17 +7,15 @@ let catalogCache: any[] | null = null;
 export async function GET(request: Request) {
   try {
     if (!catalogCache) {
-      let filePath = path.join(process.cwd(), "../fleetos_catalog.json");
+      let filePath = path.join(process.cwd(), "public/fleetos_catalog.json");
+      if (!fs.existsSync(filePath)) {
+        filePath = path.join(process.cwd(), "../fleetos_catalog.json");
+      }
       if (!fs.existsSync(filePath)) {
         filePath = path.join(process.cwd(), "fleetos_catalog.json");
       }
       if (!fs.existsSync(filePath)) {
         filePath = path.resolve(process.cwd(), "..", "fleetos_catalog.json");
-      }
-      
-      if (!fs.existsSync(filePath)) {
-        // Fallback for public path
-        filePath = path.join(process.cwd(), "public/fleetos_catalog.json");
       }
       
       if (!fs.existsSync(filePath)) {
