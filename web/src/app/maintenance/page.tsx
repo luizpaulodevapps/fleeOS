@@ -16,18 +16,32 @@ import {
   Building,
   ShoppingCart,
   Car,
-  Layers
+  Layers,
+  AlertTriangle,
+  BookOpen,
+  Link,
+  Settings,
+  Zap
 } from "lucide-react";
 
 // Types
 import { 
   MaintenanceLog, 
   MaintenancePlanItem, 
-  WorkOrder, 
+  WorkOrder,
+  MaintenancePlan,
+  MaintenanceProcedure,
+  VehicleMaintenancePlan,
+  ProcedurePartKit,
+  ProcedureAlert,
   MaintenanceFormData, 
   PlanFormData, 
   WorkOrderFormData, 
-  WorkOrderItemInput 
+  WorkOrderItemInput,
+  MaintenancePlanFormData,
+  MaintenanceProcedureFormData,
+  ProcedurePartKitItem,
+  VehicleCatalog,
 } from "./_lib/types";
 import { InventoryItem, InventoryFormData } from "../inventory/_lib/types";
 import { Supplier, SupplierFormData, PurchaseOrder, PurchaseOrderFormData, POItemInput } from "../purchasing/_lib/types";
@@ -38,6 +52,9 @@ import { useWorkOrder } from "./_hooks/useWorkOrder";
 import { useInventory, useInventoryMovements } from "../inventory/_hooks/useInventory";
 import { useSuppliers, usePurchaseOrders } from "../purchasing/_hooks/usePurchasing";
 import { useCostAnalysis } from "../financial/costs/_hooks/useCostAnalysis";
+import { useMaintenancePlans, useMaintenanceProcedures, useVehiclePlans, useProcedureHistory } from "./_hooks/useMaintenancePlans";
+import { useMaintenanceEngine } from "./_hooks/useMaintenanceEngine";
+import { useVehicleCatalog } from "./_hooks/useVehicleCatalog";
 
 // Components
 import { MaintenanceLogModal } from "./_components/MaintenanceLogModal";
@@ -46,6 +63,12 @@ import { MaintenancePlanModal } from "./_components/MaintenancePlanModal";
 import { MaintenancePlansTable } from "./_components/MaintenancePlansTable";
 import { WorkOrderModal } from "./_components/WorkOrderModal";
 import { WorkOrdersTable } from "./_components/WorkOrdersTable";
+import { ProcedureAlertsTable } from "./_components/ProcedureAlertsTable";
+import { FleetIntelligencePanel } from "./_components/FleetIntelligencePanel";
+import { MaintenancePlanCatalogModal } from "./_components/MaintenancePlanCatalogModal";
+import { ProcedureCatalogModal } from "./_components/ProcedureCatalogModal";
+import { VehiclePlanAssignModal } from "./_components/VehiclePlanAssignModal";
+import { VehicleCatalogModal } from "./_components/VehicleCatalogModal";
 
 import { InventoryModal } from "../inventory/_components/InventoryModal";
 import { InventoryTable } from "../inventory/_components/InventoryTable";
@@ -54,6 +77,7 @@ import { PurchaseOrderModal } from "../purchasing/_components/PurchaseOrderModal
 import { PurchaseOrdersTable } from "../purchasing/_components/PurchaseOrdersTable";
 import { SupplierModal } from "../purchasing/_components/SupplierModal";
 import { SuppliersList } from "../purchasing/_components/SuppliersList";
+import { PROCEDURE_CATEGORY_LABELS, VEHICLE_CATEGORY_LABELS } from "./_lib/maintenanceEngine";
 
 export default function MaintenanceManager() {
   const { currentUser, getCollection, addDocument, updateDocument, can } = useAuth();
@@ -125,14 +149,30 @@ export default function MaintenanceManager() {
     analyzeCosts 
   } = useCostAnalysis();
 
+  // ─── Engineering Module Hooks ───────────────────────────────────
+  const { plans, loading: loadingPlans, loadPlans, savePlan, deletePlan } = useMaintenancePlans();
+  const { procedures, partKits, loading: loadingProcs, loadProcedures, saveProcedure, deleteProcedure } = useMaintenanceProcedures();
+  const { vehiclePlans, loading: loadingVp, loadVehiclePlans, assignPlanToVehicle } = useVehiclePlans();
+  const { procedureHistory, loading: loadingPh, loadProcedureHistory, recordProcedureExecution } = useProcedureHistory();
+  const { catalog, loading: loadingCat, loadCatalog, saveCatalog, deleteCatalogEntry, findCatalogForVehicle } = useVehicleCatalog();
+
   // Local Page State
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [pricingCategories, setPricingCategories] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all"); 
   const [selectedVehicleIdFilter, setSelectedVehicleIdFilter] = useState("all");
-  const [activeSubTab, setActiveSubTab] = useState("logs"); 
+  const [activeSubTab, setActiveSubTab] = useState("alertas"); 
   const [localLoading, setLocalLoading] = useState(true);
+  // Engineering module modal states
+  const [isPlanCatalogModalOpen, setIsPlanCatalogModalOpen] = useState(false);
+  const [isProcModalOpen, setIsProcModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isVehicleCatalogModalOpen, setIsVehicleCatalogModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<MaintenancePlan | null>(null);
+  const [selectedProc, setSelectedProc] = useState<MaintenanceProcedure | null>(null);
+  const [selectedCatalog, setSelectedCatalog] = useState<VehicleCatalog | null>(null);
+  const [vehicleAlertFilter, setVehicleAlertFilter] = useState("all");
 
   // Modals Visibility
   const [isMaintModalOpen, setIsMaintModalOpen] = useState(false);
@@ -248,7 +288,13 @@ export default function MaintenanceManager() {
         loadMovements(),
         loadSuppliers(),
         loadPurchaseOrders(),
-        loadExpenses()
+        loadExpenses(),
+        // Engineering module
+        loadPlans(),
+        loadProcedures(),
+        loadVehiclePlans(),
+        loadProcedureHistory(),
+        loadCatalog(),
       ]);
     } catch (e) {
       console.error("Erro ao carregar dados técnicos", e);
@@ -264,7 +310,11 @@ export default function MaintenanceManager() {
     loadMovements,
     loadSuppliers,
     loadPurchaseOrders,
-    loadExpenses
+    loadExpenses,
+    loadPlans,
+    loadProcedures,
+    loadVehiclePlans,
+    loadProcedureHistory,
   ]);
 
   useEffect(() => {
@@ -788,6 +838,50 @@ export default function MaintenanceManager() {
     return analyzeCosts(vehicles, inventoryItems, pricingCategories);
   }, [vehicles, inventoryItems, pricingCategories, analyzeCosts]);
 
+  // ─── Engineering Engine ──────────────────────────────────────────
+  const { allAlerts, urgentAlerts, vehicleSummaries, overdueCount, dueSoonCount } = useMaintenanceEngine({
+    vehicles,
+    vehiclePlans,
+    plans,
+    procedures,
+    partKits,
+    procedureHistory,
+    inventoryItems,
+  });
+
+  // OS from alert: pre-fill WorkOrder from alert data
+  const handleGenerateOsFromAlert = useCallback((alert: ProcedureAlert) => {
+    const kit = partKits.find(k => k.procedureId === alert.procedureId);
+    const items = (kit?.items || []).map(item => ({
+      type: "PART" as const,
+      itemId: item.inventoryItemId,
+      description: item.description,
+      qty: item.qty,
+      unitCost: item.inventoryItemId
+        ? (inventoryItems.find(i => i.id === item.inventoryItemId)?.avgCost || 0)
+        : 0,
+    }));
+
+    setSelectedWo(null);
+    setWoFormData({
+      vehicleId: alert.vehicleId,
+      description: alert.procedureName,
+      mileage: alert.vehicleMileage.toString(),
+      status: "in_progress",
+      items,
+      originProcedureId: alert.procedureId,
+      plannedCost: alert.estimatedCost,
+    });
+    setNewWoItem({
+      type: "PART",
+      itemId: inventoryItems[0]?.id || "",
+      description: inventoryItems[0]?.name || "",
+      qty: 1,
+      unitCost: inventoryItems[0]?.avgCost || 0,
+    });
+    setIsWoModalOpen(true);
+  }, [partKits, inventoryItems]);
+
   // Filtering Logic
   const filteredMaint = useMemo(() => {
     return maintenance.filter(m => {
@@ -831,7 +925,7 @@ export default function MaintenanceManager() {
     return getLowStockItems().length;
   }, [getLowStockItems]);
 
-  const loading = localLoading || loadingMaint || loadingPlan || loadingWo || loadingInv || loadingMov || loadingSup || loadingPo || loadingCosts;
+  const loading = localLoading || loadingMaint || loadingPlan || loadingWo || loadingInv || loadingMov || loadingSup || loadingPo || loadingCosts || loadingPlans || loadingProcs || loadingVp || loadingPh;
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -973,28 +1067,39 @@ export default function MaintenanceManager() {
       </section>
 
       {/* Main Tabs Selector */}
-      <div className="flex space-x-2 border-b border-outline-variant pb-3 print:hidden">
+      <div className="flex flex-wrap gap-2 border-b border-outline-variant pb-3 print:hidden">
         {[
-          { id: "logs", label: "Ordens de Serviço & Histórico", icon: Wrench },
+          { id: "alertas", label: "Alertas da Frota", icon: AlertTriangle, badge: overdueCount + dueSoonCount },
+          { id: "logs", label: "Ordens de Serviço", icon: Wrench },
           { id: "plans", label: "Planos Preventivos", icon: Activity },
+          { id: "catalogo", label: "Catálogo de Planos", icon: BookOpen },
+          { id: "catalog_tech", label: "Catálogo Técnico", icon: Layers },
           { id: "estoque", label: "Estoque Técnico", icon: Package },
           { id: "compras", label: "Compras & Fornecedores", icon: Truck },
           { id: "catalogacao", label: "Catalogação de Peças", icon: Layers },
           { id: "bi", label: "Custos & BI", icon: BarChart3 }
         ].map(tab => {
           const Icon = tab.icon;
+          const badge = (tab as any).badge || 0;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveSubTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
                 activeSubTab === tab.id
-                  ? "bg-primary text-on-primary font-bold shadow"
+                  ? tab.id === "alertas"
+                    ? "bg-red-600 text-white font-bold shadow"
+                    : "bg-primary text-on-primary font-bold shadow"
                   : "bg-surface-container-low border border-outline-variant text-on-surface-variant hover:bg-surface-container-high"
               }`}
             >
               <Icon className="w-4 h-4" />
               <span>{tab.label}</span>
+              {badge > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[9px] font-black rounded-full px-1 animate-pulse">
+                  {badge}
+                </span>
+              )}
             </button>
           );
         })}
@@ -1056,6 +1161,61 @@ export default function MaintenanceManager() {
         </div>
       ) : (
         <>
+          {/* TAB 0: ALERTAS DA FROTA (default) */}
+          {activeSubTab === "alertas" && (
+            <div className="space-y-6">
+              {/* Sub-header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-extrabold text-primary flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-red-500" />
+                    Painel de Alertas da Frota
+                  </h2>
+                  <p className="text-[11px] text-on-surface-variant mt-0.5">
+                    Monitoramento em tempo real de todos os procedimentos de manutenção da frota.
+                  </p>
+                </div>
+                {can("maintenance.edit") && (
+                  <button
+                    onClick={() => setIsAssignModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-bold hover:opacity-90 transition-all"
+                  >
+                    <Link className="w-3.5 h-3.5" />
+                    Vincular Plano a Veículo
+                  </button>
+                )}
+              </div>
+
+              {/* Intelligence Panel */}
+              <FleetIntelligencePanel
+                vehicleSummaries={vehicleSummaries}
+                allAlerts={allAlerts}
+                vehicleExpenses={vehicleExpenses}
+                vehicles={vehicles}
+                onViewVehicleAlerts={(vId) => {
+                  setVehicleAlertFilter(vId);
+                }}
+                onGenerateWorkOrder={handleGenerateOsFromAlert}
+                canEdit={can("maintenance.edit")}
+              />
+
+              {/* Full Alerts Table */}
+              <div>
+                <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <Zap className="w-4 h-4" />
+                  Todos os Procedimentos
+                </h3>
+                <ProcedureAlertsTable
+                  alerts={vehicleAlertFilter === "all" ? allAlerts : allAlerts.filter(a => a.vehicleId === vehicleAlertFilter)}
+                  inventoryItems={inventoryItems}
+                  onGenerateWorkOrder={handleGenerateOsFromAlert}
+                  canEdit={can("maintenance.edit")}
+                  isLoading={loadingVp || loadingProcs || loadingPh || loadingPlans}
+                />
+              </div>
+            </div>
+          )}
+
           {/* TAB 1: ORDENS DE SERVIÇO & LOGS */}
           {activeSubTab === "logs" && (
             <div className="space-y-6">
@@ -1090,7 +1250,7 @@ export default function MaintenanceManager() {
             </div>
           )}
 
-          {/* TAB 2: PLANS */}
+          {/* TAB 2: PLANS (legacy) */}
           {activeSubTab === "plans" && (
             <MaintenancePlansTable 
               planItems={filteredPlans}
@@ -1100,6 +1260,220 @@ export default function MaintenanceManager() {
               canEdit={can("maintenance.edit")}
               isLoading={loadingPlan}
             />
+          )}
+
+          {/* TAB: CATÁLOGO DE PLANOS */}
+          {activeSubTab === "catalogo" && (
+            <div className="space-y-6">
+              {/* Sub-header */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-extrabold text-primary flex items-center gap-2">
+                    <BookOpen className="w-5 h-5" />
+                    Catálogo de Planos e Procedimentos
+                  </h2>
+                  <p className="text-[11px] text-on-surface-variant mt-0.5">
+                    Planos reutilizáveis por modelo de veículo, com procedimentos e kits de peças vinculados.
+                  </p>
+                </div>
+                {can("maintenance.edit") && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setSelectedPlan(null); setIsPlanCatalogModalOpen(true); }}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-primary text-on-primary rounded-lg text-xs font-bold hover:opacity-90 transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Novo Plano
+                    </button>
+                    <button
+                      onClick={() => { setSelectedProc(null); setIsProcModalOpen(true); }}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-violet-600 text-white rounded-lg text-xs font-bold hover:bg-violet-700 transition-all"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                      Novo Procedimento
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Planos */}
+              <div>
+                <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3">
+                  Planos de Manutenção ({plans.length})
+                </h3>
+                {plans.length === 0 ? (
+                  <p className="text-outline text-xs italic">Nenhum plano cadastrado.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {plans.map(plan => (
+                      <div key={plan.id} className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 shadow-sm space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="font-bold text-primary text-sm">{plan.name}</div>
+                            <div className="flex gap-1.5 mt-1 flex-wrap">
+                              <span className="text-[9px] font-bold px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded-full uppercase">
+                                {VEHICLE_CATEGORY_LABELS[plan.category]}
+                              </span>
+                              {plan.isDefault && (
+                                <span className="text-[9px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-full">
+                                  Padrão
+                                </span>
+                              )}
+                              <span className="text-[9px] text-outline px-2 py-0.5 bg-surface-container rounded-full border border-outline-variant">
+                                {plan.manufacturer}
+                              </span>
+                            </div>
+                          </div>
+                          {can("maintenance.edit") && (
+                            <button
+                              onClick={() => { setSelectedPlan(plan); setIsPlanCatalogModalOpen(true); }}
+                              className="p-1.5 text-outline hover:text-primary hover:bg-surface-container rounded-lg transition-colors"
+                            >
+                              <Settings className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+
+                        <div>
+                          <div className="text-[10px] text-outline uppercase tracking-wider mb-1 font-bold">
+                            {plan.procedures.length} Procedimentos
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {plan.procedures.map(procId => {
+                              const proc = procedures.find(p => p.id === procId);
+                              return proc ? (
+                                <span key={procId} className="text-[9px] px-1.5 py-0.5 bg-surface-container border border-outline-variant rounded text-on-surface-variant">
+                                  {proc.name}
+                                </span>
+                              ) : null;
+                            })}
+                          </div>
+                        </div>
+
+                        {plan.applicableModels.length > 0 && (
+                          <div className="text-[10px] text-outline">
+                            Modelos: {plan.applicableModels.join(", ")}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Procedimentos */}
+              <div>
+                <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3">
+                  Catálogo de Procedimentos ({procedures.length})
+                </h3>
+                <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="bg-surface-container border-b border-outline-variant">
+                      <tr>
+                        <th className="px-4 py-3 font-bold text-on-surface-variant">Procedimento</th>
+                        <th className="px-4 py-3 font-bold text-on-surface-variant">Categoria</th>
+                        <th className="px-4 py-3 font-bold text-on-surface-variant">Intervalo KM</th>
+                        <th className="px-4 py-3 font-bold text-on-surface-variant">Intervalo Dias</th>
+                        <th className="px-4 py-3 font-bold text-on-surface-variant text-center">Kit</th>
+                        {can("maintenance.edit") && (
+                          <th className="px-4 py-3 font-bold text-on-surface-variant text-center">Ação</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-outline-variant/50">
+                      {procedures.map(proc => {
+                        const kit = partKits.find(k => k.procedureId === proc.id);
+                        return (
+                          <tr key={proc.id} className="hover:bg-surface-container/50">
+                            <td className="px-4 py-3">
+                              <div className="font-semibold text-on-surface">{proc.name}</div>
+                              {proc.mandatory && (
+                                <span className="text-[9px] bg-red-100 text-red-600 border border-red-200 px-1 rounded font-bold">Obrigatório</span>
+                              )}
+                              {proc.notes && (
+                                <div className="text-[10px] text-outline mt-0.5 italic">{proc.notes}</div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-[9px] font-bold px-2 py-0.5 bg-violet-100 text-violet-700 border border-violet-200 rounded-full uppercase">
+                                {PROCEDURE_CATEGORY_LABELS[proc.category]}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 font-mono text-on-surface-variant">
+                              {proc.intervalKm ? proc.intervalKm.toLocaleString("pt-BR") + " km" : "—"}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-on-surface-variant">
+                              {proc.intervalDays ? proc.intervalDays + " dias" : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {kit && kit.items.length > 0 ? (
+                                <span className="text-emerald-600 font-bold text-[10px]">
+                                  {kit.items.length} {kit.items.length === 1 ? "peça" : "peças"}
+                                </span>
+                              ) : (
+                                <span className="text-outline text-[10px]">—</span>
+                              )}
+                            </td>
+                            {can("maintenance.edit") && (
+                              <td className="px-4 py-3 text-center">
+                                <button
+                                  onClick={() => { setSelectedProc(proc); setIsProcModalOpen(true); }}
+                                  className="px-3 py-1 text-[10px] font-bold bg-surface-container border border-outline-variant text-on-surface-variant hover:text-primary hover:border-primary rounded-lg transition-all"
+                                >
+                                  Editar
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Vínculos veículo → plano */}
+              <div>
+                <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <Link className="w-4 h-4" />
+                  Vínculos Veículo → Plano ({vehiclePlans.length})
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {vehicles.map(veh => {
+                    const link = vehiclePlans.find(vp => vp.vehicleId === veh.id);
+                    const linkedPlan = link ? plans.find(p => p.id === link.planId) : null;
+                    return (
+                      <div key={veh.id} className={`p-4 rounded-xl border shadow-sm ${
+                        linkedPlan ? "bg-surface-container-lowest border-outline-variant" : "bg-amber-50 border-amber-200"
+                      }`}>
+                        <div className="font-bold text-primary font-mono text-sm">{veh.plate}</div>
+                        <div className="text-[10px] text-outline mb-2">{veh.brand} {veh.model}</div>
+                        {linkedPlan ? (
+                          <div>
+                            <div className="text-xs font-semibold text-on-surface">{linkedPlan.name}</div>
+                            <div className="text-[9px] text-outline mt-0.5">
+                              {VEHICLE_CATEGORY_LABELS[linkedPlan.category]} · {linkedPlan.procedures.length} procedimentos
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-amber-700 font-bold">
+                            ⚠ Sem plano vinculado
+                          </div>
+                        )}
+                        {can("maintenance.edit") && (
+                          <button
+                            onClick={() => setIsAssignModalOpen(true)}
+                            className="mt-2 text-[9px] font-bold text-primary hover:underline"
+                          >
+                            {linkedPlan ? "Trocar plano" : "Vincular plano"}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           )}
 
           {/* TAB 3: ESTOQUE TÉCNICO */}
@@ -1324,6 +1698,96 @@ export default function MaintenanceManager() {
             </div>
           )}
 
+          {/* TAB: CATÁLOGO TÉCNICO */}
+          {activeSubTab === "catalog_tech" && (
+            <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-extrabold text-sm text-primary uppercase tracking-wider flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-primary" />
+                    <span>Catálogo Técnico de Veículos</span>
+                  </h3>
+                  <p className="text-on-surface-variant text-[11px] mt-1 font-geist">
+                    Especificações técnicas por modelo: óleos, filtros, fluidos, velas, pneus e mais.
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setSelectedCatalog(null); setIsVehicleCatalogModalOpen(true); }}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-bold hover:opacity-90 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  Novo Catálogo
+                </button>
+              </div>
+
+              {loadingCat ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : catalog.length === 0 ? (
+                <div className="text-center py-12 text-outline">
+                  <Layers className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                  <p className="text-sm font-semibold">Nenhum catálogo técnico cadastrado.</p>
+                  <p className="text-xs mt-1">Cadastre as especificações de óleo, filtros, fluidos por modelo de veículo.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="bg-slate-100/60 border-b border-outline-variant">
+                      <tr className="font-bold text-on-surface-variant">
+                        <th className="px-4 py-3">Montadora</th>
+                        <th className="px-4 py-3">Modelo</th>
+                        <th className="px-4 py-3">Motor / Versão</th>
+                        <th className="px-4 py-3 text-center">Ano</th>
+                        <th className="px-4 py-3 text-center">Categoria</th>
+                        <th className="px-4 py-3 text-center">Especificações</th>
+                        <th className="px-4 py-3 text-center">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-outline-variant/60">
+                      {catalog.map((entry) => (
+                        <tr key={entry.id} className="hover:bg-slate-50/50">
+                          <td className="px-4 py-3 font-bold">{entry.make}</td>
+                          <td className="px-4 py-3 font-semibold">{entry.model}</td>
+                          <td className="px-4 py-3 text-on-surface-variant font-mono text-[10px]">{entry.engine}</td>
+                          <td className="px-4 py-3 text-center font-mono">
+                            {entry.yearFrom}{entry.yearTo ? `–${entry.yearTo}` : "+"}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200">
+                              {entry.category}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center font-mono text-primary font-bold">
+                            {entry.specs?.length || 0} itens
+                          </td>
+                          <td className="px-4 py-3 text-center space-x-2">
+                            <button
+                              onClick={() => { setSelectedCatalog(entry); setIsVehicleCatalogModalOpen(true); }}
+                              className="px-3 py-1 bg-primary/10 text-primary font-bold rounded text-[10px] hover:bg-primary/20 transition-all"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (confirm(`Excluir catálogo de ${entry.make} ${entry.model}?`)) {
+                                  await deleteCatalogEntry(entry.id);
+                                }
+                              }}
+                              className="px-3 py-1 bg-red-500/10 border border-red-500/20 text-red-600 font-bold rounded text-[10px] hover:bg-red-500/20 transition-all"
+                            >
+                              Excluir
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* TAB 6: CATALOGAÇÃO DE PEÇAS */}
           {activeSubTab === "catalogacao" && (
             <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm p-6 space-y-4">
@@ -1400,6 +1864,45 @@ export default function MaintenanceManager() {
           )}
         </>
       )}
+
+      {/* ENGINEERING MODALS */}
+      <MaintenancePlanCatalogModal
+        isOpen={isPlanCatalogModalOpen}
+        onClose={() => { setIsPlanCatalogModalOpen(false); setSelectedPlan(null); }}
+        onSave={async (formData: MaintenancePlanFormData) => {
+          await savePlan(formData, selectedPlan);
+        }}
+        selected={selectedPlan}
+        procedures={procedures}
+      />
+
+      <ProcedureCatalogModal
+        isOpen={isProcModalOpen}
+        onClose={() => { setIsProcModalOpen(false); setSelectedProc(null); }}
+        onSave={async (formData: MaintenanceProcedureFormData, kitItems: ProcedurePartKitItem[]) => {
+          await saveProcedure(formData, kitItems, selectedProc);
+        }}
+        selected={selectedProc}
+        existingKit={selectedProc ? (partKits.find(k => k.procedureId === selectedProc.id) || null) : null}
+        inventoryItems={inventoryItems}
+      />
+
+      <VehiclePlanAssignModal
+        isOpen={isAssignModalOpen}
+        onClose={() => setIsAssignModalOpen(false)}
+        onAssign={assignPlanToVehicle}
+        vehicles={vehicles}
+        plans={plans}
+        vehiclePlans={vehiclePlans}
+      />
+
+      <VehicleCatalogModal
+        isOpen={isVehicleCatalogModalOpen}
+        onClose={() => { setIsVehicleCatalogModalOpen(false); setSelectedCatalog(null); }}
+        onSave={(formData, specs) => saveCatalog(formData, specs, selectedCatalog)}
+        selected={selectedCatalog}
+        plans={plans}
+      />
 
       {/* WORK ORDER (OS) FORM MODAL */}
       <WorkOrderModal 

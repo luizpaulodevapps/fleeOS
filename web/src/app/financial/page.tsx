@@ -222,6 +222,7 @@ function FinancialPageContent() {
               transactions={hub.transactions}
               adjustments={hub.adjustments}
               incidents={hub.incidents}
+              complianceOccurrences={hub.complianceOccurrences}
               drivers={hub.drivers}
               approveAdjustment={hub.approveAdjustment}
               getDriverCreditScore={hub.getDriverCreditScore}

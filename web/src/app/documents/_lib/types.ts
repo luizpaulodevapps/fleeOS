@@ -44,3 +44,19 @@ export type GenerateDocumentForm = {
   contractId: string;
   extraFields: Record<string, string>;
 };
+
+export type TemplateVersionStatus = "draft" | "approved" | "archived";
+
+export type DocumentTemplateVersion = {
+  id: string;
+  templateId: string;
+  version: number;
+  body: string;
+  extraFields?: DocumentExtraField[];
+  changeLog: string;
+  status: TemplateVersionStatus;
+  createdBy: string;
+  createdAt: string;
+  approvedBy?: string;
+  approvedAt?: string;
+};

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { X, AlertCircle, Plus } from "lucide-react";
 import { WorkOrderFormData, WorkOrderItemInput } from "../_lib/types";
 import { WORK_ORDER_STATUS } from "../_lib/constants";
+import { VehicleSearchSelect } from "./VehicleSearchSelect";
 
 interface WorkOrderModalProps {
   isOpen: boolean;
@@ -60,24 +61,20 @@ export function WorkOrderModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-2">Veículo</label>
-              <select
-                required
-                disabled={selectedWo && selectedWo.status === "completed"}
+              <VehicleSearchSelect
+                vehicles={vehicles}
                 value={formData.vehicleId}
-                onChange={(e) => {
-                  const veh = vehicles.find(v => v.id === e.target.value);
+                onChange={(vehicleId) => {
+                  const veh = vehicles.find(v => v.id === vehicleId);
                   setFormData(prev => ({
                     ...prev,
-                    vehicleId: e.target.value,
+                    vehicleId,
                     mileage: veh?.mileage?.toString() || "0"
                   }));
                 }}
-                className="w-full px-4 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs outline-none text-on-surface"
-              >
-                {vehicles.map(v => (
-                  <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plate})</option>
-                ))}
-              </select>
+                disabled={selectedWo && selectedWo.status === "completed"}
+                required
+              />
             </div>
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-2">Quilometragem OS (KM)</label>

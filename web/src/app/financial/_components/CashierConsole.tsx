@@ -365,7 +365,7 @@ export function CashierConsole({
             <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 border border-outline-variant/60 rounded-lg font-medium text-[11px]">
               <div>
                 <span className="text-outline block text-[9px] uppercase font-bold">Operador</span>
-                <span className="text-primary font-bold">{activeSession.operatorId}</span>
+                <span className="text-primary font-bold">{activeSession.openedByName || activeSession.operatorId}</span>
               </div>
               <div>
                 <span className="text-outline block text-[9px] uppercase font-bold">Abertura</span>

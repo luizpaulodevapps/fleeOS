@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import { X, AlertCircle } from "lucide-react";
 import { MaintenanceFormData } from "../_lib/types";
 import { MAINTENANCE_TYPES, CRASH_SEVERITY } from "../_lib/constants";
+import { VehicleSearchSelect } from "./VehicleSearchSelect";
 
 interface MaintenanceLogModalProps {
   isOpen: boolean;
@@ -45,24 +46,20 @@ export function MaintenanceLogModal({
         <form onSubmit={onSubmit} className="p-6 space-y-4 text-xs">
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-2">Veículo</label>
-            <select
-              required
+            <VehicleSearchSelect
+              vehicles={vehicles}
               value={formData.vehicleId}
-              onChange={(e) => {
-                const veh = vehicles.find(v => v.id === e.target.value);
+              onChange={(vehicleId) => {
+                const veh = vehicles.find(v => v.id === vehicleId);
                 setFormData({
                   ...formData,
-                  vehicleId: e.target.value,
+                  vehicleId,
                   mileage: veh?.mileage?.toString() || "0",
                   nextMaintenanceMileage: veh?.mileage ? (veh.mileage + 10000).toString() : "10000"
                 });
               }}
-              className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20 text-on-surface"
-            >
-              {vehicles.map(v => (
-                <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plate})</option>
-              ))}
-            </select>
+              required
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

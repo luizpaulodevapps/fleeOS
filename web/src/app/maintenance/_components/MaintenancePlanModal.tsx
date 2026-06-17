@@ -4,6 +4,7 @@ import React from "react";
 import { X } from "lucide-react";
 import { PlanFormData } from "../_lib/types";
 import { REVISION_ITEMS, REVISION_LABELS } from "../_lib/constants";
+import { VehicleSearchSelect } from "./VehicleSearchSelect";
 
 interface MaintenancePlanModalProps {
   isOpen: boolean;
@@ -44,23 +45,19 @@ export function MaintenancePlanModal({
         <form onSubmit={onSubmit} className="space-y-4 text-xs">
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-2">Veículo Alvo</label>
-            <select
-              required
+            <VehicleSearchSelect
+              vehicles={vehicles}
               value={formData.vehicleId}
-              onChange={(e) => {
-                const veh = vehicles.find(v => v.id === e.target.value);
+              onChange={(vehicleId) => {
+                const veh = vehicles.find(v => v.id === vehicleId);
                 setFormData({
                   ...formData,
-                  vehicleId: e.target.value,
+                  vehicleId,
                   lastServiceKm: veh?.mileage?.toString() || "0"
                 });
               }}
-              className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20 text-on-surface"
-            >
-              {vehicles.map(v => (
-                <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plate})</option>
-              ))}
-            </select>
+              required
+            />
           </div>
 
           <div>

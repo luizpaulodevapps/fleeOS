@@ -110,7 +110,8 @@ service cloud.firestore {
         'vehicle_lifecycle_processes',
         'vehicle_dossiers',
         'vehicle_compliance_scores',
-        'infractions'
+        'infractions',
+        'compliance_occurrences'
       ] && isAuthenticated() && canAccessTenantData();
 
       allow create: if collectionName in [
@@ -146,7 +147,8 @@ service cloud.firestore {
         'vehicle_lifecycle_processes',
         'vehicle_dossiers',
         'vehicle_compliance_scores',
-        'infractions'
+        'infractions',
+        'compliance_occurrences'
       ] && isAuthenticated() && canWriteTenantData(request.resource.data.tenantId);
 
       allow update: if collectionName in [
@@ -177,7 +179,8 @@ service cloud.firestore {
         'vehicle_lifecycle_processes',
         'vehicle_dossiers',
         'vehicle_compliance_scores',
-        'infractions'
+        'infractions',
+        'compliance_occurrences'
       ] && isAuthenticated() && keepsTenantBoundary() && canWriteTenantData(resource.data.tenantId);
 
       allow delete: if collectionName in [

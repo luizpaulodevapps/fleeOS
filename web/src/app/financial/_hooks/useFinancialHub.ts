@@ -11,14 +11,16 @@ import {
   FinancialSettlement,
   DriverCreditScore,
   WithdrawalRequest,
-  CashierIncident
+  CashierIncident,
+  CashierSession,
+  ComplianceOccurrence
 } from "../_lib/types";
 
 export function useFinancialHub() {
   const { currentUser, getCollection, addDocument, updateDocument } = useAuth();
 
   // Core Data lists
-  const [sessions, setSessions] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<CashierSession[]>([]);
   const [movements, setMovements] = useState<any[]>([]);
   const [drivers, setDrivers] = useState<any[]>([]);
   const [contracts, setContracts] = useState<any[]>([]);
@@ -34,10 +36,12 @@ export function useFinancialHub() {
   const [settlements, setSettlements] = useState<FinancialSettlement[]>([]);
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
   const [incidents, setIncidents] = useState<CashierIncident[]>([]);
+  const [complianceOccurrences, setComplianceOccurrences] = useState<ComplianceOccurrence[]>([]);
 
   // Page States
   const [loading, setLoading] = useState(true);
-  const [activeSession, setActiveSession] = useState<any | null>(null);
+  const [activeSession, setActiveSession] = useState<CashierSession | null>(null);
+  const [abandonedSession, setAbandonedSession] = useState<CashierSession | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -56,6 +60,7 @@ export function useFinancialHub() {
         setList,
         wdrList,
         incList,
+        compList,
         vehList
       ] = await Promise.all([
         getCollection("cashier_sessions"),
@@ -71,6 +76,7 @@ export function useFinancialHub() {
         getCollection("financial_settlements"),
         getCollection("cashier_withdrawal_requests"),
         getCollection("cashier_incidents"),
+        getCollection("compliance_occurrences"),
         getCollection("vehicles")
       ]);
 
@@ -89,10 +95,21 @@ export function useFinancialHub() {
       setSettlements(setList || []);
       setWithdrawalRequests(wdrList || []);
       setIncidents(incList || []);
+      setComplianceOccurrences(compList || []);
 
       // Find active cashier session
       const openSession = (sessList || []).find((s: any) => s.status === "open");
       setActiveSession(openSession || null);
+
+      // Detect abandoned sessions (open > 24 hours)
+      const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+      const abandoned = (sessList || []).find((s: any) => {
+        if (s.status !== "open") return false;
+        const openedAt = new Date(s.openedAt).getTime();
+        const now = Date.now();
+        return (now - openedAt) > TWENTY_FOUR_HOURS;
+      });
+      setAbandonedSession(abandoned || null);
 
     } catch (e) {
       console.error("Erro ao carregar dados do Financial Hub", e);
@@ -178,13 +195,18 @@ export function useFinancialHub() {
   // 1. Operational Turno Actions
   const openCashier = async (openingAmount: number) => {
     try {
+      const now = new Date().toISOString();
       const newSession = await addDocument("cashier_sessions", {
-        operatorId: currentUser?.displayName || "Operador",
-        openedAt: new Date().toISOString(),
+        tenantId: currentUser?.tenantId || "tenant-1",
+        openedBy: currentUser?.uid || "unknown",
+        openedByName: currentUser?.displayName || "Operador",
+        openedAt: now,
         closedAt: null,
         openingAmount,
         closingAmount: 0,
+        expectedBalance: openingAmount,
         difference: 0,
+        closureType: null,
         status: "open"
       });
       await loadData();
@@ -194,14 +216,92 @@ export function useFinancialHub() {
     }
   };
 
+  const forceCloseSession = async (sessionId: string, supervisorId: string, supervisorName: string): Promise<boolean> => {
+    try {
+      const session = sessions.find((s: any) => s.id === sessionId);
+      if (!session) return false;
+
+      // Calculate session movements
+      const sessionMovements = movements.filter((m: any) => m.cashierId === sessionId);
+      const receipts = sessionMovements.filter((m: any) => m.type === "RECEIPT").reduce((sum: number, m: any) => sum + Number(m.amount || 0), 0);
+      const withdrawals = sessionMovements.filter((m: any) => m.type === "WITHDRAWAL").reduce((sum: number, m: any) => sum + Number(m.amount || 0), 0);
+      const supplies = sessionMovements.filter((m: any) => m.type === "SUPPLY").reduce((sum: number, m: any) => sum + Number(m.amount || 0), 0);
+      const expectedBalance = Number(session.openingAmount || 0) + receipts + supplies - withdrawals;
+
+      // 1. Close the session as forced
+      const now = new Date().toISOString();
+      await updateDocument("cashier_sessions", sessionId, {
+        closedAt: now,
+        closingAmount: expectedBalance,
+        expectedBalance,
+        difference: 0,
+        status: "closed",
+        closedBy: currentUser?.uid || "unknown",
+        closedByName: currentUser?.displayName || "Operador",
+        closureType: "forced",
+        closureReason: "Sessão abandonada > 24h",
+        authorizedClosureBy: supervisorId,
+        authorizedClosureName: supervisorName
+      });
+
+      // 2. Create compliance occurrence
+      const employeeOccurrences = complianceOccurrences.filter(
+        (occ) => occ.employeeId === session.openedBy
+      );
+      const last90Days = employeeOccurrences.filter((occ) => {
+        const occDate = new Date(occ.createdAt).getTime();
+        return (Date.now() - occDate) < 90 * 24 * 60 * 60 * 1000;
+      });
+
+      await addDocument("compliance_occurrences", {
+        tenantId: currentUser?.tenantId || "tenant-1",
+        type: "procedure_not_executed",
+        category: "cashier",
+        severity: "medium",
+        riskLevel: "high",
+        status: "open",
+        employeeId: session.openedBy,
+        employeeName: session.openedByName,
+        closedById: currentUser?.uid || "unknown",
+        closedByName: currentUser?.displayName || "Operador",
+        authorizedById: supervisorId,
+        authorizedByName: supervisorName,
+        occurrencesCount: employeeOccurrences.length + 1,
+        occurrencesLast90Days: last90Days.length + 1,
+        description: `Caixa não foi encerrado pelo operador. Sessão #${sessionId.substring(0, 8).toUpperCase()} ficou aberta por mais de 24h.`,
+        procedureExpected: "Encerrar o caixa ao final do turno, conferir o valor físico e registrar o fechamento.",
+        procedureExecuted: "Operador não encerrou a sessão. Fechamento forçado realizado por outro operador com autorização de supervisor.",
+        sessionId,
+        warningIssued: true,
+        warningDate: now,
+        createdAt: now
+      });
+
+      await loadData();
+      return true;
+    } catch (e) {
+      console.error("Erro ao forçar fechamento de sessão", e);
+      return false;
+    }
+  };
+
+  const getEmployeeOccurrences = (employeeId: string) => {
+    return complianceOccurrences.filter((occ) => occ.employeeId === employeeId);
+  };
+
   const closeCashier = async (sessionId: string, physicalCount: number, expectedBalance: number, justification: string) => {
     try {
       const difference = physicalCount - expectedBalance;
+      const now = new Date().toISOString();
       await updateDocument("cashier_sessions", sessionId, {
-        closedAt: new Date().toISOString(),
+        closedAt: now,
         closingAmount: physicalCount,
+        expectedBalance,
         difference,
-        status: "closed"
+        status: "closed",
+        closedBy: currentUser?.uid || "unknown",
+        closedByName: currentUser?.displayName || "Operador",
+        closureType: "normal"
       });
 
       // Record shortage/overage incidents if discrepancy exists
@@ -212,7 +312,7 @@ export function useFinancialHub() {
           amount: Math.abs(difference),
           justification: justification || "Diferença detectada na contagem física do turno.",
           approvedBy: currentUser?.displayName || "Sistema",
-          createdAt: new Date().toISOString()
+          createdAt: now
         });
       }
 
@@ -250,7 +350,10 @@ export function useFinancialHub() {
     gateway: FinancialTransaction["gateway"],
     surplusDestination?: "credit" | "auto_fines" | "auto_all",
     partialTreatment?: "keep_partial" | "force_paid_debit",
-    selectedArIds?: string[]
+    selectedArIds?: string[],
+    balanceUsed?: number,
+    cashAmount?: number,
+    originalMethod?: string
   ) => {
     try {
       const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -274,7 +377,10 @@ export function useFinancialHub() {
         createdAt: new Date().toISOString(),
         surplusDestination,
         partialTreatment,
-        selectedArIds
+        selectedArIds,
+        balanceUsed: balanceUsed || 0,
+        cashAmount: cashAmount ?? amount,
+        originalMethod: originalMethod || method
       };
 
       const newTx = await addDocument("financial_transactions", txPayload);
@@ -407,21 +513,39 @@ export function useFinancialHub() {
       }
 
       // 3. Post to cashier movements
+      const paymentLabel =
+        tx.originalMethod === "account_balance" ? "Conta Corrente"
+        : tx.method === "pix" ? "Pix"
+        : tx.method === "card" ? "Cartão"
+        : tx.method === "cash" ? "Dinheiro"
+        : "Transferência";
       await addDocument("cashier_movements", {
         cashierId: tx.cashierSessionId,
         type: "RECEIPT",
         amount: tx.amount,
-        paymentMethod: tx.method === "pix" ? "Pix" : tx.method === "card" ? "Cartão" : tx.method === "cash" ? "Dinheiro" : "Transferência",
+        paymentMethod: paymentLabel,
         description: `Recebimento Título - Tx: ${tx.transactionNumber}`,
       });
 
       // 4. Post to driver ledger
-      await addDocument("driver_ledger", {
-        driverId: tx.driverId,
-        type: "payment",
-        amount: tx.amount,
-        description: `Recebimento Caixa Gateway (${tx.gateway.toUpperCase()})`,
-      });
+      const balanceUsed = Number(tx.balanceUsed || 0);
+      const cashAmount = Number(tx.cashAmount ?? tx.amount);
+      if (cashAmount > 0) {
+        await addDocument("driver_ledger", {
+          driverId: tx.driverId,
+          type: "payment",
+          amount: cashAmount,
+          description: `Recebimento Caixa Gateway (${tx.gateway.toUpperCase()})`,
+        });
+      }
+      if (balanceUsed > 0) {
+        await addDocument("driver_ledger", {
+          driverId: tx.driverId,
+          type: "balance_usage",
+          amount: -balanceUsed,
+          description: "Utilização de Conta Corrente para quitação de débitos",
+        });
+      }
 
       for (const adj of ledgerAdjustments) {
         await addDocument("driver_ledger", adj);
@@ -700,13 +824,17 @@ export function useFinancialHub() {
     settlements,
     withdrawalRequests,
     incidents,
+    complianceOccurrences,
     vehicles,
     loading,
     activeSession,
+    abandonedSession,
 
     // Operations
     openCashier,
     closeCashier,
+    forceCloseSession,
+    getEmployeeOccurrences,
     createAR,
     submitTransaction,
     webhookApproveTransaction,

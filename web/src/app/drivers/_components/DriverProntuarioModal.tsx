@@ -1545,7 +1545,7 @@ export function DriverProntuarioModal({
                           className="w-full px-3 py-2 bg-white border border-outline-variant rounded text-xs outline-none font-sans"
                         >
                           <option value="daily">Diária (Débito)</option>
-                          <option value="fine">Multa de Trânsito (Débito)</option>
+
                           <option value="bonus">Abono / Bonificação (Crédito)</option>
                           <option value="payment">Pagamento Pix/Dinheiro (Crédito)</option>
                           <option value="adjustment">Ajuste de Saldo</option>

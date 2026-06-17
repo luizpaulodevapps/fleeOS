@@ -5,6 +5,7 @@ import {
   FinancialTransaction, 
   FinancialAdjustment, 
   CashierIncident,
+  ComplianceOccurrence,
   DriverCreditScore 
 } from "../_lib/types";
 import { useAuth } from "@/context/AuthContext";
@@ -26,6 +27,7 @@ interface ComplianceConsoleProps {
   transactions: FinancialTransaction[];
   adjustments: FinancialAdjustment[];
   incidents: CashierIncident[];
+  complianceOccurrences: ComplianceOccurrence[];
   drivers: any[];
   approveAdjustment: (adjId: string, approvedBy: string) => Promise<void>;
   getDriverCreditScore: (driverId: string) => DriverCreditScore;
@@ -36,6 +38,7 @@ export function ComplianceConsole({
   transactions,
   adjustments,
   incidents,
+  complianceOccurrences,
   drivers,
   approveAdjustment,
   getDriverCreditScore,
@@ -196,6 +199,57 @@ export function ComplianceConsole({
                     </span>
                   </div>
                 ))
+              )}
+            </div>
+          </div>
+
+          {/* Compliance Occurrences */}
+          <div className="bg-surface-container-lowest border border-outline-variant p-6 rounded-xl space-y-4 shadow-sm">
+            <p className="font-extrabold text-[11px] text-primary uppercase tracking-wider font-geist flex items-center gap-1.5">
+              <ShieldCheck className="w-4.5 h-4.5 text-red-500" />
+              <span>Ocorrências de Compliance</span>
+            </p>
+
+            <div className="divide-y divide-outline-variant/60">
+              {complianceOccurrences.length === 0 ? (
+                <p className="text-center text-outline italic py-6">Nenhuma ocorrência de compliance registrada.</p>
+              ) : (
+                complianceOccurrences.map((occ) => {
+                  const sevColor = occ.severity === "critical" ? "bg-red-50 text-red-600 border-red-200" : occ.severity === "high" ? "bg-orange-50 text-orange-600 border-orange-200" : occ.severity === "medium" ? "bg-amber-50 text-amber-600 border-amber-200" : "bg-slate-50 text-slate-600 border-slate-200";
+                  const riskColor = occ.riskLevel === "critical" ? "text-red-600" : occ.riskLevel === "high" ? "text-orange-600" : "text-amber-600";
+                  return (
+                    <div key={occ.id} className="py-3 text-[11px]">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center space-x-1.5">
+                          <span className={`px-1.5 py-0.2 rounded text-[8px] font-bold uppercase tracking-wider border ${sevColor}`}>
+                            {occ.type === "procedure_not_executed" ? "Proc. não executado" : occ.type}
+                          </span>
+                          <span className="font-bold text-primary capitalize">{occ.category}</span>
+                        </div>
+                        <span className={`text-[9px] font-black uppercase ${riskColor}`}>
+                          Risco: {occ.riskLevel}
+                        </span>
+                      </div>
+                      <p className="text-on-surface-variant text-[10px] mt-1">
+                        Responsável: <strong className="text-primary">{occ.employeeName}</strong>
+                        {occ.closedByName && ` · Fechado por: ${occ.closedByName}`}
+                      </p>
+                      <p className="text-on-surface-variant text-[10px]">
+                        {new Date(occ.createdAt).toLocaleString("pt-BR")}
+                        {occ.occurrencesCount > 1 && (
+                          <span className="text-red-500 font-bold ml-2">
+                            · Reincidência: {occ.occurrencesLast90Days} nos últimos 90 dias
+                          </span>
+                        )}
+                      </p>
+                      {occ.warningIssued && (
+                        <span className="inline-block mt-1 text-[9px] bg-red-50 border border-red-200 text-red-600 px-1.5 py-0.2 rounded font-black uppercase">
+                          Advertência emitida
+                        </span>
+                      )}
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>

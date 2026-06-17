@@ -28,6 +28,7 @@ interface UserProfile {
   tenantId: string;
   photoURL?: string;
   active: boolean;
+  supervisorPin?: string;
 }
 
 interface AuthContextType {
@@ -61,13 +62,13 @@ const DEFAULT_SEEDS = {
     { id: "tenant-2", companyName: "Locadora RentWheels", document: "98.765.432/0001-21", phone: "(21) 2555-9999", email: "frotas@rentwheels.com", active: true, paymentTerminalMode: "integrated", plan: "Enterprise", createdAt: new Date().toISOString() }
   ],
   user_profiles: [
-    { uid: "uid-owner", email: "fleet_owner@fleetsos.com", displayName: "Luiz Frota", role: "fleet_owner", roleId: "role-owner", tenantId: "tenant-1", active: true },
-    { uid: "uid-super", email: "superadmin@fleetsos.com", displayName: "Admin Master", role: "super_admin", roleId: "role-super-admin", tenantId: "tenant-1", active: true },
+    { uid: "uid-owner", email: "fleet_owner@fleetsos.com", displayName: "Luiz Frota", role: "fleet_owner", roleId: "role-owner", tenantId: "tenant-1", active: true, supervisorPin: "1234" },
+    { uid: "uid-super", email: "superadmin@fleetsos.com", displayName: "Admin Master", role: "super_admin", roleId: "role-super-admin", tenantId: "tenant-1", active: true, supervisorPin: "9999" },
     { uid: "uid-driver", email: "driver@fleetsos.com", displayName: "Carlos Santos", role: "driver", roleId: "role-driver", tenantId: "tenant-1", active: true },
-    { uid: "uid-financial", email: "financial@fleetsos.com", displayName: "Mariana Costa", role: "fleet_owner", roleId: "role-financial", tenantId: "tenant-1", active: true },
+    { uid: "uid-financial", email: "financial@fleetsos.com", displayName: "Mariana Costa", role: "fleet_owner", roleId: "role-financial", tenantId: "tenant-1", active: true, supervisorPin: "5678" },
     { uid: "uid-cashier", email: "cashier@fleetsos.com", displayName: "Patricia Alves", role: "fleet_owner", roleId: "role-cashier", tenantId: "tenant-1", active: true },
     { uid: "uid-rh", email: "rh@fleetsos.com", displayName: "Roberto Lima", role: "fleet_owner", roleId: "role-hr", tenantId: "tenant-1", active: true },
-    { uid: "uid-supervisor", email: "supervisor@fleetsos.com", displayName: "Gerson Silva", role: "fleet_owner", roleId: "role-supervisor", tenantId: "tenant-1", active: true },
+    { uid: "uid-supervisor", email: "supervisor@fleetsos.com", displayName: "Gerson Silva", role: "fleet_owner", roleId: "role-supervisor", tenantId: "tenant-1", active: true, supervisorPin: "4321" },
     { uid: "uid-readonly", email: "readonly@fleetsos.com", displayName: "Viewer Externo", role: "fleet_owner", roleId: "role-readonly", tenantId: "tenant-1", active: true },
     { uid: "uid-workshop", email: "oficina_parceira@fleetsos.com", displayName: "Oficina Jabaquara", role: "fleet_owner", roleId: "role-workshop", tenantId: "tenant-1", active: true },
     { uid: "uid-adjuster", email: "regulador_externo@fleetsos.com", displayName: "Regulador Líder", role: "fleet_owner", roleId: "role-adjuster", tenantId: "tenant-1", active: true }
@@ -359,10 +360,38 @@ const DEFAULT_SEEDS = {
     { id: "asg-2", tenantId: "tenant-1", vehicleId: "veh-2", driverId: "drv-2", contractId: "", startDate: "2026-06-01T08:00:00Z", endDate: null, active: true, status: "active" }
   ],
   cashier_sessions: [
-    { id: "cash-1", tenantId: "tenant-1", operatorId: "uid-super", openedAt: "2026-06-08T08:00:00Z", closedAt: "2026-06-08T18:00:00Z", openingAmount: 100, closingAmount: 220, difference: 0, status: "closed" }
+    { id: "cash-1", tenantId: "tenant-1", openedBy: "uid-super", openedByName: "Supervisor", openedAt: "2026-06-08T08:00:00Z", closedAt: "2026-06-08T18:00:00Z", openingAmount: 100, closingAmount: 220, expectedBalance: 220, difference: 0, status: "closed", closedBy: "uid-super", closedByName: "Supervisor", closureType: "normal" },
+    { id: "cash-2", tenantId: "tenant-1", openedBy: "uid-super", openedByName: "Supervisor", openedAt: "2026-06-17T08:00:00Z", closedAt: null, openingAmount: 100, closingAmount: 0, expectedBalance: 100, difference: 0, status: "open" }
   ],
   cashier_movements: [
-    { id: "mov-1", tenantId: "tenant-1", cashierId: "cash-1", type: "RECEIPT", amount: 120, paymentMethod: "Pix", description: "Recebimento diária - Ana Julia", createdAt: "2026-06-08T12:00:00Z" }
+    { id: "mov-1", tenantId: "tenant-1", cashierId: "cash-1", type: "RECEIPT", amount: 120, paymentMethod: "Pix", description: "Recebimento diária - Ana Julia", createdAt: "2026-06-08T12:00:00Z" },
+    { id: "mov-2", tenantId: "tenant-1", cashierId: "cash-2", type: "RECEIPT", amount: 85, paymentMethod: "Dinheiro", description: "Tx: TX-2026-0001-ABCD", createdAt: "2026-06-17T09:30:00Z" },
+    { id: "mov-3", tenantId: "tenant-1", cashierId: "cash-2", type: "RECEIPT", amount: 160, paymentMethod: "Dinheiro", description: "Tx: TX-2026-0002-EFGH", createdAt: "2026-06-17T10:15:00Z" },
+    { id: "mov-4", tenantId: "tenant-1", cashierId: "cash-2", type: "RECEIPT", amount: 200, paymentMethod: "Dinheiro", description: "Tx: TX-2026-0003-IJKL", createdAt: "2026-06-17T11:00:00Z" },
+    { id: "mov-5", tenantId: "tenant-1", cashierId: "cash-2", type: "RECEIPT", amount: 350, paymentMethod: "Pix", description: "Tx: TX-2026-0004-MNOP", createdAt: "2026-06-17T08:45:00Z" },
+    { id: "mov-6", tenantId: "tenant-1", cashierId: "cash-2", type: "RECEIPT", amount: 180, paymentMethod: "Cartão", description: "Tx: TX-2026-0005-QRST", createdAt: "2026-06-17T14:20:00Z" },
+    { id: "mov-7", tenantId: "tenant-1", cashierId: "cash-2", type: "RECEIPT", amount: 300, paymentMethod: "Conta Corrente", description: "Utilização de Conta Corrente - Tx: TX-2026-0006-UVWX", createdAt: "2026-06-17T09:50:00Z" },
+    { id: "mov-8", tenantId: "tenant-1", cashierId: "cash-2", type: "RECEIPT", amount: 120, paymentMethod: "Conta Corrente", description: "Utilização de Conta Corrente - Tx: TX-2026-0007-YZAB", createdAt: "2026-06-17T15:30:00Z" },
+    { id: "mov-9", tenantId: "tenant-1", cashierId: "cash-2", type: "WITHDRAWAL", amount: 200, description: "Sangria - Depósito bancário", createdAt: "2026-06-17T12:00:00Z" },
+    { id: "mov-10", tenantId: "tenant-1", cashierId: "cash-2", type: "SUPPLY", amount: 50, description: "Suprimento - Troco adicional", createdAt: "2026-06-17T07:45:00Z" }
+  ],
+  financial_transactions: [
+    { id: "tx-1", arId: "ar-1", transactionNumber: "TX-2026-0001-ABCD", source: "cashier", type: "driver_payment", amount: 85, method: "cash", status: "approved", gateway: "manual", externalId: "", reconciliationStatus: "pending", receiptHash: "", driverId: "drv-1", cashierSessionId: "cash-2", createdBy: "Supervisor", createdAt: "2026-06-17T09:30:00Z", surplusDestination: "credit", partialTreatment: "keep_partial", selectedArIds: ["ar-1"], originalMethod: "cash", balanceUsed: 0, cashAmount: 85 },
+    { id: "tx-2", arId: "ar-3", transactionNumber: "TX-2026-0002-EFGH", source: "cashier", type: "driver_payment", amount: 160, method: "cash", status: "approved", gateway: "manual", externalId: "", reconciliationStatus: "pending", receiptHash: "", driverId: "drv-2", cashierSessionId: "cash-2", createdBy: "Supervisor", createdAt: "2026-06-17T10:15:00Z", surplusDestination: "credit", partialTreatment: "keep_partial", selectedArIds: ["ar-3"], originalMethod: "cash", balanceUsed: 0, cashAmount: 160 },
+    { id: "tx-3", arId: "ar-5", transactionNumber: "TX-2026-0003-IJKL", source: "cashier", type: "driver_payment", amount: 200, method: "cash", status: "approved", gateway: "manual", externalId: "", reconciliationStatus: "pending", receiptHash: "", driverId: "drv-1", cashierSessionId: "cash-2", createdBy: "Supervisor", createdAt: "2026-06-17T11:00:00Z", surplusDestination: "credit", partialTreatment: "keep_partial", selectedArIds: ["ar-5"], originalMethod: "cash", balanceUsed: 0, cashAmount: 200 },
+    { id: "tx-4", arId: "ar-2", transactionNumber: "TX-2026-0004-MNOP", source: "cashier", type: "driver_payment", amount: 350, method: "pix", status: "approved", gateway: "mercado_pago", externalId: "ext_abc", reconciliationStatus: "pending", receiptHash: "", driverId: "drv-2", cashierSessionId: "cash-2", createdBy: "Supervisor", createdAt: "2026-06-17T08:45:00Z", surplusDestination: "credit", partialTreatment: "keep_partial", selectedArIds: ["ar-2"], originalMethod: "pix", balanceUsed: 0, cashAmount: 350 },
+    { id: "tx-5", arId: "ar-4", transactionNumber: "TX-2026-0005-QRST", source: "cashier", type: "driver_payment", amount: 180, method: "card", status: "approved", gateway: "stripe", externalId: "ext_def", reconciliationStatus: "pending", receiptHash: "", driverId: "drv-1", cashierSessionId: "cash-2", createdBy: "Supervisor", createdAt: "2026-06-17T14:20:00Z", surplusDestination: "credit", partialTreatment: "keep_partial", selectedArIds: ["ar-4"], originalMethod: "card", balanceUsed: 0, cashAmount: 180 },
+    { id: "tx-6", arId: "ar-6", transactionNumber: "TX-2026-0006-UVWX", source: "cashier", type: "driver_payment", amount: 300, method: "transfer", status: "approved", gateway: "manual", externalId: "", reconciliationStatus: "pending", receiptHash: "", driverId: "drv-1", cashierSessionId: "cash-2", createdBy: "Supervisor", createdAt: "2026-06-17T09:50:00Z", surplusDestination: "credit", partialTreatment: "keep_partial", selectedArIds: ["ar-6"], originalMethod: "account_balance", balanceUsed: 300, cashAmount: 0 },
+    { id: "tx-7", arId: "ar-7", transactionNumber: "TX-2026-0007-YZAB", source: "cashier", type: "driver_payment", amount: 120, method: "transfer", status: "approved", gateway: "manual", externalId: "", reconciliationStatus: "pending", receiptHash: "", driverId: "drv-2", cashierSessionId: "cash-2", createdBy: "Supervisor", createdAt: "2026-06-17T15:30:00Z", surplusDestination: "credit", partialTreatment: "keep_partial", selectedArIds: ["ar-7"], originalMethod: "account_balance", balanceUsed: 120, cashAmount: 0 }
+  ],
+  accounts_receivable: [
+    { id: "ar-1", driverId: "drv-1", contractId: "con-1", dueDate: "2026-06-17", amount: 120, titleType: "rent", status: "open", paidAmount: 0, createdAt: "2026-06-16T08:00:00Z" },
+    { id: "ar-2", driverId: "drv-2", contractId: "", dueDate: "2026-06-17", amount: 350, titleType: "fine", status: "open", paidAmount: 0, createdAt: "2026-06-16T12:00:00Z" },
+    { id: "ar-3", driverId: "drv-2", contractId: "", dueDate: "2026-06-16", amount: 160, titleType: "rent", status: "overdue", paidAmount: 0, createdAt: "2026-06-15T08:00:00Z" },
+    { id: "ar-4", driverId: "drv-1", contractId: "", dueDate: "2026-06-17", amount: 180, titleType: "claim_deductible", status: "open", paidAmount: 0, createdAt: "2026-06-16T10:00:00Z" },
+    { id: "ar-5", driverId: "drv-1", contractId: "con-1", dueDate: "2026-06-17", amount: 200, titleType: "adjustment", status: "open", paidAmount: 0, createdAt: "2026-06-16T09:00:00Z" },
+    { id: "ar-6", driverId: "drv-1", contractId: "con-1", dueDate: "2026-06-17", amount: 300, titleType: "rent", status: "open", paidAmount: 0, createdAt: "2026-06-16T11:00:00Z" },
+    { id: "ar-7", driverId: "drv-2", contractId: "", dueDate: "2026-06-17", amount: 120, titleType: "rent", status: "open", paidAmount: 0, createdAt: "2026-06-16T13:00:00Z" }
   ],
   maintenance_plan_items: [
     { id: "mpi-1", tenantId: "tenant-1", vehicleId: "veh-1", itemName: "Óleo", intervalKm: 10000, lastServiceKm: 40000, nextServiceKm: 50000 },
@@ -375,7 +404,222 @@ const DEFAULT_SEEDS = {
     { id: "mpi-8", tenantId: "tenant-1", vehicleId: "veh-2", itemName: "Correia Dentada", intervalKm: 60000, lastServiceKm: 60000, nextServiceKm: 120000 },
     { id: "mpi-9", tenantId: "tenant-1", vehicleId: "veh-2", itemName: "Bateria", intervalKm: 40000, lastServiceKm: 80000, nextServiceKm: 120000 }
   ],
+  maintenance_procedures: [
+    { id: "proc-001", tenantId: "tenant-1", name: "Troca de Óleo", category: "oil", intervalKm: 10000, intervalDays: null, estimatedDurationMinutes: 40, mandatory: true, notes: "Utilizar óleo especificado pelo fabricante." },
+    { id: "proc-002", tenantId: "tenant-1", name: "Troca de Filtro de Ar", category: "filter", intervalKm: 20000, intervalDays: null, estimatedDurationMinutes: 20, mandatory: true, notes: "" },
+    { id: "proc-003", tenantId: "tenant-1", name: "Troca de Filtro de Combustível", category: "filter", intervalKm: 30000, intervalDays: null, estimatedDurationMinutes: 30, mandatory: true, notes: "" },
+    { id: "proc-004", tenantId: "tenant-1", name: "Troca de Pastilhas de Freio", category: "brake", intervalKm: 30000, intervalDays: null, estimatedDurationMinutes: 60, mandatory: false, notes: "Verificar espessura dos discos." },
+    { id: "proc-005", tenantId: "tenant-1", name: "Rodízio de Pneus", category: "tire", intervalKm: 10000, intervalDays: null, estimatedDurationMinutes: 30, mandatory: true, notes: "" },
+    { id: "proc-006", tenantId: "tenant-1", name: "Troca de Correia Dentada", category: "belt", intervalKm: 60000, intervalDays: null, estimatedDurationMinutes: 180, mandatory: true, notes: "Substituir também os tensores e a bomba d'água." },
+    { id: "proc-007", tenantId: "tenant-1", name: "Inspeção do Sistema GNV", category: "gnv", intervalKm: null, intervalDays: 365, estimatedDurationMinutes: 60, mandatory: true, notes: "Obrigatório pelo INMETRO anualmente." },
+    { id: "proc-008", tenantId: "tenant-1", name: "Teste de Estanqueidade GNV", category: "gnv", intervalKm: null, intervalDays: 180, estimatedDurationMinutes: 45, mandatory: true, notes: "Verificar mangueiras, redutor e cilindro." },
+    { id: "proc-009", tenantId: "tenant-1", name: "Verificação do Sistema Híbrido", category: "hybrid", intervalKm: 40000, intervalDays: null, estimatedDurationMinutes: 90, mandatory: true, notes: "Verificar bateria HV, cooler e cabos de alta tensão." },
+    { id: "proc-010", tenantId: "tenant-1", name: "Fluido de Arrefecimento Bateria EV", category: "ev", intervalKm: null, intervalDays: 365, estimatedDurationMinutes: 30, mandatory: true, notes: "Verificar nível e qualidade do fluido de arrefecimento da bateria." },
+    { id: "proc-011", tenantId: "tenant-1", name: "Alinhamento e Balanceamento", category: "tire", intervalKm: 10000, intervalDays: null, estimatedDurationMinutes: 45, mandatory: false, notes: "" }
+  ],
+  procedure_part_kits: [
+    {
+      id: "kit-001", tenantId: "tenant-1", procedureId: "proc-001",
+      items: [
+        { inventoryItemId: null, description: "Óleo Motor 0W20 (litros)", qty: 4.2, unit: "litros" },
+        { inventoryItemId: null, description: "Filtro de Óleo", qty: 1, unit: "unidade" }
+      ]
+    },
+    {
+      id: "kit-002", tenantId: "tenant-1", procedureId: "proc-002",
+      items: [
+        { inventoryItemId: null, description: "Filtro de Ar do Motor", qty: 1, unit: "unidade" }
+      ]
+    },
+    {
+      id: "kit-003", tenantId: "tenant-1", procedureId: "proc-003",
+      items: [
+        { inventoryItemId: null, description: "Filtro de Combustível", qty: 1, unit: "unidade" }
+      ]
+    },
+    {
+      id: "kit-004", tenantId: "tenant-1", procedureId: "proc-004",
+      items: [
+        { inventoryItemId: null, description: "Pastilha de Freio Dianteira", qty: 1, unit: "jogo" },
+        { inventoryItemId: null, description: "Pastilha de Freio Traseira", qty: 1, unit: "jogo" }
+      ]
+    },
+    {
+      id: "kit-006", tenantId: "tenant-1", procedureId: "proc-006",
+      items: [
+        { inventoryItemId: null, description: "Correia Dentada", qty: 1, unit: "unidade" },
+        { inventoryItemId: null, description: "Tensor da Correia", qty: 1, unit: "unidade" },
+        { inventoryItemId: null, description: "Bomba D'água", qty: 1, unit: "unidade" }
+      ]
+    }
+  ],
+  maintenance_plans: [
+    {
+      id: "plan-flex-std", tenantId: "tenant-1",
+      name: "Plano Padrão Flex",
+      manufacturer: "Genérico",
+      category: "flex",
+      applicableModels: ["Gol", "HB20", "Ônix", "Prisma", "Corolla", "Cronos"],
+      procedures: ["proc-001", "proc-002", "proc-003", "proc-004", "proc-005", "proc-006", "proc-011"],
+      isDefault: true,
+      notes: "Plano padrão para veículos flex de uso intensivo."
+    },
+    {
+      id: "plan-hybrid-corolla", tenantId: "tenant-1",
+      name: "Toyota Corolla Hybrid",
+      manufacturer: "Toyota",
+      category: "hybrid",
+      applicableModels: ["Corolla Altis Hybrid", "Corolla XEI Hybrid"],
+      procedures: ["proc-001", "proc-002", "proc-003", "proc-004", "proc-005", "proc-009", "proc-011"],
+      isDefault: false,
+      notes: "Revisão do sistema híbrido a cada 40.000 km obrigatória."
+    },
+    {
+      id: "plan-gnv", tenantId: "tenant-1",
+      name: "Plano GNV (Bi-combustível)",
+      manufacturer: "Genérico",
+      category: "gnv",
+      applicableModels: [],
+      procedures: ["proc-001", "proc-002", "proc-004", "proc-007", "proc-008", "proc-011"],
+      isDefault: false,
+      notes: "Inspeção INMETRO anual obrigatória. Teste de estanqueidade semestral."
+    },
+    {
+      id: "plan-ev", tenantId: "tenant-1",
+      name: "Plano Elétrico",
+      manufacturer: "Genérico",
+      category: "ev",
+      applicableModels: ["BYD Dolphin", "BYD King", "GWM Ora 03"],
+      procedures: ["proc-010", "proc-004", "proc-005", "proc-011"],
+      isDefault: false,
+      notes: "Verificação de bateria e fluidos de arrefecimento anuais."
+    }
+  ],
+  vehicle_maintenance_plans: [
+    { id: "vmp-1", tenantId: "tenant-1", vehicleId: "veh-1", planId: "plan-flex-std", assignedAt: new Date().toISOString(), notes: "" },
+    { id: "vmp-2", tenantId: "tenant-1", vehicleId: "veh-2", planId: "plan-flex-std", assignedAt: new Date().toISOString(), notes: "" }
+  ],
+  procedure_history: [
+    { id: "ph-1", tenantId: "tenant-1", vehicleId: "veh-1", procedureId: "proc-001", executedKm: 40000, executedAt: "2026-04-10", nextDueKm: 50000, nextDueDate: null, workOrderId: null, notes: "" },
+    { id: "ph-2", tenantId: "tenant-1", vehicleId: "veh-1", procedureId: "proc-005", executedKm: 40000, executedAt: "2026-04-10", nextDueKm: 50000, nextDueDate: null, workOrderId: null, notes: "" },
+    { id: "ph-3", tenantId: "tenant-1", vehicleId: "veh-1", procedureId: "proc-002", executedKm: 35000, executedAt: "2026-02-01", nextDueKm: 55000, nextDueDate: null, workOrderId: null, notes: "" },
+    { id: "ph-4", tenantId: "tenant-1", vehicleId: "veh-1", procedureId: "proc-011", executedKm: 40000, executedAt: "2026-04-10", nextDueKm: 50000, nextDueDate: null, workOrderId: null, notes: "" },
+    { id: "ph-5", tenantId: "tenant-1", vehicleId: "veh-2", procedureId: "proc-001", executedKm: 90000, executedAt: "2026-05-20", nextDueKm: 100000, nextDueDate: null, workOrderId: null, notes: "" },
+    { id: "ph-6", tenantId: "tenant-1", vehicleId: "veh-2", procedureId: "proc-005", executedKm: 90000, executedAt: "2026-05-20", nextDueKm: 100000, nextDueDate: null, workOrderId: null, notes: "" }
+  ],
+  vehicle_catalog: [
+    {
+      id: "cat-corolla-hybrid",
+      tenantId: "tenant-1",
+      make: "Toyota",
+      model: "Corolla",
+      engine: "1.8 Hybrid",
+      yearFrom: 2022,
+      yearTo: null,
+      category: "hybrid",
+      defaultPlanId: "plan-hybrid-corolla",
+      notes: "Altis / XEI Hybrid. Sistema e-CVT. Não utilizar óleo convencional.",
+      specs: [
+        { type: "oil", description: "Óleo Motor 0W20 SP/GF-6A", partNumber: "08880-10705", quantity: 4.2, unit: "litros", inventoryItemId: null, notes: "Toyota Genuine Motor Oil 0W20. Usar somente 0W20 no motor híbrido." },
+        { type: "filter_oil", description: "Filtro de Óleo", partNumber: "90915-YZZF2", quantity: 1, unit: "unidade", inventoryItemId: null, notes: "" },
+        { type: "filter_air", description: "Filtro de Ar do Motor", partNumber: "17801-YZZF0", quantity: 1, unit: "unidade", inventoryItemId: null, notes: "" },
+        { type: "filter_cabin", description: "Filtro do Ar-Condicionado (Cabine)", partNumber: "87139-YZZ20", quantity: 1, unit: "unidade", inventoryItemId: null, notes: "Trocar a cada 15.000 km ou 12 meses." },
+        { type: "brake_fluid", description: "Fluido de Freio DOT 3", partNumber: "08823-80010", quantity: 0.5, unit: "litros", inventoryItemId: null, notes: "Trocar a cada 2 anos ou 40.000 km." },
+        { type: "coolant", description: "Fluido de Arrefecimento Super Long Life", partNumber: "08889-80068", quantity: 7.0, unit: "litros", inventoryItemId: null, notes: "Toyota Super Long Life Coolant (SLLC). Rosa/vermelho." },
+        { type: "hybrid_fluid", description: "Fluido CVT — e-CVT Transaxle", partNumber: "08886-02105", quantity: 3.8, unit: "litros", inventoryItemId: null, notes: "Não confundir com fluido de câmbio convencional." },
+        { type: "tire_spec", description: "Pneu 205/55 R16", partNumber: "", quantity: 4, unit: "unidade", inventoryItemId: null, notes: "Pressão: 32 psi (dianteiro e traseiro com carga normal)." }
+      ]
+    },
+    {
+      id: "cat-corolla-flex",
+      tenantId: "tenant-1",
+      make: "Toyota",
+      model: "Corolla",
+      engine: "2.0 Dynamic Force Flex",
+      yearFrom: 2020,
+      yearTo: null,
+      category: "flex",
+      defaultPlanId: "plan-flex-std",
+      notes: "XEI / GLi. Motor 2.0 aspirado flex. CVT de 10 velocidades.",
+      specs: [
+        { type: "oil", description: "Óleo Motor 5W30 SP/GF-6A", partNumber: "08880-83365", quantity: 4.4, unit: "litros", inventoryItemId: null, notes: "Toyota Genuine Motor Oil 5W30 ou equivalente SP." },
+        { type: "filter_oil", description: "Filtro de Óleo", partNumber: "90915-YZZF2", quantity: 1, unit: "unidade", inventoryItemId: null, notes: "" },
+        { type: "filter_air", description: "Filtro de Ar do Motor", partNumber: "17801-YZZF2", quantity: 1, unit: "unidade", inventoryItemId: null, notes: "" },
+        { type: "filter_cabin", description: "Filtro de Cabine", partNumber: "87139-YZZ20", quantity: 1, unit: "unidade", inventoryItemId: null, notes: "" },
+        { type: "brake_fluid", description: "Fluido de Freio DOT 3", partNumber: "08823-80010", quantity: 0.5, unit: "litros", inventoryItemId: null, notes: "" },
+        { type: "coolant", description: "Fluido de Arrefecimento SLLC", partNumber: "08889-80068", quantity: 7.2, unit: "litros", inventoryItemId: null, notes: "" },
+        { type: "spark_plug", description: "Vela de Ignição (Iridium)", partNumber: "90919-01276", quantity: 4, unit: "unidade", inventoryItemId: null, notes: "Troca a cada 80.000 km." },
+        { type: "tire_spec", description: "Pneu 215/50 R17", partNumber: "", quantity: 4, unit: "unidade", inventoryItemId: null, notes: "Pressão: 33 psi." }
+      ]
+    },
+    {
+      id: "cat-hb20s-turbo",
+      tenantId: "tenant-1",
+      make: "Hyundai",
+      model: "HB20 S",
+      engine: "1.0 T-GDI Turbo Flex",
+      yearFrom: 2020,
+      yearTo: null,
+      category: "flex",
+      defaultPlanId: "plan-flex-std",
+      notes: "Sedan Premium / Platinum Plus. Motor 3 cilindros turbinado.",
+      specs: [
+        { type: "oil", description: "Óleo Motor 5W30 SN+", partNumber: "23401-09200", quantity: 3.8, unit: "litros", inventoryItemId: null, notes: "Usar SN+ ou SP. Não usar viscosidade superior a 5W30." },
+        { type: "filter_oil", description: "Filtro de Óleo", partNumber: "26300-35531", quantity: 1, unit: "unidade", inventoryItemId: null, notes: "" },
+        { type: "filter_air", description: "Filtro de Ar do Motor", partNumber: "28113-B4000", quantity: 1, unit: "unidade", inventoryItemId: null, notes: "" },
+        { type: "filter_cabin", description: "Filtro de Ar-Condicionado", partNumber: "97133-B4000", quantity: 1, unit: "unidade", inventoryItemId: null, notes: "" },
+        { type: "brake_fluid", description: "Fluido de Freio DOT 3", partNumber: "00232-19009", quantity: 0.35, unit: "litros", inventoryItemId: null, notes: "" },
+        { type: "spark_plug", description: "Vela de Ignição (Iridium)", partNumber: "18814-09070", quantity: 3, unit: "unidade", inventoryItemId: null, notes: "Motor 3 cilindros — apenas 3 velas. Troca a cada 60.000 km." },
+        { type: "tire_spec", description: "Pneu 195/55 R15", partNumber: "", quantity: 4, unit: "unidade", inventoryItemId: null, notes: "Pressão: 32 psi." }
+      ]
+    },
+    {
+      id: "cat-onix-plus-turbo",
+      tenantId: "tenant-1",
+      make: "Chevrolet",
+      model: "Onix Plus",
+      engine: "1.0 Turbo Flex",
+      yearFrom: 2020,
+      yearTo: null,
+      category: "flex",
+      defaultPlanId: "plan-flex-std",
+      notes: "Premier / LTZ. Motor 3 cilindros turbo. CVT automático.",
+      specs: [
+        { type: "oil", description: "Óleo Motor 5W30 SN+", partNumber: "93308064", quantity: 3.8, unit: "litros", inventoryItemId: null, notes: "Dexos2. Não usar óleo convencional." },
+        { type: "filter_oil", description: "Filtro de Óleo", partNumber: "93308064", quantity: 1, unit: "unidade", inventoryItemId: null, notes: "" },
+        { type: "filter_air", description: "Filtro de Ar do Motor", partNumber: "13271190", quantity: 1, unit: "unidade", inventoryItemId: null, notes: "" },
+        { type: "filter_cabin", description: "Filtro de Cabine", partNumber: "13364668", quantity: 1, unit: "unidade", inventoryItemId: null, notes: "" },
+        { type: "brake_fluid", description: "Fluido de Freio DOT 3", partNumber: "88862184", quantity: 0.4, unit: "litros", inventoryItemId: null, notes: "" },
+        { type: "spark_plug", description: "Vela de Ignição (Irídio)", partNumber: "55566775", quantity: 3, unit: "unidade", inventoryItemId: null, notes: "Motor 3 cilindros. Troca a cada 60.000 km." },
+        { type: "tire_spec", description: "Pneu 195/55 R15", partNumber: "", quantity: 4, unit: "unidade", inventoryItemId: null, notes: "Pressão: 33 psi dianteiro / 30 psi traseiro com carga." }
+      ]
+    },
+    {
+      id: "cat-virtus-msi",
+      tenantId: "tenant-1",
+      make: "Volkswagen",
+      model: "Virtus",
+      engine: "1.6 MSI Flex",
+      yearFrom: 2018,
+      yearTo: null,
+      category: "flex",
+      defaultPlanId: "plan-flex-std",
+      notes: "Comfortline / Highline. Motor aspirado 4 cilindros.",
+      specs: [
+        { type: "oil", description: "Óleo Motor 5W30 VW508.00", partNumber: "G052548M2", quantity: 4.5, unit: "litros", inventoryItemId: null, notes: "Usar obrigatoriamente especificação VW 508.00 ou 509.00." },
+        { type: "filter_oil", description: "Filtro de Óleo", partNumber: "03C115561H", quantity: 1, unit: "unidade", inventoryItemId: null, notes: "" },
+        { type: "filter_air", description: "Filtro de Ar do Motor", partNumber: "6Q0129620A", quantity: 1, unit: "unidade", inventoryItemId: null, notes: "" },
+        { type: "filter_cabin", description: "Filtro de Cabine", partNumber: "1K1819653B", quantity: 1, unit: "unidade", inventoryItemId: null, notes: "" },
+        { type: "brake_fluid", description: "Fluido de Freio DOT 4", partNumber: "B000750M3", quantity: 0.5, unit: "litros", inventoryItemId: null, notes: "Usar DOT 4 — não misturar com DOT 3." },
+        { type: "coolant", description: "Fluido de Arrefecimento G13", partNumber: "G013A8JM1", quantity: 6.5, unit: "litros", inventoryItemId: null, notes: "VW G13 (violeta). Não misturar com outros tipos." },
+        { type: "spark_plug", description: "Vela de Ignição (Platina)", partNumber: "101905611A", quantity: 4, unit: "unidade", inventoryItemId: null, notes: "Troca a cada 30.000 km (MS convencional)." },
+        { type: "belt", description: "Correia Dentada + Kit Tensor", partNumber: "06B109119F", quantity: 1, unit: "kit", inventoryItemId: null, notes: "Troca a cada 60.000 km. Incluir tensores e bomba d'água." },
+        { type: "tire_spec", description: "Pneu 195/60 R15", partNumber: "", quantity: 4, unit: "unidade", inventoryItemId: null, notes: "Pressão: 33 psi." }
+      ]
+    }
+  ],
   roles: [
+
     { id: "role-super-admin", tenantId: "tenant-1", name: "SUPER_ADMIN", description: "Administrador da plataforma com privilégios totais e suporte." },
     { id: "role-owner", tenantId: "tenant-1", name: "OWNER", description: "Proprietário da frota com acesso total às configurações e faturamento." },
     { id: "role-manager", tenantId: "tenant-1", name: "MANAGER", description: "Gestor de frotas com acesso operacional total." },
@@ -850,9 +1094,12 @@ const DEFAULT_SEEDS = {
     { id: "drg-3", tenantId: "tenant-1", driverId: "drv-3", condutaxNumber: "C-11223", issueDate: "2024-02-15", expirationDate: "2029-02-15", status: "blocked_dtp", cnhExpirationDate: "2027-10-10", courseExpirationDate: "2029-02-15", dtpBlocked: true, observations: "Bloqueado pelo DTP devido a pendência administrativa." }
   ],
   infractions: [
-    { id: "inf-1", tenantId: "tenant-1", vehicleId: "veh-1", driverId: "drv-1", autoNumber: "A-987654", orgao: "DSV/CET", description: "Transitar em velocidade superior à máxima permitida em até 20%", valor: 195.23, pontuacao: 4, vencimento: "2026-07-10", responsavel: "driver", status: "pending", createdAt: new Date().toISOString() },
-    { id: "inf-2", tenantId: "tenant-1", vehicleId: "veh-1", driverId: "drv-1", autoNumber: "B-123456", orgao: "DER", description: "Transitar em velocidade superior à máxima permitida de 20% a 50%", valor: 130.15, pontuacao: 3, vencimento: "2026-06-20", responsavel: "company", status: "paid", createdAt: new Date().toISOString() },
-    { id: "inf-3", tenantId: "tenant-1", vehicleId: "veh-2", driverId: "drv-2", autoNumber: "C-456789", orgao: "PRF", description: "Não manter acesa a luz baixa de dia, nas rodovias", valor: 880.41, pontuacao: 7, vencimento: "2026-08-01", responsavel: "undetermined", status: "pending", createdAt: new Date().toISOString() }
+    { id: "inf-1", tenantId: "tenant-1", vehicleId: "veh-1", driverId: "drv-1", autoNumber: "A-987654", orgao: "DSV/CET", description: "Transitar em velocidade superior à máxima permitida em até 20%", valor: 195.23, pontuacao: 4, vencimento: "2026-07-10", responsavel: "driver", status: "pending", createdAt: "2026-06-10T14:30:00Z" },
+    { id: "inf-2", tenantId: "tenant-1", vehicleId: "veh-1", driverId: "drv-1", autoNumber: "B-123456", orgao: "DER", description: "Transitar em velocidade superior à máxima permitida de 20% a 50%", valor: 130.15, pontuacao: 3, vencimento: "2026-06-20", responsavel: "company", status: "paid", createdAt: "2026-06-05T10:00:00Z" },
+    { id: "inf-3", tenantId: "tenant-1", vehicleId: "veh-2", driverId: "drv-2", autoNumber: "C-456789", orgao: "PRF", description: "Não manter acesa a luz baixa de dia, nas rodovias", valor: 880.41, pontuacao: 7, vencimento: "2026-08-01", responsavel: "undetermined", status: "pending", createdAt: "2026-06-12T09:15:00Z" },
+    { id: "inf-4", tenantId: "tenant-1", vehicleId: "veh-1", driverId: "drv-1", autoNumber: "D-789012", orgao: "CET", description: "Estacionar em local proibido — faixa de pedestres", valor: 195.23, pontuacao: 5, vencimento: "2026-07-25", responsavel: "driver", status: "pending", createdAt: "2026-06-14T11:00:00Z" },
+    { id: "inf-5", tenantId: "tenant-1", vehicleId: "veh-1", driverId: "drv-1", autoNumber: "E-345678", orgao: "DSV", description: "Transitar em faixa exclusiva de ônibus", valor: 293.47, pontuacao: 5, vencimento: "2026-08-05", responsavel: "driver", status: "pending", createdAt: "2026-06-15T16:45:00Z" },
+    { id: "inf-6", tenantId: "tenant-1", vehicleId: "veh-2", driverId: "drv-2", autoNumber: "F-901234", orgao: "CET", description: "Avançar sinal vermelho", valor: 293.47, pontuacao: 7, vencimento: "2026-07-30", responsavel: "driver", status: "pending", createdAt: "2026-06-13T08:30:00Z" },
   ],
   vehicle_lifecycle_processes: [
     { id: "vlp-1", tenantId: "tenant-1", vehicleId: "veh-1", operationType: "taxi", phase: "operation", step: "active", status: "completed", startedAt: "2026-01-01T08:00:00Z", checklistCompletion: 100 },
@@ -878,7 +1125,22 @@ const DEFAULT_SEEDS = {
     { id: "gr-1", tenantId: "tenant-1", vehicleId: "veh-1", cylinderNumber: "GNV-554433", installationCompany: "Gás Tecnologia Ltda", certificationDate: "2026-01-10", expirationDate: "2027-01-10", status: "valid" },
     { id: "gr-2", tenantId: "tenant-1", vehicleId: "veh-2", cylinderNumber: "GNV-998877", installationCompany: "Convertedora Ipiranga", certificationDate: "2025-06-25", expirationDate: "2026-06-25", status: "warning" },
     { id: "gr-3", tenantId: "tenant-1", vehicleId: "veh-3", cylinderNumber: "GNV-112233", installationCompany: "Convertedora Centro", certificationDate: "2024-05-10", expirationDate: "2025-05-10", status: "expired" }
-  ]
+  ],
+  traffic_fines: [
+    { id: "tf-1", tenantId: "tenant-1", noticeNumber: "AE-5842001", issuingAgency: "DER-SP", vehicleId: "veh-1", plate: "ABC-1234", prefix: "P-101", infractionCode: "7455-3", description: "Transitar em velocidade superior à máxima permitida em até 20%", fineCategory: "transit", occurrenceDate: "2026-05-20T14:30:00", receivedDate: "2026-06-01T10:00:00", originalAmount: 195.23, discountAmount: 39.05, discountDeadline: "2026-07-01", currentAmount: 156.18, dueDate: "2026-07-20", points: 4, responsibleParty: "driver", status: "received", identificationMethod: "pending", timeline: [{ date: "2026-06-01T10:00:00", label: "Multa Recebida", detail: "AIT AE-5842001 — DER-SP", actor: "Sistema" }], createdAt: "2026-06-01T10:00:00", updatedAt: "2026-06-01T10:00:00" },
+    { id: "tf-2", tenantId: "tenant-1", noticeNumber: "BL-3129055", issuingAgency: "CET", vehicleId: "veh-1", plate: "ABC-1234", prefix: "P-101", infractionCode: "5010-1", description: "Avançar sinal vermelho", fineCategory: "transit", occurrenceDate: "2026-05-25T09:15:00", receivedDate: "2026-06-05T08:30:00", originalAmount: 293.47, discountAmount: 58.69, discountDeadline: "2026-07-05", currentAmount: 234.78, dueDate: "2026-07-25", points: 7, responsibleParty: "driver", status: "driver_identified", driverId: "drv-1", driverName: "Carlos Santos", identificationMethod: "auto", timeline: [{ date: "2026-06-05T08:30:00", label: "Multa Recebida", detail: "AIT BL-3129055 — CET", actor: "Sistema" }, { date: "2026-06-05T09:00:00", label: "Condutor Identificado", detail: "Carlos Santos (identificação automática)", actor: "Sistema" }], createdAt: "2026-06-05T08:30:00", updatedAt: "2026-06-05T09:00:00" },
+    { id: "tf-3", tenantId: "tenant-1", noticeNumber: "CM-8712460", issuingAgency: "SPTrans", vehicleId: "veh-1", plate: "ABC-1234", prefix: "P-101", infractionCode: "DTP-0042", description: "Estacionar irregular em ponto de táxi", fineCategory: "dtp", occurrenceDate: "2026-06-02T11:00:00", receivedDate: "2026-06-10T14:00:00", originalAmount: 880.41, discountAmount: 0, discountDeadline: "", currentAmount: 880.41, dueDate: "2026-08-10", points: 0, responsibleParty: "driver", status: "appealing", driverId: "drv-1", driverName: "Carlos Santos", identificationMethod: "auto", appealId: "appeal-1", timeline: [{ date: "2026-06-10T14:00:00", label: "Multa Recebida", detail: "AIT CM-8712460 — SPTrans", actor: "Sistema" }, { date: "2026-06-10T15:00:00", label: "Condutor Identificado", detail: "Carlos Santos (identificação automática)", actor: "Sistema" }, { date: "2026-06-12T09:00:00", label: "Recurso Protocolado", detail: "Tipo: JARI · Prazo: 20/07/2026", actor: "Carlos Santos" }], createdAt: "2026-06-10T14:00:00", updatedAt: "2026-06-12T09:00:00" },
+    { id: "tf-4", tenantId: "tenant-1", noticeNumber: "DF-5098437", issuingAgency: "DSV", vehicleId: "veh-1", plate: "ABC-1234", prefix: "P-101", infractionCode: "5140-1", description: "Utilizar celular ao volante", fineCategory: "transit", occurrenceDate: "2026-06-08T17:45:00", receivedDate: "2026-06-15T09:30:00", originalAmount: 293.47, discountAmount: 58.69, discountDeadline: "2026-07-15", currentAmount: 234.78, dueDate: "2026-08-05", points: 7, responsibleParty: "driver", status: "pending_driver_id", identificationMethod: "pending", timeline: [{ date: "2026-06-15T09:30:00", label: "Multa Recebida", detail: "AIT DF-5098437 — DSV", actor: "Sistema" }], createdAt: "2026-06-15T09:30:00", updatedAt: "2026-06-15T09:30:00" },
+    { id: "tf-5", tenantId: "tenant-1", noticeNumber: "EG-6672391", issuingAgency: "PRF", vehicleId: "veh-2", plate: "XYZ-5678", prefix: "P-202", infractionCode: "7411-1", description: "Ultrapassar pelo acostamento", fineCategory: "transit", occurrenceDate: "2026-05-30T08:10:00", receivedDate: "2026-06-08T11:00:00", originalAmount: 1467.35, discountAmount: 293.47, discountDeadline: "2026-07-08", currentAmount: 1173.88, dueDate: "2026-07-28", points: 7, responsibleParty: "driver", status: "driver_identified", driverId: "drv-2", driverName: "Ana Julia", identificationMethod: "auto", timeline: [{ date: "2026-06-08T11:00:00", label: "Multa Recebida", detail: "AIT EG-6672391 — PRF", actor: "Sistema" }, { date: "2026-06-08T11:30:00", label: "Condutor Identificado", detail: "Ana Julia (identificação automática)", actor: "Sistema" }], createdAt: "2026-06-08T11:00:00", updatedAt: "2026-06-08T11:30:00" },
+    { id: "tf-6", tenantId: "tenant-1", noticeNumber: "FH-1122048", issuingAgency: "CET", vehicleId: "veh-2", plate: "XYZ-5678", prefix: "P-202", infractionCode: "6310-1", description: "Transitar em faixa exclusiva de ônibus", fineCategory: "transit", occurrenceDate: "2026-06-03T13:20:00", receivedDate: "2026-06-12T10:00:00", originalAmount: 293.47, discountAmount: 58.69, discountDeadline: "2026-07-12", currentAmount: 234.78, dueDate: "2026-08-02", points: 5, responsibleParty: "driver", status: "charged", driverId: "drv-2", driverName: "Ana Julia", identificationMethod: "auto", arId: "ar-tf-6", timeline: [{ date: "2026-06-12T10:00:00", label: "Multa Recebida", detail: "AIT FH-1122048 — CET", actor: "Sistema" }, { date: "2026-06-12T10:30:00", label: "Condutor Identificado", detail: "Ana Julia (identificação automática)", actor: "Sistema" }, { date: "2026-06-14T08:00:00", label: "Cobrança Gerada", detail: "Débito de R$ 234,78 criado para Ana Julia", actor: "Patricia Alves" }], createdAt: "2026-06-12T10:00:00", updatedAt: "2026-06-14T08:00:00" },
+    { id: "tf-7", tenantId: "tenant-1", noticeNumber: "GI-7730115", issuingAgency: "DETRAN-SP", vehicleId: "veh-1", plate: "ABC-1234", prefix: "P-101", infractionCode: "5180-1", description: "Não usar cinto de segurança", fineCategory: "transit", occurrenceDate: "2026-06-10T07:30:00", receivedDate: "2026-06-16T16:00:00", originalAmount: 195.23, discountAmount: 39.05, discountDeadline: "2026-07-16", currentAmount: 156.18, dueDate: "2026-08-06", points: 5, responsibleParty: "driver", status: "pending_driver_id", identificationMethod: "pending", timeline: [{ date: "2026-06-16T16:00:00", label: "Multa Recebida", detail: "AIT GI-7730115 — DETRAN-SP", actor: "Sistema" }], createdAt: "2026-06-16T16:00:00", updatedAt: "2026-06-16T16:00:00" },
+    { id: "tf-8", tenantId: "tenant-1", noticeNumber: "HJ-4568702", issuingAgency: "SPTrans", vehicleId: "veh-1", plate: "ABC-1234", prefix: "P-101", infractionCode: "DTP-0087", description: "Taxímetro sem lacre IPEM", fineCategory: "dtp", occurrenceDate: "2026-06-01T06:45:00", receivedDate: "2026-06-09T09:00:00", originalAmount: 1760.82, discountAmount: 0, discountDeadline: "", currentAmount: 1760.82, dueDate: "2026-08-09", points: 0, responsibleParty: "driver", status: "appealing", driverId: "drv-1", driverName: "Carlos Santos", identificationMethod: "auto", appealId: "appeal-2", dispatcherTaskId: "dtask-1", timeline: [{ date: "2026-06-09T09:00:00", label: "Multa Recebida", detail: "AIT HJ-4568702 — SPTrans", actor: "Sistema" }, { date: "2026-06-09T09:30:00", label: "Condutor Identificado", detail: "Carlos Santos (identificação automática)", actor: "Sistema" }, { date: "2026-06-11T14:00:00", label: "Tarefa Enviada ao Despachante", detail: "Prazo de defesa: 09/08/2026", actor: "Patricia Alves" }, { date: "2026-06-15T10:00:00", label: "Recurso Protocolado", detail: "Tipo: 1ª INSTÂNCIA · Prazo: 20/07/2026", actor: "Despachante" }], createdAt: "2026-06-09T09:00:00", updatedAt: "2026-06-15T10:00:00" }
+  ],
+  fine_appeals: [
+    { id: "appeal-1", fineId: "tf-3", type: "jari", grounds: "O motorista afirma que estava realizando embarque/desembarque de passageiro com deficiência, o que é permitido pela legislação municipal. A sinalização do local não indicava proibição para táxis. Requer-se o cancelamento da penalidade.", submittedAt: "2026-06-12T09:00:00", deadline: "2026-07-20", status: "pending", createdAt: "2026-06-12T09:00:00" },
+    { id: "appeal-2", fineId: "tf-8", type: "1st_instance", grounds: "O lacre do IPEM foi violado durante manutenção emergencial do taxímetro realizada em oficina credenciada. Documentos da manutenção corretiva anexos. Requer-se a conversão da penalidade em advertência.", submittedAt: "2026-06-15T10:00:00", deadline: "2026-07-20", status: "denied", result: "Indeferido — a manutenção deveria ter sido precedida de autorização do órgão metropolitano, conforme Portaria SMT 123/2024.", createdAt: "2026-06-15T10:00:00" }
+  ],
+  document_template_versions: []
 };
 
 function generateVolumeMocks() {
@@ -1064,13 +1326,18 @@ function generateVolumeMocks() {
     cashierSessionsList.push({
       id: cashId,
       tenantId: "tenant-1",
-      operatorId: "uid-super",
+      openedBy: "uid-super",
+      openedByName: "Supervisor",
       openedAt: `${dateStr}T08:00:00Z`,
       closedAt: `${dateStr}T18:00:00Z`,
       openingAmount: 100,
       closingAmount: 1100 + i * 50,
+      expectedBalance: 1100 + i * 50,
       difference: 0,
-      status: "closed"
+      status: "closed",
+      closedBy: "uid-super",
+      closedByName: "Supervisor",
+      closureType: "normal"
     });
 
     for (let m = 1; m <= 3; m++) {
@@ -1215,7 +1482,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Initialize mock database in localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const forceReSeed = !localStorage.getItem("fleetos_volume_seeded_v3") ||
+      const forceReSeed = !localStorage.getItem("fleetos_volume_seeded_v6") ||
         (localStorage.getItem("fleetos_drivers") && JSON.parse(localStorage.getItem("fleetos_drivers") || "[]").length <= 2);
 
       if (forceReSeed) {
@@ -1226,7 +1493,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           "pricing_promotions", "operation_types", "pricing_subcategories", "contract_types", "billing_profiles",
           "calendar_rules", "pricing_table_versions", "contract_billing", "vehicle_acquisition", "contracts",
           "notifications", "attachments", "payments", "maintenance", "driver_ledger", "vehicle_assignments",
-          "cashier_sessions", "cashier_movements", "maintenance_plan_items", "roles", "permissions", "role_permissions",
+          "cashier_sessions", "cashier_movements", "financial_transactions", "accounts_receivable", "maintenance_plan_items", "roles", "permissions", "role_permissions",
           "audit_logs", "activity_timeline", "vehicle_assets", "vehicle_incidents", "driver_occurrences", "checklists",
           "contract_templates", "daily_rate_profiles", "billing_rules", "business_calendar", "billing_suspensions",
           "billing_runs", "billing_run_items", "insurance_claims", "claim_checklists", "claim_evidences",
@@ -1234,10 +1501,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           "claim_installments", "claim_approvals", "inventory_items", "suppliers", "purchase_orders",
           "purchase_order_items", "work_orders", "work_order_items", "inventory_movements", "vehicle_expenses",
           "inventory_pending_items", "permits", "regulatory_processes", "regulatory_dispatchers", "taxi_points", "driver_regulatory", "infractions", "vehicle_lifecycle_processes",
-          "vehicle_compliance_scores", "annual_inspections", "taximeter_adjustments", "gnv_registries"
+          "vehicle_compliance_scores", "annual_inspections", "taximeter_adjustments", "gnv_registries",
+          "traffic_fines", "fine_appeals",
+          "document_template_versions",
+          "vehicle_catalog"
         ].forEach(key => localStorage.removeItem(`fleetos_${key}`));
         
-        localStorage.setItem("fleetos_volume_seeded_v3", "true");
+        localStorage.setItem("fleetos_volume_seeded_v6", "true");
       }
 
       const volumeMocks = generateVolumeMocks();
@@ -1259,7 +1529,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         "inventory_items", "suppliers", "purchase_orders", "purchase_order_items", "work_orders", "work_order_items", "inventory_movements", "vehicle_expenses",
         "inventory_pending_items", "operation_types", "pricing_subcategories", "contract_types", "billing_profiles",
         "calendar_rules", "pricing_promotions", "pricing_table_versions", "permits", "regulatory_processes", "regulatory_dispatchers", "taxi_points", "driver_regulatory", "infractions",
-        "vehicle_lifecycle_processes", "vehicle_compliance_scores", "annual_inspections", "taximeter_adjustments", "gnv_registries"
+        "vehicle_lifecycle_processes", "vehicle_compliance_scores", "annual_inspections", "taximeter_adjustments", "gnv_registries",
+        "traffic_fines", "fine_appeals", "document_template_versions", "vehicle_catalog"
       ].forEach((key) => {
         if (!localStorage.getItem(`fleetos_${key}`)) {
           localStorage.setItem(`fleetos_${key}`, JSON.stringify(mergedSeeds[key as keyof typeof mergedSeeds]));

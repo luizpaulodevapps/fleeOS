@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import type { DocumentTemplate } from "../_lib/types";
+import React, { useState, useMemo, useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
+import type { DocumentTemplate, DocumentTemplateVersion } from "../_lib/types";
 import { buildVariableMap, resolveVariables } from "../_lib/engine";
 
 type Props = {
@@ -25,10 +26,34 @@ export function GenerateDocumentModal({
   onClose,
   onGenerate,
 }: Props) {
+  const { getCollection } = useAuth();
+  const [templateVersions, setTemplateVersions] = useState<DocumentTemplateVersion[]>([]);
+
   const [contractId, setContractId] = useState("");
   const [search, setSearch] = useState("");
   const [extras, setExtras] = useState<Record<string, string>>({});
   const [showPreview, setShowPreview] = useState(false);
+
+  useEffect(() => {
+    getCollection("document_template_versions").then((list) => {
+      setTemplateVersions(list || []);
+    });
+  }, [getCollection]);
+
+  // Use the approved DB version when available, fallback to hardcoded template
+  const activeTemplate = useMemo<DocumentTemplate>(() => {
+    const approved = templateVersions
+      .filter((v) => v.templateId === template.id && v.status === "approved")
+      .sort((a, b) => b.version - a.version)[0];
+    if (approved) {
+      return {
+        ...template,
+        body: approved.body,
+        extraFields: approved.extraFields || template.extraFields,
+      };
+    }
+    return template;
+  }, [template, templateVersions]);
 
   const activeContracts = contracts.filter((c) => c.status === "Ativo" || c.status === "Suspenso" || c.status === "Encerrado");
 
@@ -51,10 +76,10 @@ export function GenerateDocumentModal({
   const selectedVehicle = vehicles.find((v) => v.id === selectedContract?.vehicleId);
 
   const resolvedBody = useMemo(() => {
-    if (!selectedContract) return template.body;
+    if (!selectedContract) return activeTemplate.body;
     const vars = buildVariableMap(selectedContract, selectedDriver, selectedVehicle, company, extras);
-    return resolveVariables(template.body, vars);
-  }, [selectedContract, selectedDriver, selectedVehicle, company, extras, template.body]);
+    return resolveVariables(activeTemplate.body, vars);
+  }, [selectedContract, selectedDriver, selectedVehicle, company, extras, activeTemplate.body]);
 
   const hasUnresolved = resolvedBody.includes("⚠️[");
 
@@ -68,10 +93,10 @@ export function GenerateDocumentModal({
         {/* Header */}
         <div className="flex items-center justify-between px-7 py-5 border-b border-slate-200">
           <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-[24px] text-primary">{template.icon}</span>
+            <span className="material-symbols-outlined text-[24px] text-primary">{activeTemplate.icon}</span>
             <div>
-              <h2 className="text-base font-black text-slate-900">{template.name}</h2>
-              <p className="text-xs text-slate-500">{template.description}</p>
+              <h2 className="text-base font-black text-slate-900">{activeTemplate.name}</h2>
+              <p className="text-xs text-slate-500">{activeTemplate.description}</p>
             </div>
           </div>
           <button
@@ -142,13 +167,13 @@ export function GenerateDocumentModal({
           </div>
 
           {/* Step 2 — Extra Fields */}
-          {template.extraFields && template.extraFields.length > 0 && (
+          {activeTemplate.extraFields && activeTemplate.extraFields.length > 0 && (
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
                 2. Informações Adicionais
               </label>
               <div className="grid grid-cols-2 gap-4">
-                {template.extraFields.map((field) => (
+                {activeTemplate.extraFields.map((field) => (
                   <div key={field.key} className={field.type === "textarea" ? "col-span-2" : ""}>
                     <label className="block text-xs font-semibold text-slate-600 mb-1">
                       {field.label}

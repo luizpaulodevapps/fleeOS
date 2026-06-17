@@ -6,6 +6,7 @@ import { DOCUMENT_TEMPLATES, CATEGORY_META } from "../_lib/templates";
 import type { DocumentCategory, DocumentTemplate } from "../_lib/types";
 import { GenerateDocumentModal } from "./GenerateDocumentModal";
 import { DocumentPrintView } from "./DocumentPrintView";
+import { TemplateManager } from "./TemplateManager";
 
 const CATEGORIES: DocumentCategory[] = [
   "Operação",
@@ -26,6 +27,7 @@ export function DocumentsPageContent() {
   const [loading, setLoading] = useState(true);
 
   // UI state
+  const [mode, setMode] = useState<"gerar" | "gerenciar">("gerar");
   const [activeCategory, setActiveCategory] = useState<DocumentCategory | "Todos">("Todos");
   const [search, setSearch] = useState("");
   const [generatingTemplate, setGeneratingTemplate] = useState<DocumentTemplate | null>(null);
@@ -121,8 +123,44 @@ export function DocumentsPageContent() {
         </div>
       </div>
 
-      {/* Category Stats */}
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+      {/* Mode tabs */}
+      <div className="flex gap-1 border-b border-slate-200">
+        <button
+          onClick={() => setMode("gerar")}
+          className={`px-4 py-2.5 text-[11px] font-black border-b-2 transition-colors -mb-px ${
+            mode === "gerar"
+              ? "border-primary text-primary"
+              : "border-transparent text-slate-400 hover:text-slate-700"
+          }`}
+        >
+          <span className="material-symbols-outlined text-[16px] align-middle mr-1.5">description</span>
+          Gerar Documentos
+        </button>
+        <button
+          onClick={() => setMode("gerenciar")}
+          className={`px-4 py-2.5 text-[11px] font-black border-b-2 transition-colors -mb-px ${
+            mode === "gerenciar"
+              ? "border-primary text-primary"
+              : "border-transparent text-slate-400 hover:text-slate-700"
+          }`}
+        >
+          <span className="material-symbols-outlined text-[16px] align-middle mr-1.5">edit_note</span>
+          Gerenciar Modelos
+        </button>
+      </div>
+
+      {mode === "gerenciar" ? (
+        <TemplateManager
+          contracts={contracts}
+          drivers={drivers}
+          vehicles={vehicles}
+          company={company}
+          currentUserName={currentUser?.displayName || "Operador"}
+        />
+      ) : (
+        <>
+          {/* Category Stats */}
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
         {CATEGORIES.map((cat) => {
           const meta = CATEGORY_META[cat];
           const isActive = activeCategory === cat;
@@ -230,6 +268,8 @@ export function DocumentsPageContent() {
           onClose={() => setGeneratingTemplate(null)}
           onGenerate={handleGenerate}
         />
+      )}
+        </>
       )}
     </div>
   );

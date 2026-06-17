@@ -46,6 +46,7 @@ function SidebarContent() {
         { name: "Central Operacional", href: "/operations", icon: "published_with_changes", permission: "vehicles.edit" },
         { name: "Gestão de Sinistros", href: "/claims", icon: "shield", permission: "claims.view" },
         { name: "Manutenção", href: "/maintenance", icon: "build", permission: "maintenance.view" },
+        { name: "Infrações & Penalidades", href: "/fines", icon: "photo_camera", permission: "fines.view" },
         { name: "Centro Regulatório", href: "/dispatcher", icon: "local_taxi", permission: "vehicles.edit" }
       ]
     },
@@ -236,6 +237,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
     "/financial": "financial.view",
     "/pricing": "financial.view",
     "/maintenance": "maintenance.view",
+    "/fines": "fines.view",
     "/expirations": "expirations.view",
     "/reports": "reports.view",
     "/portals/workshop": "maintenance.view",
