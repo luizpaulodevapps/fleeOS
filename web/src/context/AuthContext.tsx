@@ -57,8 +57,8 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 const DEFAULT_SEEDS = {
   companies: [
-    { id: "tenant-1", companyName: "Táxi Amarelo S.A.", document: "12.345.678/0001-90", phone: "(11) 3222-1111", email: "contato@taxiamarelo.com", active: true, plan: "Pro", createdAt: new Date().toISOString() },
-    { id: "tenant-2", companyName: "Locadora RentWheels", document: "98.765.432/0001-21", phone: "(21) 2555-9999", email: "frotas@rentwheels.com", active: true, plan: "Enterprise", createdAt: new Date().toISOString() }
+    { id: "tenant-1", companyName: "Táxi Amarelo S.A.", document: "12.345.678/0001-90", phone: "(11) 3222-1111", email: "contato@taxiamarelo.com", active: true, paymentTerminalMode: "integrated", plan: "Pro", createdAt: new Date().toISOString() },
+    { id: "tenant-2", companyName: "Locadora RentWheels", document: "98.765.432/0001-21", phone: "(21) 2555-9999", email: "frotas@rentwheels.com", active: true, paymentTerminalMode: "integrated", plan: "Enterprise", createdAt: new Date().toISOString() }
   ],
   user_profiles: [
     { uid: "uid-owner", email: "fleet_owner@fleetsos.com", displayName: "Luiz Frota", role: "fleet_owner", roleId: "role-owner", tenantId: "tenant-1", active: true },

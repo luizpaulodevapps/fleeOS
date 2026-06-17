@@ -68,6 +68,21 @@ export function CompanySettings({
         </div>
 
         <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-2">Modo de Pagamento</label>
+          <select
+            value={companyForm.paymentTerminalMode}
+            onChange={(e) => setCompanyForm({ ...companyForm, paymentTerminalMode: e.target.value as any })}
+            className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20 text-on-surface"
+          >
+            <option value="integrated">Gateway Integrado (Pix/Cartão Automático)</option>
+            <option value="manual">Terminal Físico / Lançamento Manual</option>
+          </select>
+          <p className="text-[10px] text-on-surface-variant mt-1">
+            Defina o modo padrão de recebimento de pagamentos. Se ativado, o checkout funcionará como registro de terminal local em vez de depender de webhook de gateway.
+          </p>
+        </div>
+
+        <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-2 flex items-center gap-1.5">
             <Lock className="w-3.5 h-3.5 text-outline" />
             <span>Plano Contratado</span>

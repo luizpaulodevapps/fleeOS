@@ -4,6 +4,7 @@ export interface CompanyForm {
   document: string;
   phone: string;
   email: string;
+  paymentTerminalMode: "integrated" | "manual";
   plan: string;
 }
 

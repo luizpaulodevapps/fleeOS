@@ -105,6 +105,64 @@ export function useFinancialHub() {
     loadData();
   }, [loadData]);
 
+  const syncDailyRentals = async () => {
+    try {
+      if (!currentUser) return;
+      const today = new Date().toISOString().split("T")[0];
+      const activeContracts = contracts.filter((contract: any) => {
+        const statusActive = contract.status === "active" || contract.status === "Ativo";
+        const started = !contract.startDate || contract.startDate <= today;
+        const notEnded = !contract.endDate || contract.endDate >= today;
+        return statusActive && started && notEnded;
+      });
+
+      if (activeContracts.length === 0) {
+        return;
+      }
+
+      const newArPromises = activeContracts.reduce((acc: Promise<any>[], contract: any) => {
+        if (!contract.driverId || !contract.id) return acc;
+        const existing = receivables.find((ar) =>
+          ar.contractId === contract.id &&
+          ar.dueDate === today &&
+          ar.titleType === "rent" &&
+          ar.status !== "cancelled"
+        );
+        if (existing) return acc;
+
+        const amount = Number(contract.dailyRate ?? contract.dailyAmountSnapshot ?? 0);
+        if (amount <= 0) return acc;
+
+        acc.push(addDocument("accounts_receivable", {
+          driverId: contract.driverId,
+          contractId: contract.id,
+          dueDate: today,
+          amount,
+          titleType: "rent",
+          status: "open",
+          paidAmount: 0
+        }));
+        return acc;
+      }, [] as Promise<any>[]);
+
+      if (newArPromises.length === 0) {
+        return;
+      }
+
+      await Promise.all(newArPromises);
+      console.log(`syncDailyRentals: ${newArPromises.length} título(s) de diária gerado(s) para ${today}`);
+      await loadData();
+    } catch (e) {
+      console.error("Erro ao sincronizar diárias", e);
+    }
+  };
+
+  useEffect(() => {
+    if (!loading) {
+      syncDailyRentals();
+    }
+  }, [loading]);
+
   // Pseudo-SHA-256 hash generator for digital signatures
   const generateReceiptHash = (tx: Partial<FinancialTransaction>) => {
     const rawString = `${tx.driverId}-${tx.amount}-${tx.createdAt}-${tx.transactionNumber}`;

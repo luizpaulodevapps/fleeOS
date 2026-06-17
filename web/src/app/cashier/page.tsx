@@ -53,7 +53,7 @@ const titleLabels: Record<string, string> = {
 
 export default function CashierPage() {
   const hub = useFinancialHub();
-  const { updateDocument, currentUser } = useAuth();
+  const { updateDocument, currentUser, getCollection } = useAuth();
   const [query, setQuery] = useState("");
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [selectedArIds, setSelectedArIds] = useState<string[]>([]);
@@ -66,12 +66,14 @@ export default function CashierPage() {
   const [installmentOpen, setInstallmentOpen] = useState(false);
   const [statementOpen, setStatementOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [paymentTerminalMode, setPaymentTerminalMode] = useState<"integrated" | "manual">("integrated");
 
   const selectedDriver = hub.drivers.find((driver) => driver.id === selectedDriverId);
   const driverContracts = hub.contracts.filter((contract) => contract.driverId === selectedDriverId && contract.status !== "closed");
   const activeContract = driverContracts[0];
   const activeVehicle = hub.vehicles.find((vehicle) => vehicle.id === activeContract?.vehicleId);
   const score = selectedDriverId ? hub.getDriverCreditScore(selectedDriverId) : null;
+  const isManualTerminalMode = paymentTerminalMode === "manual";
 
   const openDebts = useMemo(() => hub.receivables
     .filter((item) => item.driverId === selectedDriverId && item.status !== "paid" && item.status !== "cancelled")
@@ -85,10 +87,29 @@ export default function CashierPage() {
   const selectedTotal = selectedDebts.reduce((total, item) => total + Number(item.amount || 0) - Number(item.paidAmount || 0), 0);
   const receivedValue = Number(amountReceived || selectedTotal || 0);
   const difference = receivedValue - selectedTotal;
+  const receiptRemainingDebt = Math.max(0, selectedTotal - receivedValue);
+  const receiptCredit = Math.max(0, receivedValue - selectedTotal);
 
   useEffect(() => {
     if (selectedTotal > 0) setAmountReceived(selectedTotal.toFixed(2));
   }, [selectedTotal]);
+
+  useEffect(() => {
+    const loadTenantSettings = async () => {
+      try {
+        const companies = await getCollection("companies");
+        const company = companies[0];
+        if (company?.paymentTerminalMode === "manual" || company?.paymentTerminalMode === "integrated") {
+          setPaymentTerminalMode(company.paymentTerminalMode);
+        } else {
+          setPaymentTerminalMode("integrated");
+        }
+      } catch (e) {
+        console.error("Erro ao carregar configuração de terminal de pagamento", e);
+      }
+    };
+    loadTenantSettings();
+  }, [getCollection]);
 
   const ledger = useMemo(() => hub.ledger
     .filter((entry) => entry.driverId === selectedDriverId)
@@ -126,7 +147,7 @@ export default function CashierPage() {
     if (!selectedDriverId || selectedArIds.length === 0 || receivedValue <= 0 || !hub.activeSession) return;
     setSaving(true);
     try {
-      const gateway = method === "pix" ? "mercado_pago" : method === "card" ? "stripe" : "manual";
+      const gateway = isManualTerminalMode ? "manual" : method === "pix" ? "mercado_pago" : method === "card" ? "stripe" : "manual";
       const transaction = await hub.submitTransaction(
         selectedArIds.length === 1 ? selectedArIds[0] : "auto_all",
         selectedDriverId,
@@ -139,7 +160,7 @@ export default function CashierPage() {
       );
       if (!transaction) return;
       setPendingTransaction(transaction);
-      if (method === "pix") {
+      if (method === "pix" && !isManualTerminalMode) {
         setStep("pix_pending");
       } else {
         await hub.webhookApproveTransaction(transaction.id, transaction);
@@ -204,18 +225,28 @@ export default function CashierPage() {
               <div className="px-5 py-4 bg-slate-50 flex items-center justify-between"><span className="text-xs font-bold text-slate-500">Total selecionado</span><strong className="font-geist text-xl font-black text-slate-950">{money(selectedTotal)}</strong></div>
             </section>
 
-            {openDebts.length > 0 && (
-              <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
-                <div className="flex items-center justify-between mb-4"><div><h2 className="font-geist text-sm font-black">Recebimento</h2><p className="text-[10px] text-slate-500 mt-0.5">Informe o valor e escolha como o motorista vai pagar.</p></div><WalletCards className="w-5 h-5 text-indigo-500" /></div>
-                <div className="grid md:grid-cols-[1fr_1.5fr] gap-4">
-                  <label><span className="block text-[9px] font-black uppercase tracking-wide text-slate-400 mb-1.5">Valor recebido</span><div className="relative"><span className="absolute left-3 top-3 text-xs font-bold text-slate-400">R$</span><input type="number" min="0" step="0.01" value={amountReceived} onChange={(event) => setAmountReceived(event.target.value)} className="checkout-input pl-9 font-geist font-black text-base" /></div></label>
-                  <div><span className="block text-[9px] font-black uppercase tracking-wide text-slate-400 mb-1.5">Forma de pagamento</span><div className="grid grid-cols-4 gap-2">{([{ id: "pix", label: "PIX", icon: QrCode }, { id: "card", label: "Cartão", icon: CreditCard }, { id: "cash", label: "Dinheiro", icon: Banknote }, { id: "transfer", label: "Transfer.", icon: Landmark }] as const).map((option) => <button key={option.id} onClick={() => setMethod(option.id)} className={`h-[44px] rounded-xl border flex items-center justify-center gap-1.5 text-[10px] font-bold transition-colors ${method === option.id ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-slate-200 text-slate-500 hover:border-slate-300"}`}><option.icon className="w-3.5 h-3.5" /> {option.label}</button>)}</div></div>
+            <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4"><div><h2 className="font-geist text-sm font-black">Recebimento</h2><p className="text-[10px] text-slate-500 mt-0.5">Informe o valor e escolha como o motorista vai pagar. Se não houver débitos em aberto, o valor será registrado como crédito ou lançamento manual.</p></div><WalletCards className="w-5 h-5 text-indigo-500" /></div>
+              <div className="grid md:grid-cols-[1fr_1.5fr] gap-4">
+                <label><span className="block text-[9px] font-black uppercase tracking-wide text-slate-400 mb-1.5">Valor recebido</span><div className="relative"><span className="absolute left-3 top-3 text-xs font-bold text-slate-400">R$</span><input type="number" min="0" step="0.01" value={amountReceived} onChange={(event) => setAmountReceived(event.target.value)} className="checkout-input pl-9 font-geist font-black text-base" /></div></label>
+                <div><span className="block text-[9px] font-black uppercase tracking-wide text-slate-400 mb-1.5">Forma de pagamento</span><div className="grid grid-cols-4 gap-2">{([{ id: "pix", label: "PIX", icon: QrCode }, { id: "card", label: "Cartão", icon: CreditCard }, { id: "cash", label: "Dinheiro", icon: Banknote }, { id: "transfer", label: "Transfer.", icon: Landmark }] as const).map((option) => <button key={option.id} type="button" onClick={() => setMethod(option.id)} className={`h-[44px] rounded-xl border flex items-center justify-center gap-1.5 text-[10px] font-bold transition-colors ${method === option.id ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-slate-200 text-slate-500 hover:border-slate-300"}`}><option.icon className="w-3.5 h-3.5" /> {option.label}</button>)}</div></div>
+              </div>
+              {isManualTerminalMode && (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[10px] text-amber-800">
+                  <strong className="block text-[11px] font-bold mb-1">Terminal físico ativado</strong>
+                  Este gerenciamento está em modo de terminal local. Registre a transação no POS físico e confirme o recebimento no sistema como um lançamento manual.
                 </div>
-                <div className={`mt-4 rounded-xl px-4 py-3 flex items-center justify-between ${difference >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}><span className="text-[10px] font-bold">{difference > 0 ? "Crédito restante na conta" : difference < 0 ? "Saldo que continuará em aberto" : "Valor exato dos débitos"}</span><strong className="text-xs">{money(Math.abs(difference))}</strong></div>
-                {!hub.activeSession && <div className="mt-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 flex items-center gap-2 text-[10px] font-bold text-red-700"><LockKeyhole className="w-4 h-4" /> Abra o caixa antes de receber pagamentos.</div>}
-                <button disabled={!hub.activeSession || selectedTotal <= 0 || receivedValue <= 0 || saving} onClick={receivePayment} className="w-full h-12 mt-4 rounded-xl bg-slate-950 text-white text-xs font-black flex items-center justify-center gap-2 hover:bg-indigo-700 disabled:opacity-40"><HandCoins className="w-4 h-4" /> {saving ? "Processando..." : `Receber ${money(receivedValue)}`}</button>
-              </section>
-            )}
+              )}
+              {openDebts.length === 0 && (
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-[10px] text-slate-600">
+                  <strong className="block text-[11px] font-bold mb-1">Nenhum débito em aberto</strong>
+                  Você pode lançar este valor como crédito em conta do motorista ou registrar recebimento sem débito específico.
+                </div>
+              )}
+              <div className={`mt-4 rounded-xl px-4 py-3 flex items-center justify-between ${difference >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}><span className="text-[10px] font-bold">{difference > 0 ? "Crédito restante na conta" : difference < 0 ? "Saldo que continuará em aberto" : "Valor exato dos débitos"}</span><strong className="text-xs">{money(Math.abs(difference))}</strong></div>
+              {!hub.activeSession && <div className="mt-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 flex items-center gap-2 text-[10px] font-bold text-red-700"><LockKeyhole className="w-4 h-4" /> Abra o caixa antes de receber pagamentos.</div>}
+              <button disabled={!hub.activeSession || receivedValue <= 0 || saving} onClick={receivePayment} className="w-full h-12 mt-4 rounded-xl bg-slate-950 text-white text-xs font-black flex items-center justify-center gap-2 hover:bg-indigo-700 disabled:opacity-40"><HandCoins className="w-4 h-4" /> {saving ? "Processando..." : isManualTerminalMode ? "Registrar Pagamento Manual" : `Receber ${money(receivedValue)}`}</button>
+            </section>
           </main>
 
           <StatementPanel entries={ledger} />
@@ -223,7 +254,7 @@ export default function CashierPage() {
       )}
 
       {step === "pix_pending" && pendingTransaction && <PixModal amount={pendingTransaction.amount} transaction={pendingTransaction.transactionNumber} saving={saving} onConfirm={confirmPix} onClose={() => setStep("ready")} />}
-      {step === "approved" && receipt && <ReceiptModal transaction={receipt} driver={selectedDriver} method={method} onClose={() => { setStep("ready"); setReceipt(null); }} />}
+      {step === "approved" && receipt && <ReceiptModal transaction={receipt} driver={selectedDriver} vehicle={activeVehicle} method={method} remainingDebt={receiptRemainingDebt} credit={receiptCredit} historicalBalance={ledgerBalance} onClose={() => { setStep("ready"); setReceipt(null); }} />}
       {cashDrawerOpen && <CashDrawer hub={hub} onClose={() => setCashDrawerOpen(false)} />}
       {installmentOpen && <InstallmentModal debts={selectedDebts.length ? selectedDebts : openDebts} driver={selectedDriver} createPaymentPlan={hub.createPaymentPlan} onClose={() => setInstallmentOpen(false)} />}
       {statementOpen && <StatementModal entries={ledger} driver={selectedDriver} onClose={() => setStatementOpen(false)} />}
@@ -268,8 +299,9 @@ function PixModal({ amount, transaction, saving, onConfirm, onClose }: any) {
   return <Modal onClose={onClose}><div className="text-center"><div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 grid place-items-center mx-auto"><QrCode className="w-6 h-6" /></div><h2 className="font-geist text-xl font-black mt-4">Pagamento via PIX</h2><p className="text-2xl font-black mt-2">{money(amount)}</p><div className="w-44 h-44 mx-auto my-5 rounded-2xl bg-white border-8 border-slate-950 p-3 grid grid-cols-5 gap-1">{Array.from({ length: 25 }).map((_, index) => <span key={index} className={`${[0,1,2,5,7,10,11,12,14,16,18,20,22,23,24].includes(index) ? "bg-slate-950" : "bg-white"}`} />)}</div><div className="flex items-center justify-center gap-2 text-xs font-bold text-amber-600"><Clock3 className="w-4 h-4 animate-pulse" /> Aguardando pagamento...</div><p className="text-[9px] text-slate-400 font-mono mt-2">{transaction}</p><button disabled={saving} onClick={onConfirm} className="w-full h-11 rounded-xl bg-emerald-600 text-white text-xs font-black mt-5 disabled:opacity-50">{saving ? "Confirmando..." : "Simular webhook aprovado"}</button></div></Modal>;
 }
 
-function ReceiptModal({ transaction, driver, method, onClose }: any) {
-  return <Modal onClose={onClose}><div className="receipt-print text-center"><CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" /><h2 className="font-geist text-xl font-black mt-3">Pagamento aprovado</h2><p className="text-3xl font-black mt-3">{money(transaction.amount)}</p><div className="my-5 border-y border-dashed border-slate-300 py-4 text-left space-y-2 text-xs"><p className="flex justify-between"><span className="text-slate-400">Motorista</span><strong>{driver?.name}</strong></p><p className="flex justify-between"><span className="text-slate-400">Forma</span><strong className="uppercase">{method}</strong></p><p className="flex justify-between"><span className="text-slate-400">Recibo</span><strong className="font-mono">{transaction.transactionNumber}</strong></p><p className="flex justify-between"><span className="text-slate-400">Data</span><strong>{new Date().toLocaleString("pt-BR")}</strong></p></div><button onClick={() => window.print()} className="w-full h-11 rounded-xl bg-slate-950 text-white text-xs font-black flex items-center justify-center gap-2"><Printer className="w-4 h-4" /> Imprimir recibo</button><button onClick={onClose} className="w-full h-10 text-xs font-bold text-slate-500 mt-1">Concluir atendimento</button></div></Modal>;
+function ReceiptModal({ transaction, driver, vehicle, method, remainingDebt, credit, historicalBalance, onClose }: any) {
+  const vehicleLabel = vehicle ? `${vehicle.plate || "---"} · ${vehicle.prefix || vehicle.internalCode || "---"}` : "Sem veículo ativo";
+  return <Modal onClose={onClose}><div className="receipt-print text-center"><CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" /><h2 className="font-geist text-xl font-black mt-3">Pagamento aprovado</h2><p className="text-3xl font-black mt-3">{money(transaction.amount)}</p><div className="my-5 border-y border-dashed border-slate-300 py-4 text-left space-y-2 text-xs"><p className="flex justify-between"><span className="text-slate-400">Motorista</span><strong>{driver?.name}</strong></p><p className="flex justify-between"><span className="text-slate-400">Veículo</span><strong>{vehicleLabel}</strong></p><p className="flex justify-between"><span className="text-slate-400">Forma</span><strong className="uppercase">{method}</strong></p><p className="flex justify-between"><span className="text-slate-400">Valor recebido</span><strong>{money(transaction.amount)}</strong></p><p className="flex justify-between"><span className="text-slate-400">Saldo devedor</span><strong>{remainingDebt > 0 ? money(remainingDebt) : "R$ 0,00"}</strong></p><p className="flex justify-between"><span className="text-slate-400">Crédito</span><strong>{credit > 0 ? money(credit) : "R$ 0,00"}</strong></p><p className="flex justify-between"><span className="text-slate-400">Saldo histórico</span><strong>{money(historicalBalance)}</strong></p><p className="flex justify-between"><span className="text-slate-400">Recibo</span><strong className="font-mono">{transaction.transactionNumber}</strong></p><p className="flex justify-between"><span className="text-slate-400">Data</span><strong>{new Date().toLocaleString("pt-BR")}</strong></p></div><button onClick={() => window.print()} className="w-full h-11 rounded-xl bg-slate-950 text-white text-xs font-black flex items-center justify-center gap-2"><Printer className="w-4 h-4" /> Imprimir recibo</button><button onClick={onClose} className="w-full h-10 text-xs font-bold text-slate-500 mt-1">Concluir atendimento</button></div></Modal>;
 }
 
 function CashDrawer({ hub, onClose }: any) {

@@ -164,7 +164,7 @@ export function useAssignments() {
         // 3. Update vehicle status and mileage
         const vehicle = vehicles.find(v => v.id === closingAssignment.vehicleId);
         if (vehicle) {
-          const updatedMileage = closeData.mileageEnd ? Number(closeData.mileageEnd) : vehicle.mileage;
+          const updatedMileage = closeData.mileageEnd !== "" ? Number(closeData.mileageEnd) : vehicle.mileage;
           await updateDocument("vehicles", vehicle.id, {
             status: closeData.vehicleStatusAfter,
             mileage: Math.max(vehicle.mileage || 0, updatedMileage)

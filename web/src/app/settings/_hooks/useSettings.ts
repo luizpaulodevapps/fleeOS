@@ -126,6 +126,7 @@ export function useSettings() {
     document: "",
     phone: "",
     email: "",
+    paymentTerminalMode: "integrated",
     plan: "Pro"
   });
 
@@ -167,6 +168,7 @@ export function useSettings() {
         document: "00.000.000/0001-00",
         phone: "(11) 99999-9999",
         email: "contato@empresa.com",
+        paymentTerminalMode: "integrated",
         plan: "Pro"
       };
 

@@ -373,10 +373,12 @@ export default function AssignmentsManager() {
           checklists={checklists}
           onOpenChecklist={setSelectedChecklist}
           onCloseAssignment={(asg) => {
+            const vehicle = vehicles.find(v => v.id === asg.vehicleId);
             setClosingAssignment(asg);
             setCloseData(prev => ({
               ...prev,
-              signatureText: getDriverName(asg.driverId)
+              signatureText: getDriverName(asg.driverId),
+              mileageEnd: vehicle?.mileage?.toString() || ""
             }));
           }}
           canEdit={can("assignments.edit") || can("contracts.edit")}
