@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { isMock, auth as fireAuth, db as fireDb } from "@/lib/firebase";
+import { isSupabaseConfigured, supabase } from "@/lib/supabaseClient";
 import { 
   signInWithEmailAndPassword, 
   signOut as fireSignOut,
@@ -1549,8 +1550,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       });
       
-      // Auto login in mock mode if user saved
-      if (isMock) {
+      // Auto login in mock mode or Supabase if user saved
+      if (isMock || isSupabaseConfigured) {
         const savedUser = localStorage.getItem("fleetos_current_user");
         if (savedUser) {
           setCurrentUser(JSON.parse(savedUser));
@@ -1574,7 +1575,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        if (isMock) {
+        if (isSupabaseConfigured) {
+          const listRP = await supabase.db.select("role_permissions");
+          const matchedPerms = listRP
+            .filter((rp: any) => rp.roleId === currentUser.roleId)
+            .map((rp: any) => rp.permissionId);
+          setUserPermissions(matchedPerms);
+        } else if (isMock) {
           const rawRP = localStorage.getItem("fleetos_role_permissions");
           const listRP = rawRP ? JSON.parse(rawRP) : [];
           const matchedPerms = listRP
@@ -1664,7 +1671,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     try {
-      if (isMock) {
+      if (isSupabaseConfigured) {
+        await supabase.db.insert("audit_logs", enriched);
+      } else if (isMock) {
         const raw = localStorage.getItem("fleetos_audit_logs");
         const list = raw ? JSON.parse(raw) : [];
         list.push({ id: `audit-${Math.random().toString(36).substr(2, 9)}`, ...enriched });
@@ -1717,7 +1726,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     let targetUser: any = null;
-    if (isMock) {
+    if (isSupabaseConfigured) {
+      const profiles = await supabase.db.select("user_profiles");
+      targetUser = profiles.find((p: any) => p.email.toLowerCase() === email.toLowerCase());
+    } else if (isMock) {
       const profilesStr = localStorage.getItem("fleetos_user_profiles");
       const profiles: any[] = profilesStr ? JSON.parse(profilesStr) : [];
       targetUser = profiles.find(p => p.email.toLowerCase() === email.toLowerCase());
@@ -1774,7 +1786,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       createdAt: new Date().toISOString()
     };
 
-    if (isMock) {
+    if (isSupabaseConfigured) {
+      await supabase.db.insert("audit_logs", enriched);
+    } else if (isMock) {
       const raw = localStorage.getItem("fleetos_audit_logs");
       const list = raw ? JSON.parse(raw) : [];
       list.push({ id: `audit-${Math.random().toString(36).substr(2, 9)}`, ...enriched });
@@ -1789,6 +1803,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, pass: string): Promise<UserProfile> => {
+    if (isSupabaseConfigured) {
+      const session = await supabase.auth.signIn(email, pass);
+      const profile = await supabase.db.selectById("user_profiles", session.uid);
+      if (!profile) {
+        throw new Error("Perfil de usuário não encontrado no Supabase.");
+      }
+      const userProfile: UserProfile = {
+        uid: session.uid,
+        email: session.email,
+        displayName: profile.displayName || session.displayName || "Usuário",
+        role: profile.role || "driver",
+        roleId: profile.roleId || "role-readonly",
+        tenantId: profile.tenantId || "tenant-1",
+        active: profile.active ?? true
+      };
+
+      setCurrentUser(userProfile);
+      localStorage.setItem("fleetos_current_user", JSON.stringify(userProfile));
+      return userProfile;
+    }
+
     if (isMock) {
       const profilesStr = localStorage.getItem("fleetos_user_profiles");
       const profiles: any[] = profilesStr ? JSON.parse(profilesStr) : [];
@@ -1868,7 +1903,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (currentUser) {
       await logDirect("Efetuou logout do sistema", "auth", currentUser.uid);
     }
-    if (isMock) {
+    if (isSupabaseConfigured) {
+      await supabase.auth.signOut();
+      setCurrentUser(null);
+      localStorage.removeItem("fleetos_current_user");
+    } else if (isMock) {
       setCurrentUser(null);
       localStorage.removeItem("fleetos_current_user");
     } else {
@@ -1879,7 +1918,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // MULTI-TENANT FILTERED COLLECTION
   const getCollection = async (collName: string): Promise<any[]> => {
-    if (isMock) {
+    if (isSupabaseConfigured) {
+      if (!currentUser) return [];
+      const tenantId = (currentUser.roleId === "role-super-admin" || currentUser.role === "super_admin") ? undefined : currentUser.tenantId;
+      return supabase.db.select(collName, tenantId);
+    } else if (isMock) {
       const raw = localStorage.getItem(`fleetos_${collName}`);
       const list = raw ? JSON.parse(raw) : [];
       if (!currentUser) return [];
@@ -1907,7 +1950,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     let newDoc: any;
-    if (isMock) {
+    if (isSupabaseConfigured) {
+      newDoc = await supabase.db.insert(collName, enrichedData);
+    } else if (isMock) {
       const raw = localStorage.getItem(`fleetos_${collName}`);
       const list = raw ? JSON.parse(raw) : [];
       newDoc = { id: `doc-${Math.random().toString(36).substr(2, 9)}`, ...enrichedData };
@@ -1933,7 +1978,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateDocument = async (collName: string, docId: string, data: any): Promise<void> => {
     let beforeData: any = null;
     
-    if (isMock) {
+    if (isSupabaseConfigured) {
+      beforeData = await supabase.db.selectById(collName, docId);
+    } else if (isMock) {
       const raw = localStorage.getItem(`fleetos_${collName}`);
       const list = raw ? JSON.parse(raw) : [];
       beforeData = list.find((item: any) => item.id === docId);
@@ -1941,7 +1988,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       beforeData = await getDocumentReal(collName, docId);
     }
 
-    if (isMock) {
+    if (isSupabaseConfigured) {
+      await supabase.db.update(collName, docId, data);
+    } else if (isMock) {
       const raw = localStorage.getItem(`fleetos_${collName}`);
       const list = raw ? JSON.parse(raw) : [];
       const index = list.findIndex((item: any) => item.id === docId);
@@ -1955,7 +2004,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     let afterData: any = null;
-    if (isMock) {
+    if (isSupabaseConfigured) {
+      afterData = await supabase.db.selectById(collName, docId);
+    } else if (isMock) {
       const raw = localStorage.getItem(`fleetos_${collName}`);
       const list = raw ? JSON.parse(raw) : [];
       afterData = list.find((item: any) => item.id === docId);
@@ -1976,7 +2027,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const deleteDocument = async (collName: string, docId: string): Promise<void> => {
     let beforeData: any = null;
     
-    if (isMock) {
+    if (isSupabaseConfigured) {
+      beforeData = await supabase.db.selectById(collName, docId);
+    } else if (isMock) {
       const raw = localStorage.getItem(`fleetos_${collName}`);
       const list = raw ? JSON.parse(raw) : [];
       beforeData = list.find((item: any) => item.id === docId);
@@ -1984,7 +2037,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       beforeData = await getDocumentReal(collName, docId);
     }
 
-    if (isMock) {
+    if (isSupabaseConfigured) {
+      await supabase.db.delete(collName, docId);
+    } else if (isMock) {
       const raw = localStorage.getItem(`fleetos_${collName}`);
       const list = raw ? JSON.parse(raw) : [];
       const filtered = list.filter((item: any) => item.id !== docId);
@@ -2009,6 +2064,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const tenantId = currentUser.tenantId;
     const counterId = `${tenantId}_${sequenceName}`;
+
+    if (isSupabaseConfigured) {
+      const existing = await supabase.db.selectById("tenant_counters", counterId);
+      const currentValue = existing ? Number(existing.value || 0) : 0;
+      const nextValue = Math.max(currentValue, minimumValue) + 1;
+      
+      if (existing) {
+        await supabase.db.update("tenant_counters", counterId, { value: nextValue, updatedAt: new Date().toISOString() });
+      } else {
+        await supabase.db.insert("tenant_counters", {
+          id: counterId,
+          tenantId,
+          sequenceName,
+          value: nextValue,
+          updatedAt: new Date().toISOString()
+        });
+      }
+      return nextValue;
+    }
 
     if (isMock) {
       const storageKey = "fleetos_tenant_counters";

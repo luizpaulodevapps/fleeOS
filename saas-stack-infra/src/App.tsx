@@ -390,7 +390,12 @@ export default function App() {
   const latencyDisplay = useMemo(() => {
     const reg = CLOUD_REGIONS.find(r => r.id === selectedRegion);
     const base = reg ? reg.basePing : 12;
-    return isStressTest ? Math.round(base * 5.8) : Math.round(base + (Math.random() * 4 - 2));
+    // Utiliza a variável 'latency' para gerar uma oscilação dinâmica
+    // e garantir que a UI atualize a cada ciclo de telemetria.
+    const oscilacao = (latency % 7) - 3;
+    return isStressTest 
+      ? Math.round(base * 5.8) + oscilacao 
+      : Math.round(base) + oscilacao;
   }, [selectedRegion, isStressTest, latency]);
 
   return (
@@ -480,7 +485,7 @@ export default function App() {
                   {cpu.toFixed(1)}%
                 </h3>
                 <div className="flex items-center gap-1 text-[10px] text-gray-400 font-mono font-bold">
-                  <HardDrive className="w-3 h-3 text-indigo-455" />
+                  <HardDrive className="w-3 h-3 text-indigo-400" />
                   <span>{ram.toFixed(1)}GB</span>
                 </div>
               </div>

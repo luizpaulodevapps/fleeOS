@@ -1,0 +1,1918 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FleetOS // SaaS Stack & Custos Operacionais</title>
+
+  <!-- Premium Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
+  <style>
+    /* Stripe / Vercel / Apple Design Tokens */
+    :root {
+      --bg-dark: #030407;
+      --bg-card: rgba(8, 10, 17, 0.7);
+      --bg-card-glow: rgba(14, 18, 31, 0.85);
+
+      --color-primary: #6366f1;
+      --color-primary-glow: rgba(99, 102, 241, 0.15);
+      --color-primary-border: rgba(99, 102, 241, 0.25);
+
+      --color-emerald: #10b981;
+      --color-emerald-glow: rgba(16, 185, 129, 0.15);
+      --color-emerald-border: rgba(16, 185, 129, 0.25);
+
+      --color-amber: #f59e0b;
+      --color-amber-glow: rgba(245, 158, 11, 0.15);
+      --color-amber-border: rgba(245, 158, 11, 0.25);
+
+      --color-rose: #f43f5e;
+      --color-violet: #8b5cf6;
+      --color-violet-glow: rgba(139, 92, 246, 0.15);
+
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dark: #475569;
+      --border-thin: rgba(255, 255, 255, 0.05);
+      --border-glow: rgba(255, 255, 255, 0.08);
+
+      --font-display: 'Outfit', sans-serif;
+      --font-sans: 'Plus Jakarta Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Floating Background Glowing Orbs (Apple/Stripe style) */
+    .glowing-orb {
+      position: absolute;
+      width: 45vw;
+      height: 45vw;
+      border-radius: 50%;
+      filter: blur(140px);
+      opacity: 0.1;
+      z-index: 0;
+      pointer-events: none;
+      transition: all 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .orb-1 {
+      background: radial-gradient(circle, var(--color-primary) 0%, transparent 70%);
+      top: -10%;
+      left: 10%;
+    }
+
+    .orb-2 {
+      background: radial-gradient(circle, var(--color-violet) 0%, transparent 70%);
+      bottom: -10%;
+      right: 10%;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      font-family: var(--font-display);
+      letter-spacing: -0.03em;
+    }
+
+    /* Premium Header */
+    header {
+      padding: 1.75rem 3.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-thin);
+      background: rgba(3, 4, 7, 0.6);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+      position: relative;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .logo-icon {
+      width: 2.25rem;
+      height: 2.25rem;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-violet));
+      border-radius: 0.65rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      color: #ffffff;
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.25);
+    }
+
+    .logo-text {
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      background: linear-gradient(135deg, #ffffff 40%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-tag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--color-primary-light);
+      background: rgba(99, 102, 241, 0.08);
+      padding: 0.45rem 1rem;
+      border-radius: 2rem;
+      border: 1px solid var(--color-primary-border);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    }
+
+    /* Content Area & Slideshow */
+    main {
+      flex: 1;
+      position: relative;
+      width: 100%;
+      max-width: 1240px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem;
+      z-index: 5;
+    }
+
+    .slide-wrapper {
+      position: relative;
+      width: 100%;
+      height: 72vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Vercel / Apple Transition Animations */
+    .slide {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transform: translateY(20px) scale(0.99);
+      pointer-events: none;
+      transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .slide.active {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+      z-index: 2;
+    }
+
+    .slide.previous {
+      opacity: 0;
+      transform: translateY(-20px) scale(0.99);
+    }
+
+    /* Premium Slide Entrance Micro-Animations */
+    .slide.active .animate-fade-up {
+      animation: animFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .slide.active .animate-cascade-1 {
+      animation: animFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
+      opacity: 0;
+    }
+
+    .slide.active .animate-cascade-2 {
+      animation: animFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+      opacity: 0;
+    }
+
+    @keyframes animFadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(15px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Grid Layouts */
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 3rem;
+      height: 100%;
+      align-items: center;
+    }
+
+    /* Apple / Vercel Glassmorphism Card styling */
+    .glass-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-thin);
+      border-radius: 1.75rem;
+      padding: 3rem;
+      backdrop-filter: blur(20px);
+      box-shadow:
+        0 4px 30px rgba(0, 0, 0, 0.4),
+        inset 0 1px 1px rgba(255, 255, 255, 0.03);
+      transition: border-color 0.4s ease, box-shadow 0.4s ease;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .glass-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, transparent 100%);
+      pointer-events: none;
+    }
+
+    .glass-card:hover {
+      border-color: var(--border-glow);
+      box-shadow:
+        0 15px 40px rgba(0, 0, 0, 0.5),
+        inset 0 1px 2px rgba(255, 255, 255, 0.05);
+    }
+
+    /* Category & Titles */
+    .slide-category {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--color-primary);
+      margin-bottom: 0.75rem;
+      display: inline-block;
+      font-family: var(--font-sans);
+    }
+
+    .slide-title {
+      font-size: 2.75rem;
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.15;
+    }
+
+    .slide-desc {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      line-height: 1.6;
+      margin-top: 1rem;
+    }
+
+    /* Custom SVGs and Lists (Vercel Style) */
+    .feature-list {
+      list-style: none;
+      margin-top: 2rem;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.98rem;
+      line-height: 1.6;
+    }
+
+    .feature-icon-wrapper {
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 0.75rem;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--color-primary);
+      transition: all 0.3s ease;
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    }
+
+    .feature-item:hover .feature-icon-wrapper {
+      background: var(--color-primary-glow);
+      border-color: var(--color-primary-border);
+      color: #ffffff;
+      transform: translateY(-2px);
+    }
+
+    .feature-icon-wrapper.emerald {
+      color: var(--color-emerald);
+    }
+
+    .feature-item:hover .feature-icon-wrapper.emerald {
+      background: var(--color-emerald-glow);
+      border-color: var(--color-emerald-border);
+    }
+
+    .feature-icon-wrapper.amber {
+      color: var(--color-amber);
+    }
+
+    .feature-item:hover .feature-icon-wrapper.amber {
+      background: var(--color-amber-glow);
+      border-color: var(--color-amber-border);
+    }
+
+    .feature-icon-svg {
+      width: 1.2rem;
+      height: 1.2rem;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* Pills & Technology Badges */
+    .tech-pill {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 500;
+      padding: 0.35rem 0.75rem;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 0.5rem;
+      color: var(--text-muted);
+      display: inline-block;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .tech-pill.highlight {
+      background: var(--color-primary-glow);
+      border-color: var(--color-primary-border);
+      color: #a5b4fc;
+    }
+
+    .tech-pill:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+    }
+
+    /* Slide 1 - Home slide design (Vercel Style) */
+    .title-slide-content {
+      text-align: center;
+      max-width: 850px;
+      margin: 0 auto;
+    }
+
+    .title-slide-content h1 {
+      font-size: 4.5rem;
+      font-weight: 900;
+      line-height: 1.1;
+      background: linear-gradient(135deg, #ffffff 40%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 1.75rem;
+      letter-spacing: -0.04em;
+    }
+
+    .title-slide-content p.subtitle {
+      font-size: 1.45rem;
+      color: var(--text-muted);
+      margin-bottom: 3.5rem;
+      font-weight: 400;
+      line-height: 1.6;
+    }
+
+    /* Stripe / Vercel Tables styling */
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1.5rem;
+      font-size: 0.9rem;
+    }
+
+    .compare-table th {
+      text-align: left;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      font-weight: 700;
+      font-family: var(--font-display);
+      color: #ffffff;
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+    }
+
+    .compare-table td {
+      padding: 1.1rem 1.25rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+      transition: background-color 0.3s ease;
+    }
+
+    .compare-table tr:hover td {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.015);
+    }
+
+    .price-value {
+      font-weight: 700;
+      color: var(--color-emerald) !important;
+    }
+
+    /* Interactive Interactive Chart Styling (Apple Style) */
+    .chart-container {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      margin-top: 1.5rem;
+      flex: 1;
+      justify-content: center;
+    }
+
+    .chart-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .chart-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .chart-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 1.25rem;
+      border-radius: 1rem;
+      border: 1px solid var(--border-thin);
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
+    }
+
+    .bar-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    .bar-title {
+      font-size: 0.8rem;
+      width: 70px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 1.5rem;
+      background: rgba(255, 255, 255, 0.01);
+      border-radius: 0.4rem;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 0%;
+      transition: width 1.4s cubic-bezier(0.16, 1, 0.3, 1);
+      border-radius: 0.35rem;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      position: relative;
+    }
+
+    .bar-fill::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, transparent 100%);
+      pointer-events: none;
+    }
+
+    .bar-fill.firebase {
+      background: linear-gradient(90deg, #ff8c00, #ffb300);
+      color: #030407;
+      box-shadow: 0 0 15px rgba(255, 140, 0, 0.2);
+    }
+
+    .bar-fill.supabase {
+      background: linear-gradient(90deg, #3ecf8e, #2e9f6c);
+      color: #030407;
+      box-shadow: 0 0 15px rgba(62, 207, 142, 0.2);
+    }
+
+    /* Stripe / Apple Premium Interactive Mockups */
+    .visual-infra-wrapper {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* Phone Device Mockup (Apple style) */
+    .phone-mockup {
+      width: 250px;
+      height: 470px;
+      border-radius: 2.25rem;
+      background: #090b11;
+      border: 8px solid #1e2230;
+      position: relative;
+      box-shadow:
+        0 25px 50px -12px rgba(0, 0, 0, 0.8),
+        0 0 40px rgba(99, 102, 241, 0.15);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .phone-mockup::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 18px;
+      background: #1e2230;
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
+      z-index: 10;
+    }
+
+    .phone-screen {
+      flex: 1;
+      padding: 1.5rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+
+    /* Dashboard UI Mockup (Vercel style) */
+    .dashboard-mockup {
+      width: 100%;
+      height: 380px;
+      background: #06070d;
+      border-radius: 1.25rem;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.7),
+        0 0 30px rgba(139, 92, 246, 0.1);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      position: relative;
+    }
+
+    .mock-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      padding-bottom: 0.75rem;
+    }
+
+    .mock-dots {
+      display: flex;
+      gap: 0.35rem;
+    }
+
+    .mock-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .mock-metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .mock-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 0.75rem;
+      padding: 0.85rem;
+    }
+
+    .mock-chart {
+      flex: 1;
+      border-radius: 0.75rem;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.02);
+      padding: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Live Telemetry Server Mockup */
+    .telemetry-mockup {
+      width: 100%;
+      background: #06070d;
+      border-radius: 1.25rem;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.7),
+        0 0 35px rgba(245, 158, 11, 0.1);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .log-stream {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: #34d399;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      height: 120px;
+      overflow-y: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.02);
+      line-height: 1.5;
+    }
+
+    /* Footer & Navigation Controls */
+    footer {
+      padding: 1.75rem 3.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--border-thin);
+      background: rgba(3, 4, 7, 0.6);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+      position: relative;
+    }
+
+    .slide-indicators {
+      display: flex;
+      gap: 0.65rem;
+    }
+
+    .indicator-dot {
+      width: 0.6rem;
+      height: 0.6rem;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.12);
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .indicator-dot.active {
+      background: var(--color-primary);
+      width: 1.8rem;
+      border-radius: 1rem;
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+    }
+
+    .navigation-controls {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    /* Stripe-style Premium Buttons */
+    .nav-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.85rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      outline: none;
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-btn:hover:not(:disabled) {
+      background: #ffffff;
+      color: #030407;
+      border-color: #ffffff;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(255, 255, 255, 0.1);
+    }
+
+    .nav-btn.btn-primary {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+      box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.2),
+        0 4px 12px rgba(99, 102, 241, 0.25);
+    }
+
+    .nav-btn.btn-primary:hover {
+      background: #818cf8;
+      border-color: #818cf8;
+      color: #ffffff;
+      transform: translateY(-2px);
+      box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.2),
+        0 8px 24px rgba(99, 102, 241, 0.4);
+    }
+
+    .nav-btn:active {
+      transform: translateY(0);
+    }
+
+    .nav-btn:disabled {
+      opacity: 0.2;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    /* Top Sleek Progress Bar */
+    .progress-bar-container {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.02);
+      z-index: 15;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--color-primary), var(--color-violet));
+      transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Keyboard Navigation Hint */
+    .keyboard-hint {
+      font-size: 0.75rem;
+      color: var(--text-dark);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 500;
+      font-family: var(--font-sans);
+    }
+
+    .keyboard-key {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 0.15rem 0.45rem;
+      border-radius: 0.35rem;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      font-size: 0.7rem;
+    }
+
+    /* Comparative Cards (Firebase vs Supabase) styling */
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .comp-card {
+      padding: 1.5rem;
+      border-radius: 1.25rem;
+      background: rgba(255, 255, 255, 0.015);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.02);
+      transition: border-color 0.3s ease;
+    }
+
+    .comp-card.highlight-fb {
+      border-left: 4px solid var(--color-amber);
+    }
+
+    .comp-card.highlight-sb {
+      border-left: 4px solid var(--color-emerald);
+    }
+
+    .comp-card h4 {
+      font-size: 1.05rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      font-family: var(--font-display);
+    }
+
+    .circle-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: 0 0 8px currentColor;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Floating Glowing Orbs -->
+  <div class="glowing-orb orb-1" id="orb-left"></div>
+  <div class="glowing-orb orb-2" id="orb-right"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="logo-container">
+      <div class="logo-icon">F</div>
+      <div class="logo-text">FleetOS</div>
+    </div>
+    <div class="header-tag">SaaS Stack &amp; Viabilidade</div>
+  </header>
+
+  <!-- Main Presentation Grid -->
+  <main>
+    <div class="slide-wrapper">
+
+      <!-- Slide 1: Capa (Vercel Style) -->
+      <section class="slide active" id="slide-0">
+        <div class="title-slide-content">
+          <span class="slide-category animate-fade-up">Apresentação Técnica</span>
+          <h1 class="animate-cascade-1">FleetOS SaaS System</h1>
+          <p class="subtitle animate-cascade-2">Arquitetura dos 3 Módulos &amp; Estudo Comparativo de Viabilidade
+            Financeira e Custos de Infraestrutura: <strong>Firebase Blaze vs. Supabase Pro</strong></p>
+          <div class="animate-cascade-2" style="display: flex; justify-content: center; gap: 1.25rem;">
+            <button class="nav-btn btn-primary" onclick="nextSlide()">Acessar Slides →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 2: Módulo 1 - Web Admin -->
+      <section class="slide" id="slide-1">
+        <div class="grid-2col">
+          <div class="glass-card animate-fade-up">
+            <div>
+              <span class="slide-category">Módulo 1</span>
+              <h2 class="slide-title">Web Admin</h2>
+              <p class="slide-desc">O painel central executivo para gestores gerenciarem frotas, motoristas e
+                controlarem faturamento.</p>
+
+              <ul class="feature-list">
+                <!-- Feature 1 -->
+                <li class="feature-item">
+                  <div class="feature-icon-wrapper">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                      <polyline points="2 17 12 22 22 17"></polyline>
+                      <polyline points="2 12 12 17 22 12"></polyline>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>Next.js 15 App Router &amp; Tailwind:</strong> Interface reativa, moderna, otimizada para
+                    SEO e com altíssima velocidade de carregamento.
+                  </div>
+                </li>
+                <!-- Feature 2 -->
+                <li class="feature-item">
+                  <div class="feature-icon-wrapper">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z">
+                      </path>
+                      <circle cx="12" cy="13" r="4"></circle>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>PlateScanner (html5-qrcode):</strong> Mapeamento e escaneamento inteligente de placas direto
+                    da câmera web em tempo real.
+                  </div>
+                </li>
+                <!-- Feature 3 -->
+                <li class="feature-item">
+                  <div class="feature-icon-wrapper">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <path d="M12 20h9"></path>
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>SignaturePad Canvas:</strong> Coleta de assinaturas digitais direto na tela do navegador
+                    para validações de liberação.
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            <div style="margin-top: 1.5rem;">
+              <span class="tech-pill highlight">Next.js 15</span>
+              <span class="tech-pill highlight">Firebase Auth</span>
+              <span class="tech-pill highlight">Zustand</span>
+              <span class="tech-pill highlight">React Query</span>
+              <span class="tech-pill">Tailwind CSS</span>
+            </div>
+          </div>
+
+          <!-- Mockup Web Admin Dashboard (Stripe style) -->
+          <div class="visual-infra-wrapper animate-cascade-1">
+            <div class="dashboard-mockup">
+              <div class="mock-header">
+                <div class="mock-dots">
+                  <div class="mock-dot" style="background: #f43f5e;"></div>
+                  <div class="mock-dot" style="background: #eab308;"></div>
+                  <div class="mock-dot" style="background: #10b981;"></div>
+                </div>
+                <div style="font-size: 0.65rem; font-family: var(--font-mono); color: var(--text-dark);">
+                  console.fleetos.com.br</div>
+              </div>
+
+              <div class="mock-metrics">
+                <div class="mock-card">
+                  <div
+                    style="font-size: 0.65rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">
+                    Total Frotas</div>
+                  <div style="font-size: 1.4rem; font-weight: 800; color: #ffffff; margin-top: 0.25rem;">14</div>
+                </div>
+                <div class="mock-card">
+                  <div
+                    style="font-size: 0.65rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">
+                    Veículos SaaS</div>
+                  <div style="font-size: 1.4rem; font-weight: 800; color: var(--color-emerald); margin-top: 0.25rem;">92
+                  </div>
+                </div>
+              </div>
+
+              <div class="mock-chart">
+                <div style="font-size: 0.65rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">
+                  Fluxo de Caixa (ARR)</div>
+                <!-- Mini simulated SVG line chart -->
+                <svg viewBox="0 0 200 60" style="width: 100%; height: 70px; margin-top: 0.5rem; overflow: visible;">
+                  <path d="M 0 50 Q 30 30 60 45 T 120 15 T 180 35 T 200 5" fill="none" stroke="url(#primaryGrad)"
+                    stroke-width="3" stroke-linecap="round" />
+                  <path d="M 0 50 Q 30 30 60 45 T 120 15 T 180 35 T 200 5 L 200 60 L 0 60 Z" fill="url(#primaryArea)"
+                    opacity="0.15" />
+                  <defs>
+                    <linearGradient id="primaryGrad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stop-color="var(--color-primary)" />
+                      <stop offset="100%" stop-color="var(--color-violet)" />
+                    </linearGradient>
+                    <linearGradient id="primaryArea" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="var(--color-primary)" />
+                      <stop offset="100%" stop-color="transparent" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div
+                  style="display: flex; justify-content: space-between; font-size: 0.6rem; color: var(--text-dark); font-family: var(--font-mono); margin-top: 0.25rem;">
+                  <span>Jan</span><span>Mar</span><span>Mai</span><span>Jul</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 3: Módulo 2 - Mobile Driver App -->
+      <section class="slide" id="slide-2">
+        <div class="grid-2col">
+          <div class="glass-card animate-fade-up">
+            <div>
+              <span class="slide-category">Módulo 2</span>
+              <h2 class="slide-title" style="color: var(--color-emerald-light);">Mobile Driver</h2>
+              <p class="slide-desc">O aplicativo móvel nativo de motoristas, arquitetado para total funcionamento em
+                áreas offline.</p>
+
+              <ul class="feature-list">
+                <!-- Feature 1 -->
+                <li class="feature-item">
+                  <div class="feature-icon-wrapper emerald">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                      <line x1="7" y1="2" x2="7" y2="22"></line>
+                      <line x1="17" y1="2" x2="17" y2="22"></line>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>Offline-First SQLite:</strong> Gravações rápidas locais e consultas instantâneas direto do
+                    banco SQLite local do celular.
+                  </div>
+                </li>
+                <!-- Feature 2 -->
+                <li class="feature-item">
+                  <div class="feature-icon-wrapper emerald">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12">
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>Sync Queue:</strong> Transações offline criam itens em uma fila ordenada local esperando
+                    reestabelecimento de conexão.
+                  </div>
+                </li>
+                <!-- Feature 3 -->
+                <li class="feature-item">
+                  <div class="feature-icon-wrapper emerald">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <path d="M23 12a11 11 0 1 1-22 0c0-6 4.8-10.8 11-10.8 2.2 0 4.2.6 6 1.8L18 6"></path>
+                      <polyline points="13 2 18 2 18 7"></polyline>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>SyncEngine:</strong> Escuta estados de conexão do hardware para realizar o batch sync de
+                    dados transparente ao motorista.
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            <div style="margin-top: 1.5rem;">
+              <span class="tech-pill highlight">React Native</span>
+              <span class="tech-pill highlight">Expo Router</span>
+              <span class="tech-pill highlight">SQLite Local</span>
+              <span class="tech-pill">NativeWind</span>
+              <span class="tech-pill">Zustand</span>
+            </div>
+          </div>
+
+          <!-- Mockup Apple Phone Frame showing Mobile Driver UI -->
+          <div class="visual-infra-wrapper animate-cascade-1">
+            <div class="phone-mockup">
+              <div class="phone-screen">
+                <!-- Status Top -->
+                <div
+                  style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-muted); font-family: var(--font-mono);">
+                  <span>19:12</span>
+                  <span style="color: var(--color-emerald);">● Online</span>
+                </div>
+
+                <!-- Main UI container -->
+                <div
+                  style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 1rem; margin-top: 1rem;">
+                  <div style="text-align: center;">
+                    <div
+                      style="width: 3.5rem; height: 3.5rem; border-radius: 50%; background: var(--color-emerald-glow); border: 2px solid var(--color-emerald-border); display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem auto;">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-emerald)" stroke-width="3"
+                        stroke-linecap="round" stroke-linejoin="round" style="width: 1.5rem; height: 1.5rem;">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </div>
+                    <h4 style="font-size: 0.95rem; color: #ffffff; font-weight: 700;">Check-in Efetuado</h4>
+                    <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;">Placa: ABC-1234</p>
+                  </div>
+
+                  <!-- Sync status card inside phone screen -->
+                  <div
+                    style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 0.75rem; padding: 0.75rem;">
+                    <div
+                      style="display: flex; justify-content: space-between; align-items: center; font-size: 0.65rem;">
+                      <span style="color: var(--text-muted); font-weight: 600;">Sincronização</span>
+                      <span style="color: var(--color-emerald); font-weight: 800; font-family: var(--font-mono);">OK
+                        (Batch #82)</span>
+                    </div>
+                    <!-- Sync bar graph simulation -->
+                    <div
+                      style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 0.5rem; overflow: hidden;">
+                      <div style="height: 100%; width: 100%; background: var(--color-emerald); border-radius: 2px;">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bottom button -->
+                <div
+                  style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99,102,241,0.25); border-radius: 0.6rem; padding: 0.5rem; text-align: center; font-size: 0.7rem; color: #a5b4fc; font-weight: 700;">
+                  Nova Operação
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 4: Módulo 3 - Infra Console -->
+      <section class="slide" id="slide-3">
+        <div class="grid-2col">
+          <div class="glass-card animate-fade-up">
+            <div>
+              <span class="slide-category">Módulo 3</span>
+              <h2 class="slide-title" style="color: var(--color-amber);">Infra Console</h2>
+              <p class="slide-desc">O cockpit do provedor SaaS para provisionar frotas, orquestrar cobranças e gerenciar
+                integridade geral.</p>
+
+              <ul class="feature-list">
+                <!-- Feature 1 -->
+                <li class="feature-item">
+                  <div class="feature-icon-wrapper amber">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                      <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>Gestão Multi-Tenant:</strong> Habilitação, suspensão e limites de frotas ativas propagados
+                    instantaneamente nas bases do Firestore.
+                  </div>
+                </li>
+                <!-- Feature 2 -->
+                <li class="feature-item">
+                  <div class="feature-icon-wrapper amber">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>Stress Simulator:</strong> Ferramenta interna que aciona stress mecânico de CPU/latência
+                    simulada para validar robustez.
+                  </div>
+                </li>
+                <!-- Feature 3 -->
+                <li class="feature-item">
+                  <div class="feature-icon-wrapper amber">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <path
+                        d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l-7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.73z">
+                      </path>
+                      <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                      <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>CDN Purge:</strong> Limpeza de conexões em pool e invalidação instantânea do cache estático
+                    nas bordas Cloudflare globais.
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            <div style="margin-top: 1.5rem;">
+              <span class="tech-pill highlight">Vite</span>
+              <span class="tech-pill highlight">React &amp; TS</span>
+              <span class="tech-pill highlight">Firestore SDK</span>
+              <span class="tech-pill">Tailwind CSS</span>
+              <span class="tech-pill">Lucide Icons</span>
+            </div>
+          </div>
+
+          <!-- Mockup Live Server Telemetry logs -->
+          <div class="visual-infra-wrapper animate-cascade-1">
+            <div class="telemetry-mockup">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h4
+                  style="font-size: 0.9rem; color: #ffffff; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                  <span class="circle-indicator"
+                    style="background: var(--color-amber); color: var(--color-amber);"></span>
+                  Gateway Telemetria
+                </h4>
+                <span
+                  style="font-size: 0.65rem; font-family: var(--font-mono); color: var(--color-amber); background: var(--color-amber-glow); padding: 0.25rem 0.5rem; border-radius: 0.25rem; border: 1px solid var(--color-amber-border);">Stress
+                  Test Active</span>
+              </div>
+
+              <!-- Term log window styling -->
+              <div class="log-stream" id="simulated-logs">
+                [19:12:01] 🚀 [SYS] Cluster centralizado rodando normal.<br>
+                [19:12:03] ⚠️ [WARN] Latência excedeu limite de 80ms no nó GRU.<br>
+                [19:12:05] 🛑 [ERR] Escalonando réplicas do banco de dados...<br>
+                [19:12:08] 🚀 [OK] 4 novos pods ativados no Gateway.
+              </div>
+
+              <div style="display: flex; gap: 1rem; font-size: 0.75rem;">
+                <div
+                  style="flex: 1; padding: 0.75rem; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 0.5rem; text-align: center;">
+                  <span style="color: var(--text-muted); font-size: 0.6rem; text-transform: uppercase;">CPU Média</span>
+                  <div style="font-size: 1.1rem; font-weight: 800; color: var(--color-rose); margin-top: 0.25rem;">89.4%
+                  </div>
+                </div>
+                <div
+                  style="flex: 1; padding: 0.75rem; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 0.5rem; text-align: center;">
+                  <span style="color: var(--text-muted); font-size: 0.6rem; text-transform: uppercase;">Taxa de
+                    Erros</span>
+                  <div style="font-size: 1.1rem; font-weight: 800; color: var(--color-rose); margin-top: 0.25rem;">24.2%
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 5: Firebase Cost Analysis -->
+      <section class="slide" id="slide-4">
+        <div class="grid-2col">
+          <div class="glass-card animate-fade-up">
+            <div>
+              <span class="slide-category">Modelo Financeiro</span>
+              <h2 class="slide-title">Firebase Blaze Plan</h2>
+              <p class="slide-desc">Plano serverless puramente elástico cobrado conforme o volume exato de requisições e
+                armazenamento consumidos.</p>
+
+              <ul class="feature-list" style="margin-top: 1.5rem;">
+                <li class="feature-item">
+                  <div class="feature-icon-wrapper amber">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>Custo de Entrada Zero:</strong> A faixa gratuita (Spark) cobre volumes substanciais antes da
+                    primeira cobrança (50k reads/dia e 50k MAUs de Auth grátis).
+                  </div>
+                </li>
+                <li class="feature-item">
+                  <div class="feature-icon-wrapper amber">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>Escalabilidade Elástica:</strong> Sem necessidade de preocupações com provisionamento de
+                    CPU/disco para suportar conexões simultâneas.
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            <div class="comparison-grid">
+              <div class="comp-card highlight-fb">
+                <h4><span class="circle-indicator"
+                    style="background: var(--color-amber); color: var(--color-amber);"></span>Métricas de Preço</h4>
+                <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; margin-top: 0.35rem;">
+                  - Firestore Reads: $0.06 / 100k<br>
+                  - Firestore Writes: $0.18 / 100k<br>
+                  - Storage: $0.026 / GB-mês<br>
+                  - Bandwidth: $0.12 / GB de download
+                </p>
+              </div>
+              <div class="comp-card" style="border-left: 4px solid var(--color-rose);">
+                <h4>Riscos</h4>
+                <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; margin-top: 0.35rem;">
+                  Queries redundantes ou ineficientes em listagens repetidas de veículos por motoristas podem
+                  multiplicar os custos exponenciais.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <div>
+              <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem;">Estrutura do Firestore</h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 1.5rem;">
+                Armazenamento NoSQL de documentos. Como não há joins de tabelas (ex: puxar motoristas e veículos em um
+                único SELECT relacional), é necessário duplicar dados para não estourar a quantidade de consultas por
+                operação.
+              </p>
+
+              <!-- Code block in presentation Vercel Style -->
+              <div
+                style="background: #06070d; padding: 1.25rem; border-radius: 1rem; border: 1px solid var(--border-thin); font-family: var(--font-mono); font-size: 0.72rem; color: var(--color-primary-light); line-height: 1.5; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);">
+                <span style="color: var(--text-dark);">// Desnormalização necessária para otimizar reads:</span><br>
+                {<br>
+                &nbsp;&nbsp;id: <span style="color: var(--color-emerald);">"contrato-1"</span>,<br>
+                &nbsp;&nbsp;tenantId: <span style="color: var(--color-emerald);">"sa-east-1"</span>,<br>
+                &nbsp;&nbsp;driverId: <span style="color: var(--color-emerald);">"motorista-5"</span>,<br>
+                &nbsp;&nbsp;driverName: <span style="color: var(--color-emerald);">"João Silva"</span>, <span
+                  style="color: var(--text-dark);">// Duplicado</span><br>
+                &nbsp;&nbsp;vehiclePlate: <span style="color: var(--color-emerald);">"ABC-1234"</span> <span
+                  style="color: var(--text-dark);">// Duplicado</span><br>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 6: Supabase Cost Analysis -->
+      <section class="slide" id="slide-5">
+        <div class="grid-2col">
+          <div class="glass-card animate-fade-up">
+            <div>
+              <span class="slide-category">Modelo Financeiro</span>
+              <h2 class="slide-title" style="color: var(--color-emerald-light);">Supabase Pro Plan</h2>
+              <p class="slide-desc">Plano relacional baseado em instâncias dedicadas de PostgreSQL, cobrando assinatura
+                fixa com amplos limites inclusos.</p>
+
+              <ul class="feature-list" style="margin-top: 1.5rem;">
+                <li class="feature-item">
+                  <span class="feature-icon-wrapper emerald">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </span>
+                  <div>
+                    <strong>Cota Base Inclusa Generosa:</strong> Assinatura de $25 inclui 8 GB de banco, 100k MAUs de
+                    Auth, 100 GB de Storage e 50 GB de banda de rede.
+                  </div>
+                </li>
+                <li class="feature-item">
+                  <span class="feature-icon-wrapper emerald">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </span>
+                  <div>
+                    <strong>Custos Excedentes Reduzidos:</strong> Valores de banda e armazenamento extra são mais baixos
+                    que no Firebase (banda extra $0.09/GB vs $0.12/GB).
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            <div class="comparison-grid">
+              <div class="comp-card highlight-sb">
+                <h4><span class="circle-indicator"
+                    style="background: var(--color-emerald); color: var(--color-emerald);"></span>Métricas de Preço</h4>
+                <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; margin-top: 0.35rem;">
+                  - Assinatura Base: $25.00 / mês<br>
+                  - Excesso de DB: $0.125 / GB<br>
+                  - Excesso Storage: $0.021 / GB<br>
+                  - Excesso Banda: $0.09 / GB de download
+                </p>
+              </div>
+              <div class="comp-card" style="border-left: 4px solid var(--color-rose);">
+                <h4>Riscos</h4>
+                <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; margin-top: 0.35rem;">
+                  Custo inicial obrigatório de $25 mesmo que o sistema de frotas esteja com tráfego zerado ou em
+                  ambientes de homologação.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <div>
+              <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem;">Estrutura do Postgres</h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 1.5rem;">
+                Banco de dados SQL relacional clássico. Permite resolver agregações complexas via Joins otimizados em
+                uma única leitura atômica, diminuindo expressivamente o consumo de rede da web e mobile.
+              </p>
+
+              <!-- Code block Vercel style for SQL joins -->
+              <div
+                style="background: #06070d; padding: 1.25rem; border-radius: 1rem; border: 1px solid var(--border-thin); font-family: var(--font-mono); font-size: 0.72rem; color: var(--color-emerald-light); line-height: 1.5; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);">
+                <span style="color: var(--text-dark);">-- Queries limpas sem duplicação de dados:</span><br>
+                <span style="color: var(--color-primary-light);">SELECT</span> c.id, c.data_inicio,<br>
+                &nbsp;&nbsp;d.nome <span style="color: var(--color-primary-light);">AS</span> motorista, v.placa <span
+                  style="color: var(--color-primary-light);">AS</span> veiculo<br>
+                <span style="color: var(--color-primary-light);">FROM</span> contratos c<br>
+                <span style="color: var(--color-primary-light);">JOIN</span> motoristas d <span
+                  style="color: var(--color-primary-light);">ON</span> c.motorista_id = d.id<br>
+                <span style="color: var(--color-primary-light);">JOIN</span> veiculos v <span
+                  style="color: var(--color-primary-light);">ON</span> c.veiculo_id = v.id<br>
+                <span style="color: var(--color-primary-light);">WHERE</span> c.tenant_id = <span
+                  style="color: var(--color-emerald);">'sa-east-1'</span>;
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 7: Cost Comparison Simulation -->
+      <section class="slide" id="slide-6">
+        <div class="grid-2col">
+          <div class="glass-card animate-fade-up">
+            <div>
+              <span class="slide-category">Estudo Comparativo</span>
+              <h2 class="slide-title">Simulação de Custos: Firebase vs Supabase</h2>
+              <p class="slide-desc">Cálculo de custos operacionais com projeções financeiras baseadas em 3 cenários de
+                frotas e motoristas.</p>
+
+              <table class="compare-table">
+                <thead>
+                  <tr>
+                    <th>Métricas</th>
+                    <th>A: Start-up</th>
+                    <th>B: Scale-up</th>
+                    <th>C: Enterprise</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Frotas / Veículos</td>
+                    <td>10 tenants / 1.000 ativ.</td>
+                    <td>100 tenants / 10.000 ativ.</td>
+                    <td>1.000 tenants / 100.000 ativ.</td>
+                  </tr>
+                  <tr>
+                    <td>Leituras / Grav. DB dia</td>
+                    <td>20k Reads / 5k Writes</td>
+                    <td>200k Reads / 50k Writes</td>
+                    <td>2M Reads / 500k Writes</td>
+                  </tr>
+                  <tr>
+                    <td>Mídia / Banda</td>
+                    <td>20 GB / 50 GB</td>
+                    <td>200 GB / 500 GB</td>
+                    <td>2 TB / 5 TB</td>
+                  </tr>
+                  <tr style="background: rgba(245, 158, 11, 0.04);">
+                    <td><strong>Firebase Total</strong></td>
+                    <td class="price-value">R$ 5,19/mês</td>
+                    <td class="price-value">R$ 68,19/mês</td>
+                    <td class="price-value" style="color: var(--color-rose) !important;">R$ 1.261,69/mês</td>
+                  </tr>
+                  <tr style="background: rgba(16, 185, 129, 0.04);">
+                    <td><strong>Supabase Total</strong></td>
+                    <td class="price-value" style="color: var(--text-muted) !important;">R$ 25,00/mês</td>
+                    <td class="price-value">R$ 67,60/mês</td>
+                    <td class="price-value">R$ 676,90/mês</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <div>
+              <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">Custo Mensal Comparado (R$)</h3>
+              <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.5rem;">Comparação visual nos
+                cenários B (Scale-up) e C (Enterprise - valores / 10 para escala)</p>
+
+              <div class="chart-container">
+                <!-- Scenario Scale-up -->
+                <div class="chart-row">
+                  <div class="chart-label">
+                    <span>Cenário B: Scale-up (10k Veículos)</span>
+                  </div>
+                  <div class="chart-bars">
+                    <div class="bar-wrapper">
+                      <div class="bar-title">Firebase</div>
+                      <div class="bar-track">
+                        <div class="bar-fill firebase" data-width="68.2%">R$ 68,19</div>
+                      </div>
+                    </div>
+                    <div class="bar-wrapper">
+                      <div class="bar-title">Supabase</div>
+                      <div class="bar-track">
+                        <div class="bar-fill supabase" data-width="67.6%">R$ 67,60</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Scenario Enterprise -->
+                <div class="chart-row">
+                  <div class="chart-label">
+                    <span>Cenário C: Enterprise (100k Veículos - escala 1:10)</span>
+                  </div>
+                  <div class="chart-bars">
+                    <div class="bar-wrapper">
+                      <div class="bar-title">Firebase</div>
+                      <div class="bar-track">
+                        <div class="bar-fill firebase" data-width="100%">R$ 126,17 (x10)</div>
+                      </div>
+                    </div>
+                    <div class="bar-wrapper">
+                      <div class="bar-title">Supabase</div>
+                      <div class="bar-track">
+                        <div class="bar-fill supabase" data-width="53.6%">R$ 67,69 (x10)</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 7: Gatilhos de Transição (Grátis -> Pago) -->
+      <section class="slide" id="slide-7">
+        <div class="grid-2col">
+          <div class="glass-card animate-fade-up">
+            <div>
+              <span class="slide-category">Gatilhos de Migração</span>
+              <h2 class="slide-title" style="color: var(--color-amber);">Grátis ➔ Pago: Quando migrar?</h2>
+              <p class="slide-desc">Como o FleetOS atualmente roda nas faixas gratuitas do Firebase e Supabase, o
+                crescimento exige monitoramento constante dos limites.</p>
+
+              <ul class="feature-list" style="margin-top: 1.5rem;">
+                <li class="feature-item">
+                  <div class="feature-icon-wrapper amber">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                      <polyline points="2 17 12 22 22 17"></polyline>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>Gargalo Firebase (Spark):</strong> A migração para o plano Blaze é obrigatória se o
+                    armazenamento de imagens de checkout exceder 5 GB ou se as consultas diárias passarem de 50.000
+                    leituras (ocorre próximo a 50 frotas ativas).
+                  </div>
+                </li>
+                <li class="feature-item">
+                  <div class="feature-icon-wrapper amber">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                      <polyline points="2 17 12 22 22 17"></polyline>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>Gargalo Supabase (Free):</strong> Exige migração para o plano Pro ($25/mês) caso o tamanho
+                    da base Postgres ultrapasse 500 MB (dados de rastreamento) ou o Storage de fotos exceder 1 GB (~250
+                    fotos).
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <div>
+              <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; color: var(--color-rose);">Riscos
+                &amp; Benefícios</h3>
+              <div
+                style="display: flex; flex-direction: column; gap: 1rem; font-size: 0.85rem; color: var(--text-muted);">
+                <div
+                  style="background: rgba(244, 63, 94, 0.04); border: 1px solid rgba(244, 63, 94, 0.15); padding: 1rem; border-radius: 0.75rem;">
+                  <span style="color: var(--color-rose); font-weight: 700;">Riscos do Atraso na Migração:</span>
+                  <p style="font-size: 0.8rem; margin-top: 0.35rem; line-height: 1.4;">
+                    Downtime repentino e erros de gravação em check-ins de motoristas ao estourar limites do Firebase.
+                    Suspensão automática por inatividade de 7 dias ou estouro de cota no Supabase.
+                  </p>
+                </div>
+                <div
+                  style="background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.15); padding: 1rem; border-radius: 0.75rem;">
+                  <span style="color: var(--color-emerald-light); font-weight: 700;">Benefícios do Upgrade:</span>
+                  <p style="font-size: 0.8rem; margin-top: 0.35rem; line-height: 1.4;">
+                    Fim de restrições rígidas com escalabilidade elástica pay-as-you-go (Firebase) ou garantia de CPU
+                    dedicada, backups automáticos diários, suporte SLA e banco sempre ativo (Supabase).
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 8: Esforço de Desenvolvimento & Viabilidade Comercial -->
+      <section class="slide" id="slide-8">
+        <div class="grid-2col">
+          <div class="glass-card animate-fade-up">
+            <div>
+              <span class="slide-category">Roadmap Tecnológico</span>
+              <h2 class="slide-title" style="color: var(--color-primary-light);">Investimento em Desenvolvimento</h2>
+              <p class="slide-desc">O esforço de engenharia de software pendente para transformar a arquitetura atual do
+                FleetOS em um produto comercializável.</p>
+
+              <ul class="feature-list" style="margin-top: 1.5rem;">
+                <li class="feature-item">
+                  <div class="feature-icon-wrapper">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>Isolamento de Dados Multi-Tenant:</strong> Implementação estrita de regras PostgreSQL RLS ou
+                    refine completo das `firestore.rules` para impedir vazamento de fotos/dados entre frotas
+                    concorrentes.
+                  </div>
+                </li>
+                <li class="feature-item">
+                  <div class="feature-icon-wrapper">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                      <line x1="1" y1="10" x2="23" y2="10"></line>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>Faturamento de Assinatura (Stripe):</strong> Desenvolvimento do fluxo de checkout do
+                    inquilino integrado com controle de ativação/bloqueio automático de frotas com base no plano
+                    escolhido.
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <div>
+              <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; color: var(--color-violet);">
+                Funcionalidades Críticas de Negócio</h3>
+              <div
+                style="display: flex; flex-direction: column; gap: 1rem; font-size: 0.85rem; color: var(--text-muted);">
+                <div
+                  style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04); padding: 1rem; border-radius: 0.75rem;">
+                  <span style="color: var(--color-primary-light); font-weight: 700;">Resolução de Conflito de
+                    Sync:</span>
+                  <p style="font-size: 0.8rem; margin-top: 0.35rem; line-height: 1.4;">
+                    Resolver divergências quando múltiplos motoristas atualizam ou dão baixa no checklist do mesmo
+                    veículo de forma offline e simultânea.
+                  </p>
+                </div>
+                <div
+                  style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04); padding: 1rem; border-radius: 0.75rem;">
+                  <span style="color: var(--color-emerald-light); font-weight: 700;">Separação de Ambientes de
+                    Produção:</span>
+                  <p style="font-size: 0.8rem; margin-top: 0.35rem; line-height: 1.4;">
+                    Substituir todas as simulações e mocks em memória por conexões reais e isoladas de bancos de dados
+                    para homologação (Staging) e produção.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 9: Conclusion and Recommendation -->
+      <section class="slide" id="slide-9">
+        <div class="grid-2col">
+          <div class="glass-card animate-fade-up">
+            <div>
+              <span class="slide-category">Recomendação Arquitetural</span>
+              <h2 class="slide-title">Veredito de Infraestrutura</h2>
+              <p class="slide-desc">Com base nas análises técnica e financeira do ecossistema FleetOS, definimos a
+                seguinte recomendação:</p>
+
+              <ul class="feature-list">
+                <!-- Point 1 -->
+                <li class="feature-item">
+                  <div class="feature-icon-wrapper">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>Supabase como Escolha Definitiva:</strong> A natureza estritamente relacional do sistema de
+                    gestão de frotas e contratos torna o Postgres muito superior na manutenção do código de backend e
+                    custos à medida que o sistema ganha escala.
+                  </div>
+                </li>
+                <!-- Point 2 -->
+                <li class="feature-item">
+                  <div class="feature-icon-wrapper">
+                    <svg class="feature-icon-svg" viewBox="0 0 24 24">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>Custo de Escala do Firebase:</strong> Embora o Firebase seja ideal para o pontapé inicial
+                    (MVP) por possuir barreira de custo zero, a precificação por leitura/escrita e taxas MAU elevadas
+                    encarecem as operações no médio/longo prazo.
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <div>
+              <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem;">Próximos Passos</h3>
+              <div
+                style="display: flex; flex-direction: column; gap: 1rem; font-size: 0.85rem; color: var(--text-muted);">
+                <!-- Step 1 -->
+                <div
+                  style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04); padding: 1rem; border-radius: 0.75rem;">
+                  <span style="color: var(--color-primary-light); font-weight: 700;">Fase 1: Data Provider
+                    Abstraction</span>
+                  <p style="font-size: 0.8rem; margin-top: 0.35rem; line-height: 1.4;">Abstrair o Firebase e Supabase
+                    atrás de uma camada comum de interfaces no Next.js para permitir transição futura sem quebrar telas.
+                  </p>
+                </div>
+                <!-- Step 2 -->
+                <div
+                  style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04); padding: 1rem; border-radius: 0.75rem;">
+                  <span style="color: var(--color-emerald-light); font-weight: 700;">Fase 2: Mapeamento de Tabelas
+                    Postgres</span>
+                  <p style="font-size: 0.8rem; margin-top: 0.35rem; line-height: 1.4;">Mapear tabelas de frotas e regras
+                    de Row-Level Security (RLS) no Supabase equivalentes às regras definidas em `firestore.rules`.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Footer Navigation controls -->
+  <footer>
+    <div class="keyboard-hint">
+      Navegue usando <span class="keyboard-key">←</span> <span class="keyboard-key">→</span> ou <span
+        class="keyboard-key">Espaço</span>
+    </div>
+
+    <div class="slide-indicators" id="indicators">
+      <!-- Generated by JS -->
+    </div>
+
+    <div class="navigation-controls">
+      <button class="nav-btn" id="prev-btn" onclick="prevSlide()" disabled>← Anterior</button>
+      <button class="nav-btn btn-primary" id="next-btn" onclick="nextSlide()">Próximo →</button>
+    </div>
+  </footer>
+
+  <!-- Top Progress Bar -->
+  <div class="progress-bar-container">
+    <div class="progress-bar" id="progress"></div>
+  </div>
+
+  <!-- Interactive Slide Logic -->
+  <script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const totalSlides = slides.length;
+    const indicatorsContainer = document.getElementById('indicators');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const progressBar = document.getElementById('progress');
+    const orbLeft = document.getElementById('orb-left');
+    const orbRight = document.getElementById('orb-right');
+
+    // Create indicators dynamically
+    for (let i = 0; i < totalSlides; i++) {
+      const dot = document.createElement('div');
+      dot.className = `indicator-dot ${i === 0 ? 'active' : ''}`;
+      dot.addEventListener('click', () => goToSlide(i));
+      indicatorsContainer.appendChild(dot);
+    }
+
+    const dots = document.querySelectorAll('.indicator-dot');
+
+    // Theme changes or orbs shifts based on active slides
+    const orbPositions = [
+      { leftTop: '-10%', leftLeft: '10%', rightBottom: '-10%', rightRight: '10%' },
+      { leftTop: '20%', leftLeft: '-10%', rightBottom: '30%', rightRight: '-5%' },
+      { leftTop: '-5%', leftLeft: '40%', rightBottom: '10%', rightRight: '30%' },
+      { leftTop: '30%', leftLeft: '10%', rightBottom: '-15%', rightRight: '40%' },
+      { leftTop: '-10%', leftLeft: '50%', rightBottom: '20%', rightRight: '10%' },
+      { leftTop: '10%', leftLeft: '10%', rightBottom: '-10%', rightRight: '50%' },
+      { leftTop: '40%', leftLeft: '20%', rightBottom: '40%', rightRight: '20%' },
+      { leftTop: '15%', leftLeft: '35%', rightBottom: '25%', rightRight: '15%' },
+      { leftTop: '25%', leftLeft: '15%', rightBottom: '15%', rightRight: '35%' },
+      { leftTop: '-10%', leftLeft: '10%', rightBottom: '-10%', rightRight: '10%' }
+    ];
+
+    function updateControls() {
+      // Buttons state
+      prevBtn.disabled = currentSlide === 0;
+      nextBtn.disabled = currentSlide === totalSlides - 1;
+      if (currentSlide === totalSlides - 1) {
+        nextBtn.innerText = "Concluir";
+      } else {
+        nextBtn.innerText = "Próximo →";
+      }
+
+      // Indicators update
+      dots.forEach((dot, idx) => {
+        if (idx === currentSlide) {
+          dot.classList.add('active');
+        } else {
+          dot.classList.remove('active');
+        }
+      });
+
+      // Progress bar update
+      const percent = (currentSlide / (totalSlides - 1)) * 100;
+      progressBar.style.width = `${percent}%`;
+
+      // Orb animations based on slide position
+      const pos = orbPositions[currentSlide] || orbPositions[0];
+      orbLeft.style.top = pos.leftTop;
+      orbLeft.style.left = pos.leftLeft;
+      orbRight.style.bottom = pos.rightBottom;
+      orbRight.style.right = pos.rightRight;
+
+      // Handle custom bar chart animation on slide 7 (index 6)
+      if (currentSlide === 6) {
+        setTimeout(() => {
+          document.querySelectorAll('.bar-fill').forEach(bar => {
+            const width = bar.getAttribute('data-width');
+            bar.style.width = width;
+          });
+        }, 150);
+      } else {
+        // Reset bar widths when leaving slide so they animate again
+        document.querySelectorAll('.bar-fill').forEach(bar => {
+          bar.style.width = '0%';
+        });
+      }
+    }
+
+    function goToSlide(n) {
+      if (n < 0 || n >= totalSlides) return;
+
+      slides.forEach((slide) => {
+        slide.classList.remove('active', 'previous');
+      });
+
+      // Mark past slides as 'previous' to trigger upward transition
+      for (let i = 0; i < n; i++) {
+        slides[i].classList.add('previous');
+      }
+
+      currentSlide = n;
+      slides[currentSlide].classList.add('active');
+      updateControls();
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides - 1) {
+        goToSlide(currentSlide + 1);
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        goToSlide(currentSlide - 1);
+      }
+    }
+
+    // Keyboard handlers
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        prevSlide();
+      }
+    });
+
+    // Simulated terminal logs generator
+    const logBox = document.getElementById('simulated-logs');
+    if (logBox) {
+      const logs = [
+        "🚀 [SYSTEM] Monitoramento de saúde operacional conectado.",
+        "ℹ️ [INFO] Conexões ativas no pool de dados: 124.",
+        "🚀 [OK] Pool de cache sincronizado nas bordas.",
+        "⚠️ [WARN] Requisição ao nó FRA excedeu limite prudencial.",
+        "🛑 [ERR] Latência de gravação de checklist excedida no SQLite.",
+        "ℹ️ [INFO] Pod gateway-api-62d reabastecido com sucesso."
+      ];
+      setInterval(() => {
+        const time = new Date().toTimeString().split(" ")[0];
+        const log = logs[Math.floor(Math.random() * logs.length)];
+        logBox.innerHTML = logBox.innerHTML.split("<br>").slice(1).join("<br>") + `<br>[${time}] ${log}`;
+      }, 3000);
+    }
+
+    // Initial setup
+    updateControls();
+  </script>
+</body>
+
+</html>

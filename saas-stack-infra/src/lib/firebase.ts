@@ -36,8 +36,18 @@ if (hasConfig) {
 
 export { app, auth, db, isMock };
 
-// Generic database CRUD helpers to automatically handle Mock vs Live
+// Generic database CRUD helpers to automatically handle Mock vs Supabase vs Live Firebase
+import { isSupabaseConfigured, supabase } from "./supabaseClient";
+
 export async function getDbCollection(collName: string): Promise<any[]> {
+  if (isSupabaseConfigured) {
+    try {
+      return await supabase.db.select(collName);
+    } catch (e) {
+      console.error(`Erro ao carregar coleção do Supabase ${collName}:`, e);
+      return [];
+    }
+  }
   if (isMock) {
     const raw = localStorage.getItem(`fleetos_${collName}`);
     return raw ? JSON.parse(raw) : [];
@@ -57,6 +67,14 @@ export async function addDbDocument(collName: string, data: any): Promise<any> {
     ...data,
     createdAt: new Date().toISOString()
   };
+  if (isSupabaseConfigured) {
+    try {
+      return await supabase.db.insert(collName, enriched);
+    } catch (e) {
+      console.error(`Erro ao inserir no Supabase ${collName}:`, e);
+      throw e;
+    }
+  }
   if (isMock) {
     const raw = localStorage.getItem(`fleetos_${collName}`);
     const list = raw ? JSON.parse(raw) : [];
@@ -71,6 +89,15 @@ export async function addDbDocument(collName: string, data: any): Promise<any> {
 }
 
 export async function updateDbDocument(collName: string, docId: string, data: any): Promise<void> {
+  if (isSupabaseConfigured) {
+    try {
+      await supabase.db.update(collName, docId, data);
+      return;
+    } catch (e) {
+      console.error(`Erro ao atualizar no Supabase ${collName}:`, e);
+      throw e;
+    }
+  }
   if (isMock) {
     const raw = localStorage.getItem(`fleetos_${collName}`);
     const list = raw ? JSON.parse(raw) : [];
