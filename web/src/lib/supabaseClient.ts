@@ -82,7 +82,24 @@ function convertKeysToCamelCase(obj: any): any {
   return obj;
 }
 
-export const supabase = {
+interface SupabaseDb {
+  select(table: string, tenantId?: string): Promise<any[]>;
+  selectById(table: string, id: string): Promise<any | null>;
+  insert(table: string, data: any): Promise<any>;
+  update(table: string, id: string, data: any): Promise<void>;
+  delete(table: string, id: string): Promise<void>;
+}
+
+interface SupabaseClient {
+  auth: {
+    signIn(email: string, pass: string): Promise<{ uid: string; email: string; displayName: string; accessToken: string }>;
+    signUp(email: string, pass: string, metadata?: any): Promise<any>;
+    signOut(): Promise<void>;
+  };
+  db: SupabaseDb;
+}
+
+export const supabase: SupabaseClient = {
   // Authentication via GoTrue endpoints
   auth: {
     async signIn(email: string, pass: string) {
