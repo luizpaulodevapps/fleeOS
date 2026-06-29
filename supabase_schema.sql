@@ -283,9 +283,9 @@ INSERT INTO role_permissions (id, role_id, permission_id) VALUES
 
 -- 6.7 User Profiles (Fallback Admin credentials)
 INSERT INTO user_profiles (id, email, display_name, role, role_id, tenant_id, active, supervisor_pin) VALUES
-('uid-owner', 'fleet_owner@fleetsos.com', 'Luiz Frota', 'fleet_owner', 'role-owner', 'tenant-1', TRUE, '1234'),
-('uid-super', 'superadmin@fleetsos.com', 'Admin Master', 'super_admin', 'role-super-admin', 'tenant-1', TRUE, '9999'),
-('uid-driver', 'driver@fleetsos.com', 'Carlos Santos', 'driver', 'role-driver', 'tenant-1', TRUE, NULL);
+('00000000-0000-0000-0000-000000000002', 'fleet_owner@fleetsos.com', 'Luiz Frota', 'fleet_owner', 'role-owner', 'tenant-1', TRUE, '1234'),
+('00000000-0000-0000-0000-000000000001', 'superadmin@fleetsos.com', 'Admin Master', 'super_admin', 'role-super-admin', 'tenant-1', TRUE, '9999'),
+('00000000-0000-0000-0000-000000000003', 'driver@fleetsos.com', 'Carlos Santos', 'driver', 'role-driver', 'tenant-1', TRUE, NULL);
 
 -- 6.8 Sample Fictitious Fleet Drivers
 INSERT INTO drivers (id, tenant_id, name, cpf, rg, phone, condutax, condutax_expiration, alvara_number, alvara_expiration, cnh_number, cnh_category, cnh_expiration, address, status, notes) VALUES
