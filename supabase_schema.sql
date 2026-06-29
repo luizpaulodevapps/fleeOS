@@ -115,6 +115,29 @@ CREATE TABLE IF NOT EXISTS vehicles (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS contracts (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT REFERENCES companies(id) ON DELETE SET NULL,
+    driver_id TEXT REFERENCES drivers(id) ON DELETE SET NULL,
+    vehicle_id TEXT REFERENCES vehicles(id) ON DELETE SET NULL,
+    start_date TEXT NOT NULL,
+    end_date TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    weekly_rate NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+    deposit NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS driver_ledger (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT REFERENCES companies(id) ON DELETE SET NULL,
+    driver_id TEXT REFERENCES drivers(id) ON DELETE CASCADE,
+    type TEXT NOT NULL, -- 'daily', 'payment', 'maintenance', 'fine', etc.
+    description TEXT NOT NULL,
+    amount NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- 4. Financial Cashier Layer
 CREATE TABLE IF NOT EXISTS cashier_sessions (
     id TEXT PRIMARY KEY,
