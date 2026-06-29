@@ -9,7 +9,17 @@ import "./globals.css";
 
 const queryClient = new QueryClient();
 
-function SidebarContent({ isMobileOpen, onCloseMobile }: { isMobileOpen?: boolean; onCloseMobile?: () => void }) {
+function SidebarContent({ 
+  isMobileOpen, 
+  onCloseMobile, 
+  isCollapsed, 
+  onToggleCollapse 
+}: { 
+  isMobileOpen?: boolean; 
+  onCloseMobile?: () => void;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+}) {
   const { currentUser, signOutUser, can } = useAuth();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -84,6 +94,7 @@ function SidebarContent({ isMobileOpen, onCloseMobile }: { isMobileOpen?: boolea
 
   // Auto-expand group containing the active page on mount
   useEffect(() => {
+    if (isCollapsed) return;
     const activeIdx = menuGroups.findIndex(group =>
       group.items.some(item => {
         const itemPath = item.href.split("?")[0];
@@ -93,7 +104,7 @@ function SidebarContent({ isMobileOpen, onCloseMobile }: { isMobileOpen?: boolea
     if (activeIdx !== -1) {
       setExpandedGroups(prev => ({ ...prev, [activeIdx]: true }));
     }
-  }, [pathname]);
+  }, [pathname, isCollapsed]);
 
   const toggleGroup = (idx: number) => {
     setExpandedGroups(prev => ({ ...prev, [idx]: !prev[idx] }));
@@ -108,32 +119,81 @@ function SidebarContent({ isMobileOpen, onCloseMobile }: { isMobileOpen?: boolea
           className="fixed inset-0 bg-obsidian-950/45 backdrop-blur-sm z-45 md:hidden"
         />
       )}
-      <aside className={`fixed left-0 top-0 h-screen flex flex-col py-stack-lg border-r border-outline-variant bg-surface-container-lowest w-64 z-50 transition-transform duration-300 md:translate-x-0 ${isMobileOpen ? "translate-x-0" : "-translate-x-full"} md:flex`}>
+      <aside className={`fixed left-0 top-0 h-screen flex flex-col py-stack-lg border-r border-outline-variant bg-surface-container-lowest z-50 transition-all duration-300 md:translate-x-0 ${isMobileOpen ? "translate-x-0" : "-translate-x-full"} md:flex ${isCollapsed ? "w-20" : "w-64"}`}>
         {/* Brand Header */}
-        <div className="px-6 mb-6 flex justify-between items-center">
-          <div>
-            <h1 className="font-geist font-bold text-3xl tracking-tight text-primary">
-              FleetOS
-            </h1>
-            <p className="font-geist text-xs text-on-surface-variant font-semibold">
-              Enterprise Fleet Admin
-            </p>
-          </div>
-          {onCloseMobile && (
-            <button
-              onClick={onCloseMobile}
-              className="md:hidden p-1.5 rounded-lg text-outline hover:text-primary hover:bg-surface-container flex items-center justify-center transition-colors"
-            >
-              <span className="material-symbols-outlined text-[20px]">close</span>
-            </button>
+        <div className={`mb-6 flex items-center ${isCollapsed ? "flex-col gap-4 px-2" : "justify-between px-6"}`}>
+          {!isCollapsed ? (
+            <div>
+              <h1 className="font-geist font-bold text-3xl tracking-tight text-primary">
+                FleetOS
+              </h1>
+              <p className="font-geist text-xs text-on-surface-variant font-semibold">
+                Enterprise Fleet Admin
+              </p>
+            </div>
+          ) : (
+            <div className="w-10 h-10 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center font-geist font-bold text-xl text-primary" title="FleetOS">
+              F
+            </div>
           )}
+
+          <div className="flex items-center gap-1">
+            {/* Desktop Collapse Toggle Button */}
+            <button
+              onClick={onToggleCollapse}
+              className="hidden md:flex p-1.5 rounded-lg text-outline hover:text-primary hover:bg-surface-container items-center justify-center transition-colors"
+              title={isCollapsed ? "Expandir Menu" : "Recolher Menu"}
+            >
+              <span className="material-symbols-outlined text-[20px]">
+                {isCollapsed ? "chevron_right" : "chevron_left"}
+              </span>
+            </button>
+
+            {onCloseMobile && (
+              <button
+                onClick={onCloseMobile}
+                className="md:hidden p-1.5 rounded-lg text-outline hover:text-primary hover:bg-surface-container flex items-center justify-center transition-colors"
+                title="Fechar Menu"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 space-y-3 overflow-y-auto">
+        <nav className={`flex-1 overflow-y-auto ${isCollapsed ? "px-2 space-y-1.5" : "px-4 space-y-3"}`}>
           {menuGroups.map((group, groupIdx) => {
             const visibleItems = group.items.filter(hasPermission);
             if (visibleItems.length === 0) return null;
+
+            // Icon-only flat links when collapsed
+            if (isCollapsed) {
+              return (
+                <div key={groupIdx} className="space-y-1.5 py-1.5 border-b border-outline-variant/30 last:border-0 flex flex-col items-center">
+                  {visibleItems.map((item) => {
+                    const isActive = item.href.includes("?")
+                      ? (pathname === item.href.split("?")[0] && tabParam === new URLSearchParams(item.href.split("?")[1]).get("tab"))
+                      : (pathname === item.href && !tabParam);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        title={item.name}
+                        onClick={() => onCloseMobile?.()}
+                        className={`flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 ${
+                          isActive
+                            ? "bg-indigo-50 text-indigo-700 font-bold border-l-2 border-indigo-600 shadow-sm"
+                            : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              );
+            }
 
             const isCollapsible = visibleItems.length > 1;
             const isExpanded = expandedGroups[groupIdx];
@@ -212,29 +272,46 @@ function SidebarContent({ isMobileOpen, onCloseMobile }: { isMobileOpen?: boolea
         </nav>
 
         {/* User Info & Sign Out */}
-        <div className="mt-auto px-4 pt-4 border-t border-outline-variant space-y-3">
-          <div className="flex items-center space-x-3 px-3 py-2 bg-surface-container-low rounded-lg">
-            <div className="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center font-bold text-xs text-on-primary-fixed">
-              {currentUser.displayName ? currentUser.displayName.substr(0, 2).toUpperCase() : "US"}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-primary truncate">{currentUser.displayName}</p>
-              <p className="text-[9px] text-on-surface-variant uppercase truncate font-bold animate-pulse">
-                {currentUser.roleId ? currentUser.roleId.replace("role-", "").replace("-", " ") : currentUser.role.replace("_", " ")}
-              </p>
-            </div>
-          </div>
+        <div className={`mt-auto pt-4 border-t border-outline-variant ${isCollapsed ? "flex flex-col items-center gap-3 px-2" : "px-4 space-y-3"}`}>
+          {isCollapsed ? (
+            <>
+              <div 
+                className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center font-bold text-xs text-on-primary-fixed cursor-pointer"
+                title={`${currentUser.displayName} (${currentUser.roleId ? currentUser.roleId.replace("role-", "").toUpperCase() : currentUser.role.toUpperCase()})`}
+              >
+                {currentUser.displayName ? currentUser.displayName.substr(0, 2).toUpperCase() : "US"}
+              </div>
+              <button
+                onClick={() => signOutUser()}
+                title="Sair do Sistema"
+                className="w-10 h-10 flex items-center justify-center rounded-lg text-outline hover:text-red-650 hover:bg-red-50 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[20px]">logout</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center space-x-3 px-3 py-2 bg-surface-container-low rounded-lg">
+                <div className="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center font-bold text-xs text-on-primary-fixed">
+                  {currentUser.displayName ? currentUser.displayName.substr(0, 2).toUpperCase() : "US"}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-primary truncate">{currentUser.displayName}</p>
+                  <p className="text-[9px] text-on-surface-variant uppercase truncate font-bold animate-pulse">
+                    {currentUser.roleId ? currentUser.roleId.replace("role-", "").replace("-", " ") : currentUser.role.replace("_", " ")}
+                  </p>
+                </div>
+              </div>
 
-          <button
-            onClick={() => {
-              signOutUser();
-              onCloseMobile?.();
-            }}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-error hover:bg-error-container/10 transition-colors rounded-lg font-semibold text-xs"
-          >
-            <span className="material-symbols-outlined text-[20px]">logout</span>
-            <span className="font-geist">Sair da Conta</span>
-          </button>
+              <button
+                onClick={() => signOutUser()}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-bold text-outline hover:text-red-650 hover:bg-red-50 rounded-lg transition-colors border border-outline-variant/60"
+              >
+                <span className="material-symbols-outlined text-[16px]">logout</span>
+                <span className="font-geist">Sair do Sistema</span>
+              </button>
+            </>
+          )}
         </div>
       </aside>
     </>
@@ -274,6 +351,21 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   const { currentUser, loading, isMockMode, can, isImpersonating, stopImpersonation } = useAuth();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("fleetos_sidebar_collapsed") === "true";
+    }
+    return false;
+  });
+
+  const toggleSidebarCollapse = () => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem("fleetos_sidebar_collapsed", String(next));
+      return next;
+    });
+  };
+
   const [searchVal, setSearchVal] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
 
@@ -424,11 +516,16 @@ function MainLayout({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 min-h-screen">
         {currentUser && (
           <Suspense fallback={null}>
-            <SidebarContent isMobileOpen={isMobileMenuOpen} onCloseMobile={() => setIsMobileMenuOpen(false)} />
+            <SidebarContent 
+              isMobileOpen={isMobileMenuOpen} 
+              onCloseMobile={() => setIsMobileMenuOpen(false)} 
+              isCollapsed={isSidebarCollapsed}
+              onToggleCollapse={toggleSidebarCollapse}
+            />
           </Suspense>
         )}
         
-        <div className={`flex-1 flex flex-col min-h-screen ${currentUser ? "md:pl-64" : ""}`}>
+        <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${currentUser ? (isSidebarCollapsed ? "md:pl-20" : "md:pl-64") : ""}`}>
           {currentUser && (
             <header className="flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop h-16 sticky top-0 z-40 bg-surface/80 backdrop-blur-md border-b border-outline-variant">
               <div className="flex items-center gap-gutter">
