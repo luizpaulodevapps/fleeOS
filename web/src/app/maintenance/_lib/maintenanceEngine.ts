@@ -112,10 +112,33 @@ export function calculateFleetAlerts(
 
   for (const vehicle of vehicles) {
     // 1. Encontrar o plano vinculado ao veículo
-    const vehiclePlan = vehiclePlans.find((vp) => vp.vehicleId === vehicle.id);
-    if (!vehiclePlan) continue;
+    let planId = null;
 
-    const plan = plans.find((p) => p.id === vehiclePlan.planId);
+    // a) Checar vínculo explícito na tabela de vínculos
+    const vehiclePlan = vehiclePlans.find((vp) => vp.vehicleId === vehicle.id);
+    if (vehiclePlan) {
+      planId = vehiclePlan.planId;
+    } else if (vehicle.maintenancePlanId) {
+      // b) Checar campo direto no veículo
+      planId = vehicle.maintenancePlanId;
+    } else {
+      // c) Fallback automático com base na categoria/combustível do veículo
+      const normalizedFuel = (vehicle.fuelType || "").toLowerCase();
+      let matchCat = "flex";
+      if (normalizedFuel.includes("gnv")) matchCat = "gnv";
+      else if (normalizedFuel.includes("híbrido") || normalizedFuel.includes("hibrido")) matchCat = "hybrid";
+      else if (normalizedFuel.includes("elétrico") || normalizedFuel.includes("eletrico")) matchCat = "ev";
+      else if (normalizedFuel.includes("diesel")) matchCat = "diesel";
+      
+      const defaultPlan = plans.find((p) => p.category === matchCat && p.isDefault) || plans.find((p) => p.category === matchCat);
+      if (defaultPlan) {
+        planId = defaultPlan.id;
+      }
+    }
+
+    if (!planId) continue;
+
+    const plan = plans.find((p) => p.id === planId);
     if (!plan) continue;
 
     const vehicleMileage = Number(vehicle.mileage || 0);

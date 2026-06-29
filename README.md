@@ -48,7 +48,83 @@ FleetOS é uma plataforma de gestão de frotas com painel administrativo web e a
 - `web/`: painel administrativo Next.js.
 - `firestore.rules`: regras de segurança Firestore.
 - `README.md`: documentação do projeto.
-- `stitch_downloads/`: protótipos ou versões estáticas importadas.
+
+---
+
+## Módulos e Funcionalidades
+
+### Central de Operações (`/operations`)
+
+Wizard guiado para gestão de entrega, devolução e troca de veículos:
+
+- **Entrega de Veículo** (8 passos): Seleção de motorista via busca → seleção de veículo via busca ou **escaneamento de placa por câmera** → contrato → checklist → vistoria → assinatura → financeiro → revisão.
+- **Devolução de Veículo** (6 passos): Escaneamento ou seleção do veículo → checklist → avarias → ajuste financeiro → quitação → revisão.
+- **Troca de Veículo** (6 passos): Seleção do motorista → checklist antigo → novo veículo → checklist novo → assinatura → revisão.
+
+Componentes:
+- `SearchSelect`: componente reutilizável de busca para seleção de motoristas e veículos (substitui `<select>` por pesquisa).
+- `PlateScanner`: leitura de placa por câmera usando `html5-qrcode`. Suporta câmera traseira em dispositivos móveis, leitura de código de barras e QR code.
+- `SignaturePad`: captura de assinatura digital.
+
+### Gestão de Veículos (`/vehicles`)
+
+Prontuário digital completo com 13 abas:
+
+| Aba | Descrição |
+|-----|-----------|
+| Ficha Técnica | Dados cadastrais, placa, modelo, ano, renavam, chassi |
+| Patrimônio | Aquisição, NF, depreciação, FIPE |
+| Performance | KPIs operacionais, custo/km, receita |
+| Operação Atual | Vínculo ativo, motorista, contrato, próximo manutenção |
+| Compliance & Regulação | Alvarás, pontos de táxi, vistorias DTP, taxímetro |
+| Bloqueios & Travas | Bloqueios mecânicos, regulatorios, administrativos |
+| Histórico Motoristas | Motoristas anteriores e duração dos vínculos |
+| Equipamentos | Rastreador, taxímetro, luminoso, equipamentos |
+| Sinistros & Avarias | Registro de sinistros com mapa de avarias |
+| Manutenção & OS | Ordens de serviço, histórico, agendamentos |
+| Vistorias Checklists | Checklists de entrega e devolução com fotos |
+| Documentos CRLV | Upload de documentos, CNH, CRLV, seguro |
+| Histórico Auditoria | Timeline de todas as operações |
+
+**Modal responsivo**: sidebar colapsável no mobile com menu hamburguer, fullscreen em telas pequenas.
+
+### Gestão de Manutenção (`/maintenance`)
+
+Sistema completo de manutenção com 9 sub-módulos:
+
+| Sub-aba | Descrição |
+|---------|-----------|
+| Alertas da Frota | Motor de alertas baseado em km e tempo |
+| Ordens de Serviço | Criação, acompanhamento e conclusão de OS |
+| Planos Preventivos | Itens de plano por veículo (legado) |
+| Catálogo de Planos | **Planos reutilizáveis** por categoria de veículo com CRUD completo |
+| Catálogo Técnico | Especificações técnicas por modelo |
+| Estoque Técnico | Peças, movimentações, estoque baixo |
+| Compras & Fornecedores | Pedidos de compra e gestão de fornecedores |
+| Catalogação de Peças | Fila provisória de catalogação |
+| Custos & BI | Análise de custos e relatórios |
+
+**CRUD Completo**:
+- Planos de manutenção: criar, editar, excluir com confirmação.
+- Procedimentos: criar, editar, excluir com kits de peças.
+- Vínculos veículo → plano: atribuir/remover planos a veículos.
+
+### Outros Módulos
+
+- `/drivers`: Cadastro de motoristas com prontuário, CNH, CONDUTAX, histórico.
+- `/contracts`: Gestão de contratos de locação com ciclo de vida completo.
+- `/assignments`: Vínculos motorista-veículo com validações.
+- `/cashier`: Sessões de caixa, borderô, checklist de abertura/fechamento.
+- `/financial`: Extrato financeiro, conciliação, compliance, cobranças.
+- `/pricing`: Regras de precificação, tabelas, pacotes, categorias.
+- `/fines`: Infrações de trânsito com identificação do motorista.
+- `/claims`: Sinistros com mapa de avarias, processo regulatório.
+- `/dispatcher`: Processos regulatórios, transferências de alvarás.
+- `/documents`: Templates de documentos com motor de variáveis.
+- `/reports`: Relatórios e ROI.
+- `/settings`: Configurações do sistema.
+- `/portals/workshop`: Portal da oficina.
+- `/portals/adjuster`: Portal do regulador.
 
 ---
 
@@ -62,6 +138,8 @@ FleetOS é uma plataforma de gestão de frotas com painel administrativo web e a
 - `zustand`
 - `tailwindcss`, `postcss`, `autoprefixer`
 - `typescript`
+- `html5-qrcode` (leitura de câmera para escaneamento de placa)
+- `lucide-react` (ícones)
 
 ### Mobile
 
@@ -129,6 +207,8 @@ Variáveis esperadas:
 - Mobile offline-first com esquema local e fila de sincronização.
 - Segurança multi-tenant pensada no Firestore com regras de tenant boundary.
 - Uso de `Zustand` para estado compartilhado e `React Query` para gerenciamento de dados.
+- Componentes reutilizáveis (SearchSelect, PlateScanner, SignaturePad).
+- Modais responsivos com adaptação mobile-first.
 
 ### Limitações identificadas
 
@@ -143,12 +223,11 @@ Variáveis esperadas:
 - Externalizar seeds e mock data para arquivos JSON/fixtures.
 - Adicionar testes unitários/integração e lint no pipeline.
 - Implementar uma API de sincronização real para o motor offline-first.
-- Adicionar um `CONTRIBUTING.md` ou `ARCHITECTURE.md` para guiar futuros desenvolvedores.
 - Rever a política de regras Firestore para reduzir leituras repetidas e evitar uso excessivo de `get()`.
 
 ---
 
-## Melhorias sugeridas
+## Melhorias Sugeridas
 
 1. Centralizar tipos e modelos `Tenant`, `User`, `Driver`, `Vehicle`, `Contract` em um pacote compartilhado.
 2. Separar a lógica de persistência do `AuthContext` em hooks e serviços.
@@ -162,10 +241,10 @@ Variáveis esperadas:
 
 - `CONTRIBUTING.md`: guia de colaboração, checklist de PR e boas práticas.
 - `ARCHITECTURE.md`: visão detalhada da arquitetura e fluxo de dados.
+- `DEVELOPMENT.md`: guia de setup e desenvolvimento local.
 
 ---
 
 ## Contato
 
 Para manutenção e desenvolvimento, use a arquitetura de dual stack: `Next.js` para admin e `Expo/React Native` para mobile. O foco principal deve ser a estabilidade do fluxo offline e a proteção de borda multi-tenant.
- 

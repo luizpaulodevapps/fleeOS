@@ -33,11 +33,19 @@ const TAG_GROUPS: { label: string; tags: string[] }[] = [
   },
   {
     label: "Empresa",
-    tags: ["company_name", "company_cnpj", "company_address"],
+    tags: ["company_name", "company_cnpj", "company_address", "company_phone", "company_email"],
   },
   {
     label: "Taxímetro",
     tags: ["taximeter_number", "taximeter_brand", "taximeter_calibration"],
+  },
+  {
+    label: "Financeiro (Extenso)",
+    tags: [
+      "daily_rate_extenso", "weekly_rate_extenso", "monthly_rate_extenso",
+      "contract_date_extenso", "caucao_amount_extenso", "debt_amount_extenso",
+      "promissory_amount_extenso",
+    ],
   },
 ];
 
@@ -56,10 +64,11 @@ const CATEGORIES_ORDER: DocumentCategory[] = [
 ];
 
 export function TemplateManager({ contracts, drivers, vehicles, company, currentUserName }: Props) {
-  const { getCollection, addDocument, updateDocument } = useAuth();
+  const { getCollection, addDocument, updateDocument, deleteDocument } = useAuth();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [templateVersions, setTemplateVersions] = useState<DocumentTemplateVersion[]>([]);
+  const [customTemplates, setCustomTemplates] = useState<DocumentTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [editBody, setEditBody] = useState("");
   const [editExtraFields, setEditExtraFields] = useState<DocumentExtraField[]>([]);
@@ -77,13 +86,30 @@ export function TemplateManager({ contracts, drivers, vehicles, company, current
   const [newFieldOptions, setNewFieldOptions] = useState("");
   const [newFieldRequired, setNewFieldRequired] = useState(false);
 
+  // ─── New Template Modal ──────────────────────────────────────────────
+  const [showNewTemplateModal, setShowNewTemplateModal] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState("");
+  const [newTemplateCategory, setNewTemplateCategory] = useState<DocumentCategory>("Operação");
+  const [newTemplateDescription, setNewTemplateDescription] = useState("");
+  const [newTemplateBody, setNewTemplateBody] = useState("");
+
+  // ─── Load Data ───────────────────────────────────────────────────────
   useEffect(() => {
-    getCollection("document_template_versions").then((list) => {
-      setTemplateVersions(list || []);
+    Promise.all([
+      getCollection("document_template_versions"),
+      getCollection("custom_document_templates"),
+    ]).then(([versions, customs]) => {
+      setTemplateVersions(versions || []);
+      setCustomTemplates(customs || []);
     });
   }, [getCollection]);
 
-  const selectedTemplate = DOCUMENT_TEMPLATES.find((t) => t.id === selectedTemplateId);
+  // ─── All Templates (hardcoded + custom) ──────────────────────────────
+  const allTemplates = useMemo(() => {
+    return [...DOCUMENT_TEMPLATES, ...customTemplates];
+  }, [customTemplates]);
+
+  const selectedTemplate = allTemplates.find((t) => t.id === selectedTemplateId);
 
   const templateVersionList = useMemo(() => {
     return templateVersions
@@ -92,7 +118,6 @@ export function TemplateManager({ contracts, drivers, vehicles, company, current
   }, [templateVersions, selectedTemplateId]);
 
   const latestVersion: DocumentTemplateVersion | null = templateVersionList[0] || null;
-
   const versionStatus = latestVersion?.status;
 
   useEffect(() => {
@@ -107,17 +132,17 @@ export function TemplateManager({ contracts, drivers, vehicles, company, current
     setChangeLog("");
     setShowPreview(false);
     setPreviewContractId("");
-  }, [selectedTemplateId, latestVersion]);
+  }, [selectedTemplateId, latestVersion, selectedTemplate]);
 
   const filteredTemplates = useMemo(() => {
     const q = search.toLowerCase();
-    return DOCUMENT_TEMPLATES.filter(
+    return allTemplates.filter(
       (t) =>
         t.name.toLowerCase().includes(q) ||
         t.description.toLowerCase().includes(q) ||
         t.category.toLowerCase().includes(q)
     );
-  }, [search]);
+  }, [search, allTemplates]);
 
   const groupedTemplates = useMemo(() => {
     const groups: Record<string, DocumentTemplate[]> = {};
@@ -151,6 +176,7 @@ export function TemplateManager({ contracts, drivers, vehicles, company, current
     [editBody]
   );
 
+  // ─── Extra Fields ────────────────────────────────────────────────────
   const handleAddExtraField = () => {
     if (!newFieldKey || !newFieldLabel) return;
     setEditExtraFields((prev) => [
@@ -175,10 +201,7 @@ export function TemplateManager({ contracts, drivers, vehicles, company, current
     setEditExtraFields((prev) => prev.filter((f) => f.key !== key));
   };
 
-  const handleUpdateExtraField = (index: number, field: Partial<DocumentExtraField>) => {
-    setEditExtraFields((prev) => prev.map((f, i) => (i === index ? { ...f, ...field } : f)));
-  };
-
+  // ─── CRUD Operations ─────────────────────────────────────────────────
   const saveDraft = async () => {
     if (!selectedTemplate) return;
     if (!changeLog.trim()) {
@@ -228,6 +251,81 @@ export function TemplateManager({ contracts, drivers, vehicles, company, current
     }
   };
 
+  const handleCreateTemplate = async () => {
+    if (!newTemplateName.trim() || !newTemplateBody.trim()) {
+      alert("Preencha nome e corpo do template.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const id = `custom-${Date.now()}`;
+      const newTemplate: DocumentTemplate = {
+        id,
+        name: newTemplateName.trim(),
+        category: newTemplateCategory,
+        description: newTemplateDescription.trim() || `Template personalizado: ${newTemplateName.trim()}`,
+        icon: CATEGORY_META[newTemplateCategory].icon,
+        body: newTemplateBody,
+        extraFields: [],
+      };
+      await addDocument("custom_document_templates", {
+        ...newTemplate,
+        tenantId: currentUser?.tenantId || "default",
+        createdBy: currentUserName,
+        createdAt: new Date().toISOString(),
+      });
+      const list = await getCollection("custom_document_templates");
+      setCustomTemplates(list || []);
+      setShowNewTemplateModal(false);
+      setNewTemplateName("");
+      setNewTemplateCategory("Operação");
+      setNewTemplateDescription("");
+      setNewTemplateBody("");
+      setSelectedTemplateId(id);
+    } catch (e) {
+      console.error("Erro ao criar template:", e);
+      alert("Erro ao criar template.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    if (!confirm("Tem certeza que deseja excluir este template?")) return;
+    setSaving(true);
+    try {
+      await deleteDocument("custom_document_templates", templateId);
+      const list = await getCollection("custom_document_templates");
+      setCustomTemplates(list || []);
+      if (selectedTemplateId === templateId) {
+        setSelectedTemplateId(null);
+      }
+    } catch (e) {
+      console.error("Erro ao excluir template:", e);
+      alert("Erro ao excluir template.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleArchiveVersion = async (versionId: string) => {
+    if (!confirm("Arquivar esta versão?")) return;
+    setSaving(true);
+    try {
+      await updateDocument("document_template_versions", versionId, {
+        status: "archived",
+      });
+      const list = await getCollection("document_template_versions");
+      setTemplateVersions(list || []);
+    } catch (e) {
+      console.error("Erro ao arquivar versão:", e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ─── Preview ─────────────────────────────────────────────────────────
+  const { currentUser } = useAuth();
   const previewContract = contracts.find((c) => c.id === previewContractId);
   const previewDriver = drivers.find((d) => d.id === previewContract?.driverId);
   const previewVehicle = vehicles.find((v) => v.id === previewContract?.vehicleId);
@@ -240,11 +338,13 @@ export function TemplateManager({ contracts, drivers, vehicles, company, current
 
   const hasUnresolved = resolvedBody?.includes("⚠️[") ?? false;
 
+  const isCustomTemplate = selectedTemplateId?.startsWith("custom-");
+
   return (
     <div className="flex gap-0 min-h-[600px] bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
       {/* ─── Left sidebar ──────────────────────────────────────────────────── */}
       <div className="w-72 shrink-0 border-r border-slate-200 flex flex-col bg-slate-50">
-        <div className="p-3 border-b border-slate-200">
+        <div className="p-3 border-b border-slate-200 space-y-2">
           <div className="relative">
             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[16px]">search</span>
             <input
@@ -255,6 +355,13 @@ export function TemplateManager({ contracts, drivers, vehicles, company, current
               className="w-full pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
             />
           </div>
+          <button
+            onClick={() => setShowNewTemplateModal(true)}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-bold text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+          >
+            <span className="material-symbols-outlined text-[14px]">add</span>
+            Novo Template
+          </button>
         </div>
         <div className="flex-1 overflow-y-auto divide-y divide-slate-200">
           {CATEGORIES_ORDER.map((cat) => {
@@ -273,6 +380,7 @@ export function TemplateManager({ contracts, drivers, vehicles, company, current
                   const tplVersion = templateVersions
                     .filter((v) => v.templateId === tpl.id)
                     .sort((a, b) => b.version - a.version)[0];
+                  const isCustom = tpl.id.startsWith("custom-");
                   return (
                     <button
                       key={tpl.id}
@@ -283,7 +391,12 @@ export function TemplateManager({ contracts, drivers, vehicles, company, current
                           : "border-transparent hover:bg-slate-100"
                       }`}
                     >
-                      <p className="text-xs font-semibold text-slate-800 truncate leading-tight">{tpl.name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-semibold text-slate-800 truncate leading-tight flex-1">{tpl.name}</p>
+                        {isCustom && (
+                          <span className="text-[7px] font-bold text-primary bg-primary/10 px-1 py-0.5 rounded">CUSTOM</span>
+                        )}
+                      </div>
                       <p className="text-[9px] text-slate-400 truncate mt-0.5">{tpl.description}</p>
                       {tplVersion && (
                         <span className={`inline-block mt-1 text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
@@ -312,7 +425,7 @@ export function TemplateManager({ contracts, drivers, vehicles, company, current
             <div className="text-center">
               <span className="material-symbols-outlined text-[48px] mb-3 block">description</span>
               <p className="text-sm font-semibold">Selecione um modelo para editar</p>
-              <p className="text-xs mt-1">Clique em um modelo à esquerda para começar</p>
+              <p className="text-xs mt-1">Clique em um modelo à esquerda ou crie um novo</p>
             </div>
           </div>
         ) : (
@@ -339,13 +452,22 @@ export function TemplateManager({ contracts, drivers, vehicles, company, current
                     )}
                     {!latestVersion && (
                       <span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">
-                        Original (hardcoded)
+                        Original
                       </span>
                     )}
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {isCustomTemplate && (
+                  <button
+                    onClick={() => handleDeleteTemplate(selectedTemplateId!)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">delete</span>
+                    Excluir
+                  </button>
+                )}
                 <button
                   onClick={() => setShowVersionHistory((v) => !v)}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
@@ -469,7 +591,7 @@ export function TemplateManager({ contracts, drivers, vehicles, company, current
                   )}
                   {editExtraFields.length > 0 && (
                     <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                      {editExtraFields.map((field, idx) => (
+                      {editExtraFields.map((field) => (
                         <div key={field.key} className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5">
                           <span className="text-[9px] font-mono font-bold text-slate-600 min-w-[80px]">{field.key}</span>
                           <span className="text-[9px] text-slate-500 flex-1 truncate">{field.label}</span>
@@ -574,15 +696,26 @@ export function TemplateManager({ contracts, drivers, vehicles, company, current
                       <div key={ver.id} className="px-4 py-3">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-slate-800">v{ver.version}</span>
-                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
-                            ver.status === "approved"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : ver.status === "draft"
-                              ? "bg-amber-100 text-amber-700"
-                              : "bg-slate-100 text-slate-500"
-                          }`}>
-                            {ver.status === "approved" ? "Aprovado" : ver.status === "draft" ? "Rascunho" : "Arquivado"}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
+                              ver.status === "approved"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : ver.status === "draft"
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-slate-100 text-slate-500"
+                            }`}>
+                              {ver.status === "approved" ? "Aprovado" : ver.status === "draft" ? "Rascunho" : "Arquivado"}
+                            </span>
+                            {ver.status !== "archived" && (
+                              <button
+                                onClick={() => handleArchiveVersion(ver.id)}
+                                className="text-slate-300 hover:text-red-500 transition-colors"
+                                title="Arquivar"
+                              >
+                                <span className="material-symbols-outlined text-[12px]">archive</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <p className="text-[9px] text-slate-500 mt-1 leading-relaxed">{ver.changeLog}</p>
                         <p className="text-[8px] text-slate-400 mt-1">
@@ -597,6 +730,96 @@ export function TemplateManager({ contracts, drivers, vehicles, company, current
           </>
         )}
       </div>
+
+      {/* ─── New Template Modal ─────────────────────────────────────────────── */}
+      {showNewTemplateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Novo Template</h3>
+                <p className="text-[10px] text-slate-400 mt-0.5">Crie um template personalizado do zero</p>
+              </div>
+              <button
+                onClick={() => setShowNewTemplateModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">Nome do Template</label>
+                <input
+                  value={newTemplateName}
+                  onChange={(e) => setNewTemplateName(e.target.value)}
+                  placeholder="Ex: Termo de Responsabilidade por Equipamento"
+                  className="w-full h-9 px-3 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">Categoria</label>
+                  <select
+                    value={newTemplateCategory}
+                    onChange={(e) => setNewTemplateCategory(e.target.value as DocumentCategory)}
+                    className="w-full h-9 px-3 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-primary"
+                  >
+                    {CATEGORIES_ORDER.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">Descrição</label>
+                  <input
+                    value={newTemplateDescription}
+                    onChange={(e) => setNewTemplateDescription(e.target.value)}
+                    placeholder="Breve descrição..."
+                    className="w-full h-9 px-3 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">Corpo do Template</label>
+                <textarea
+                  value={newTemplateBody}
+                  onChange={(e) => setNewTemplateBody(e.target.value)}
+                  placeholder="Cole ou digite o corpo do template aqui. Use {{variavel}} para campos dinâmicos."
+                  rows={10}
+                  className="w-full px-3 py-2 text-xs font-mono border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  spellCheck={false}
+                />
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <p className="text-[9px] font-bold text-slate-400 uppercase mb-2">Variáveis Disponíveis</p>
+                <div className="flex flex-wrap gap-1">
+                  {TAG_GROUPS.flatMap((g) => g.tags).map((tag) => (
+                    <span key={tag} className="text-[8px] font-mono bg-white border border-slate-200 px-1.5 py-0.5 rounded text-slate-600">
+                      {`{{${tag}}}`}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-end gap-2 bg-slate-50">
+              <button
+                onClick={() => setShowNewTemplateModal(false)}
+                className="px-4 py-2 text-[10px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreateTemplate}
+                disabled={saving || !newTemplateName.trim() || !newTemplateBody.trim()}
+                className="px-4 py-2 text-[10px] font-bold text-white bg-primary hover:bg-primary/90 disabled:opacity-40 rounded-lg transition-colors"
+              >
+                {saving ? "Criando..." : "Criar Template"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

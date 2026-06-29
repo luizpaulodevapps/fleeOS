@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 import { 
   AlertTriangle, 
   Clock, 
@@ -12,11 +13,17 @@ import {
   Calendar,
   User,
   Car,
-  FileText
+  FileText,
+  MoreVertical,
+  ExternalLink,
+  FilePlus,
+  Check,
+  Bell,
 } from "lucide-react";
 
 export default function ExpirationsManager() {
-  const { getCollection } = useAuth();
+  const { getCollection, addDocument, currentUser } = useAuth();
+  const router = useRouter();
   
   const [drivers, setDrivers] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -26,6 +33,7 @@ export default function ExpirationsManager() {
   
   const [searchTerm, setSearchTerm] = useState("");
   const [docTypeFilter, setDocTypeFilter] = useState("all");
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -70,6 +78,7 @@ export default function ExpirationsManager() {
     if (d.cnhExpiration) {
       allExpirations.push({
         id: `cnh-${d.id}`,
+        entityId: d.id,
         name: d.name,
         targetType: "driver",
         docType: "CNH",
@@ -80,6 +89,7 @@ export default function ExpirationsManager() {
     if (d.condutaxExpiration) {
       allExpirations.push({
         id: `condutax-${d.id}`,
+        entityId: d.id,
         name: d.name,
         targetType: "driver",
         docType: "CONDUTAX",
@@ -90,6 +100,7 @@ export default function ExpirationsManager() {
     if (d.alvaraExpiration) {
       allExpirations.push({
         id: `alvara-${d.id}`,
+        entityId: d.id,
         name: d.name,
         targetType: "driver",
         docType: "Alvará",
@@ -104,6 +115,7 @@ export default function ExpirationsManager() {
     if (v.insuranceExpiration) {
       allExpirations.push({
         id: `ins-${v.id}`,
+        entityId: v.id,
         name: `${v.brand} ${v.model} (${v.plate})`,
         targetType: "vehicle",
         docType: "Seguro",
@@ -114,6 +126,7 @@ export default function ExpirationsManager() {
     if (v.registrationExpiration) {
       allExpirations.push({
         id: `reg-${v.id}`,
+        entityId: v.id,
         name: `${v.brand} ${v.model} (${v.plate})`,
         targetType: "vehicle",
         docType: "Licenciamento (CRLV)",
@@ -132,6 +145,7 @@ export default function ExpirationsManager() {
     if (c.endDate && ["active", "Ativo"].includes(c.status)) {
       allExpirations.push({
         id: `con-${c.id}`,
+        entityId: c.id,
         name: label,
         targetType: "contract",
         docType: "Contrato Locação",
@@ -146,6 +160,7 @@ export default function ExpirationsManager() {
     if (!alert.expirationDate || alert.status !== "Pendente") return;
     allExpirations.push({
       id: `alert-${alert.id}`,
+      entityId: alert.id,
       name: alert.label || "Compromisso contratual",
       targetType: "contract",
       docType: alert.type || "Promissória/Cheque",
@@ -171,6 +186,64 @@ export default function ExpirationsManager() {
   const expiredCount = allExpirations.filter(i => i.days < 0).length;
   const criticalCount = allExpirations.filter(i => i.days >= 0 && i.days <= 7).length;
   const warningCount = allExpirations.filter(i => i.days > 7 && i.days <= 30).length;
+
+  // ─── Action Handlers ──────────────────────────────────────────────────
+  const handleViewEntity = (item: any) => {
+    setActiveMenu(null);
+    if (item.targetType === "driver") {
+      router.push("/drivers");
+    } else if (item.targetType === "vehicle") {
+      router.push("/vehicles");
+    } else if (item.targetType === "contract") {
+      router.push("/contracts");
+    }
+  };
+
+  const handleGenerateDocument = (item: any) => {
+    setActiveMenu(null);
+    // Navigate to documents page with pre-selected context
+    const params = new URLSearchParams();
+    if (item.targetType === "contract") params.set("contractId", item.entityId);
+    if (item.targetType === "driver") params.set("driverId", item.entityId);
+    if (item.targetType === "vehicle") params.set("vehicleId", item.entityId);
+    router.push(`/documents?${params.toString()}`);
+  };
+
+  const handleMarkResolved = async (item: any) => {
+    setActiveMenu(null);
+    // Create an expiration alert as resolved
+    await addDocument("expirations", {
+      type: item.docType,
+      label: `[RESOLVIDO] ${item.name} - ${item.docType}`,
+      entityId: item.entityId,
+      entityType: item.targetType,
+      expirationDate: item.date,
+      status: "Resolvido",
+      resolvedAt: new Date().toISOString(),
+      resolvedBy: currentUser?.displayName || "Sistema",
+      tenantId: currentUser?.tenantId || "default",
+    });
+    loadData();
+  };
+
+  const handleCreateReminder = async (item: any) => {
+    setActiveMenu(null);
+    const reminderDate = new Date(item.date);
+    reminderDate.setDate(reminderDate.getDate() - 7); // 7 days before expiration
+    
+    await addDocument("expirations", {
+      type: `Lembrete - ${item.docType}`,
+      label: `Lembrete: ${item.name} - ${item.docType} vence em 7 dias`,
+      entityId: item.entityId,
+      entityType: item.targetType,
+      expirationDate: reminderDate.toISOString().split("T")[0],
+      status: "Pendente",
+      createdAt: new Date().toISOString(),
+      createdBy: currentUser?.displayName || "Sistema",
+      tenantId: currentUser?.tenantId || "default",
+    });
+    alert("Lembrete criado para 7 dias antes do vencimento!");
+  };
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto print:bg-white print:text-black">
@@ -299,6 +372,7 @@ export default function ExpirationsManager() {
                       <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase tracking-wider">Vencimento</th>
                       <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase tracking-wider">Prazo</th>
                       <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase tracking-wider text-right">Status</th>
+                      <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase tracking-wider text-right print:hidden">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant/60">
@@ -346,6 +420,48 @@ export default function ExpirationsManager() {
                           }`}>
                             {item.days < 0 ? "Expirado" : item.days <= 7 ? "Crítico" : item.days <= 30 ? "Atenção" : "Em dia"}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 text-right relative print:hidden">
+                          <button
+                            onClick={() => setActiveMenu(activeMenu === item.id ? null : item.id)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                          
+                          {activeMenu === item.id && (
+                            <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-slate-200 rounded-xl shadow-xl z-20 py-1">
+                              <button
+                                onClick={() => handleViewEntity(item)}
+                                className="w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                                Ver {item.targetType === "driver" ? "Motorista" : item.targetType === "vehicle" ? "Veículo" : "Contrato"}
+                              </button>
+                              <button
+                                onClick={() => handleGenerateDocument(item)}
+                                className="w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2"
+                              >
+                                <FilePlus className="w-3.5 h-3.5 text-slate-400" />
+                                Gerar Documento
+                              </button>
+                              <button
+                                onClick={() => handleCreateReminder(item)}
+                                className="w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2"
+                              >
+                                <Bell className="w-3.5 h-3.5 text-slate-400" />
+                                Criar Lembrete
+                              </button>
+                              <div className="border-t border-slate-100 my-1" />
+                              <button
+                                onClick={() => handleMarkResolved(item)}
+                                className="w-full px-3 py-2 text-left text-xs text-emerald-600 hover:bg-emerald-50 transition-colors flex items-center gap-2"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                                Marcar como Resolvido
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}

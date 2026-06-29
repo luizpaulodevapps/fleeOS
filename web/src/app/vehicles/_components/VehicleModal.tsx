@@ -1,10 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { 
   X, ShieldAlert, Settings, Banknote, TrendingUp, Zap, 
   User, Tag, AlertTriangle, Wrench, ClipboardList, Paperclip, 
-  Activity, Printer, Scale 
+  Activity, Printer, Scale, Menu, ChevronLeft, FileText
 } from "lucide-react";
 
 import { VehicleSpecsTab } from "./VehicleSpecsTab";
@@ -20,6 +20,7 @@ import { VehicleChecklistsTab } from "./VehicleChecklistsTab";
 import { VehicleDocsTab } from "./VehicleDocsTab";
 import { VehicleHistoryTab } from "./VehicleHistoryTab";
 import { VehicleComplianceTab } from "./VehicleComplianceTab";
+import { VehicleBureaucracyTab } from "./VehicleBureaucracyTab";
 
 interface VehicleModalProps {
   isModalOpen: boolean;
@@ -77,12 +78,19 @@ interface VehicleModalProps {
   regulatoryInspections: any[];
   taximeterRegistries: any[];
   municipalRegulations: any[];
+  workOrders: any[];
+  appointments: any[];
 
   // Handlers
   handleSaveRegulatoryProcess: (vehicleId: string, data: any) => Promise<void>;
   handleSaveTaximeterRegistry: (vehicleId: string, data: any) => Promise<void>;
   handleSaveRegulatoryInspection: (vehicleId: string, data: any) => Promise<void>;
   handleDeleteRegulatoryInspection: (inspectionId: string) => Promise<void>;
+  handleScheduleWorkshopAppointment: (vehicleId: string, title: string, date: string, time: string, notes: string, type?: string) => Promise<void>;
+  handleCreateWorkshopOS: (vehicleId: string, description: string, mileage: number) => Promise<void>;
+  handleCancelAppointment: (appId: string, vehicleId: string) => Promise<void>;
+  handleStartOSFromAppointment: (app: any) => Promise<void>;
+  handleCompleteWorkshopOS: (woId: string, vehicleId: string, mileage: number, cost: number, description: string, planItemId?: string) => Promise<void>;
 }
 
 export function VehicleModal({
@@ -137,14 +145,22 @@ export function VehicleModal({
   regulatoryInspections,
   taximeterRegistries,
   municipalRegulations,
+  workOrders,
+  appointments,
   handleSaveRegulatoryProcess,
   handleSaveTaximeterRegistry,
   handleSaveRegulatoryInspection,
-  handleDeleteRegulatoryInspection
+  handleDeleteRegulatoryInspection,
+  handleScheduleWorkshopAppointment,
+  handleCreateWorkshopOS,
+  handleCancelAppointment,
+  handleStartOSFromAppointment,
+  handleCompleteWorkshopOS
 }: VehicleModalProps) {
   if (!isModalOpen) return null;
 
   const readOnly = selectedVehicle && isReadOnly(selectedVehicle);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const tabs = [
     { id: "specs", label: "Ficha Técnica", icon: Settings, requiresVehicle: false },
@@ -152,6 +168,7 @@ export function VehicleModal({
     { id: "performance", label: "Performance", icon: TrendingUp, requiresVehicle: true, highlight: true },
     { id: "current_op", label: "Operação Atual", icon: Zap, requiresVehicle: true, highlight: true },
     { id: "compliance", label: "🚖 Compliance & Regulação", icon: Scale, requiresVehicle: true, highlight: true },
+    { id: "bureaucracy", label: "📜 Contratos & Burocracia", icon: FileText, requiresVehicle: true, highlight: true },
     { id: "locks", label: "Bloqueios & Travas", icon: ShieldAlert, requiresVehicle: true },
     { id: "drivers", label: "Histórico Motoristas", icon: User, requiresVehicle: true },
     { id: "assets", label: "Equipamentos (Assets)", icon: Tag, requiresVehicle: true },
@@ -163,23 +180,31 @@ export function VehicleModal({
   ];
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-obsidian-950/45 backdrop-blur-sm">
-      <div className="w-full max-w-5xl h-[85vh] bg-background border border-outline-variant rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 z-40 flex items-center justify-center p-0 md:p-4 bg-obsidian-950/45 backdrop-blur-sm">
+      <div className="w-full h-full md:max-w-5xl md:h-[85vh] bg-background border border-outline-variant rounded-none md:rounded-2xl flex flex-col overflow-hidden shadow-2xl">
         
         {/* Modal Header */}
-        <div className="bg-surface-container-low px-6 py-4 border-b border-outline-variant/60 flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-black text-primary font-geist flex items-center gap-2">
-              <span>Prontuário Digital do Ativo</span>
-              {selectedVehicle && (
-                <span className="font-mono bg-surface-container px-2 py-0.5 rounded border border-outline-variant text-xs text-on-surface font-bold">
-                  {selectedVehicle.plate}
-                </span>
-              )}
-            </h3>
-            <p className="text-[11px] text-on-surface-variant font-medium mt-0.5">
-              {selectedVehicle ? `Gestão de prontuário, histórico operacional, sinistros e OS.` : "Adicionar veículo e inicializar prontuário na frota."}
-            </p>
+        <div className="bg-surface-container-low px-4 md:px-6 py-3 md:py-4 border-b border-outline-variant/60 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="md:hidden p-1.5 rounded-lg text-outline hover:text-primary hover:bg-surface-container transition-colors"
+            >
+              {sidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+            <div>
+              <h3 className="text-sm md:text-base font-black text-primary font-geist flex items-center gap-2">
+                <span>Prontuário Digital do Ativo</span>
+                {selectedVehicle && (
+                  <span className="font-mono bg-surface-container px-2 py-0.5 rounded border border-outline-variant text-xs text-on-surface font-bold">
+                    {selectedVehicle.plate}
+                  </span>
+                )}
+              </h3>
+              <p className="text-[10px] md:text-[11px] text-on-surface-variant font-medium mt-0.5">
+                {selectedVehicle ? `Gestão de prontuário, histórico operacional, sinistros e OS.` : "Adicionar veículo e inicializar prontuário na frota."}
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center space-x-3">
@@ -213,17 +238,30 @@ export function VehicleModal({
         )}
 
         {/* Modal Content layout */}
-        <div className="flex-1 flex overflow-hidden min-h-0">
+        <div className="flex-1 flex overflow-hidden min-h-0 relative">
           
+          {/* Mobile Sidebar Overlay */}
+          {sidebarOpen && (
+            <div 
+              className="fixed inset-0 bg-black/50 z-30 md:hidden"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
+
           {/* Sidebar Tabs */}
-          <div className="w-64 bg-surface-container-low border-r border-outline-variant/60 p-4 space-y-1 overflow-y-auto">
+          <div className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 fixed md:relative z-40 md:z-auto w-72 md:w-64 h-full bg-surface-container-low border-r border-outline-variant/60 p-4 space-y-1 overflow-y-auto transition-transform duration-200 ease-in-out`}>
             {tabs.map((t: any) => {
               const Icon = t.icon;
               const isLocked = t.requiresVehicle && !selectedVehicle;
               return (
                 <button
                   key={t.id}
-                  onClick={() => !isLocked && setActiveTab(t.id)}
+                  onClick={() => {
+                    if (!isLocked) {
+                      setActiveTab(t.id);
+                      setSidebarOpen(false);
+                    }
+                  }}
                   disabled={isLocked}
                   title={isLocked ? "Salve o veículo primeiro para acessar esta aba" : undefined}
                   className={`w-full flex items-center space-x-2.5 px-3 py-2.5 rounded-lg text-xs font-bold transition-all text-left ${
@@ -248,7 +286,7 @@ export function VehicleModal({
           </div>
 
           {/* Content Panels */}
-          <div className="flex-1 p-6 overflow-y-auto bg-surface-container-lowest">
+          <div className="flex-1 p-4 md:p-6 overflow-y-auto bg-surface-container-lowest">
 
             {/* Placeholder for restricted tabs in New Vehicle mode */}
             {!selectedVehicle && activeTab !== "specs" && (
@@ -329,6 +367,15 @@ export function VehicleModal({
               />
             )}
 
+            {activeTab === "bureaucracy" && selectedVehicle && (
+              <VehicleBureaucracyTab
+                selectedVehicle={selectedVehicle}
+                contracts={contracts}
+                drivers={drivers}
+                isReadOnly={isReadOnly}
+              />
+            )}
+
             {activeTab === "locks" && selectedVehicle && (
               <VehicleLocksTab
                 selectedVehicle={selectedVehicle}
@@ -386,6 +433,13 @@ export function VehicleModal({
                 setMaintForm={setMaintForm}
                 handleAddMaintenance={handleAddMaintenance}
                 isReadOnly={isReadOnly}
+                workOrders={workOrders}
+                appointments={appointments}
+                handleScheduleWorkshopAppointment={handleScheduleWorkshopAppointment}
+                handleCreateWorkshopOS={handleCreateWorkshopOS}
+                handleCancelAppointment={handleCancelAppointment}
+                handleStartOSFromAppointment={handleStartOSFromAppointment}
+                handleCompleteWorkshopOS={handleCompleteWorkshopOS}
               />
             )}
 
@@ -419,7 +473,7 @@ export function VehicleModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 border-t border-outline-variant bg-surface-container-low flex justify-end space-x-2">
+        <div className="p-3 md:p-4 border-t border-outline-variant bg-surface-container-low flex justify-end space-x-2">
           <button
             type="button"
             onClick={() => setIsModalOpen(false)}

@@ -1,8 +1,10 @@
 "use client";
 
-import React from "react";
-import { Car, X, AlertTriangle, CheckCircle } from "lucide-react";
+import React, { useState } from "react";
+import { Car, X, AlertTriangle, CheckCircle, Camera } from "lucide-react";
 import { SignaturePad } from "./SignaturePad";
+import { SearchSelect, SearchItem } from "./SearchSelect";
+import { PlateScanner } from "./PlateScanner";
 import { DeliveryFormState } from "../_lib/types";
 
 interface DeliveryWizardProps {
@@ -56,6 +58,27 @@ export const DeliveryWizard: React.FC<DeliveryWizardProps> = ({
   submitDelivery,
   setActiveWizard
 }) => {
+  const [showScanner, setShowScanner] = useState(false);
+
+  const handlePlateScan = (plate: string) => {
+    const veh = vehicles.find(v => v.plate?.toUpperCase() === plate);
+    if (!veh) {
+      alert(`Nenhum veículo encontrado com a placa ${plate}`);
+      setShowScanner(false);
+      return;
+    }
+    setDelForm(prev => ({
+      ...prev,
+      vehicleId: veh.id,
+      pricingCategoryId: veh.pricingCategoryId || "",
+      packageId: veh.defaultPackageId || "",
+      billingProfileId: veh.billingProfileId || "",
+      pricingTableId: prev.pricingTableId || "tbl-std"
+    }));
+    setShowScanner(false);
+    handleDelNext();
+  };
+
   return (
     <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-md overflow-hidden animate-fadeIn">
       {/* Header Progress Tracker */}
@@ -78,7 +101,7 @@ export const DeliveryWizard: React.FC<DeliveryWizardProps> = ({
         </div>
         
         {/* Step Indicators */}
-        <div className="grid grid-cols-8 gap-2 text-center text-[9px] font-black uppercase tracking-wider">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 text-center text-[9px] font-black uppercase tracking-wider">
           {[
             { s: 1, name: "Motorista" },
             { s: 2, name: "Veículo" },
@@ -115,20 +138,19 @@ export const DeliveryWizard: React.FC<DeliveryWizardProps> = ({
               Selecione um motorista ativo cadastrado na plataforma para vinculação do veículo. O sistema fará validações automáticas de compliance.
             </p>
 
-            <div className="floating-label-group">
-              <select
-                value={delForm.driverId}
-                onChange={(e) => setDelForm(prev => ({ ...prev, driverId: e.target.value }))}
-                className="w-full pl-3 pr-3 text-xs"
-                required
-              >
-                <option value="">Selecione...</option>
-                {drivers.map(drv => (
-                  <option key={drv.id} value={drv.id}>{drv.name} ({drv.cpf})</option>
-                ))}
-              </select>
-              <label className="text-xs font-semibold text-outline">Selecione o Motorista</label>
-            </div>
+            <SearchSelect
+              items={drivers.map(drv => ({
+                id: drv.id,
+                label: drv.name,
+                subtitle: drv.cpf
+              }))}
+              value={delForm.driverId}
+              onChange={(id) => setDelForm(prev => ({ ...prev, driverId: id }))}
+              placeholder="Pesquise por nome ou CPF..."
+              label="Selecione o Motorista"
+              searchPlaceholder="Digite nome ou CPF..."
+              emptyMessage="Nenhum motorista encontrado"
+            />
 
             {/* Live validation card */}
             {selectedDelDriver && (
@@ -214,33 +236,48 @@ export const DeliveryWizard: React.FC<DeliveryWizardProps> = ({
               Selecione um veículo disponível em estoque. O sistema verificará se o licenciamento e seguro estão em dia.
             </p>
 
-            <div className="floating-label-group">
-              <select
-                value={delForm.vehicleId}
-                onChange={(e) => {
-                  const vId = e.target.value;
-                  const veh = vehicles.find(v => v.id === vId);
-                  setDelForm(prev => ({
-                    ...prev,
-                    vehicleId: vId,
-                    pricingCategoryId: veh?.pricingCategoryId || "",
-                    packageId: veh?.defaultPackageId || "",
-                    billingProfileId: veh?.billingProfileId || "",
-                    pricingTableId: prev.pricingTableId || "tbl-std"
-                  }));
-                }}
-                className="w-full pl-3 pr-3 text-xs"
-                required
-              >
-                <option value="">Selecione...</option>
-                {vehicles.map(veh => (
-                  <option key={veh.id} value={veh.id}>
-                    {veh.brand} {veh.model} ({veh.plate}) — Status: {veh.status}
-                  </option>
-                ))}
-              </select>
-              <label className="text-xs font-semibold text-outline">Selecione o Veículo</label>
+            {/* Scan Plate Button */}
+            <button
+              type="button"
+              onClick={() => setShowScanner(true)}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors"
+            >
+              <Camera className="w-4 h-4" />
+              Escanear Placa do Veículo
+            </button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-outline-variant"></div>
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-surface-container-lowest px-3 text-outline">ou selecione manualmente</span>
+              </div>
             </div>
+
+            <SearchSelect
+              items={vehicles.map(veh => ({
+                id: veh.id,
+                label: `${veh.brand} ${veh.model}`,
+                subtitle: `${veh.plate} — Status: ${veh.status}`
+              }))}
+              value={delForm.vehicleId}
+              onChange={(id) => {
+                const veh = vehicles.find(v => v.id === id);
+                setDelForm(prev => ({
+                  ...prev,
+                  vehicleId: id,
+                  pricingCategoryId: veh?.pricingCategoryId || "",
+                  packageId: veh?.defaultPackageId || "",
+                  billingProfileId: veh?.billingProfileId || "",
+                  pricingTableId: prev.pricingTableId || "tbl-std"
+                }));
+              }}
+              placeholder="Pesquise por placa, modelo ou marca..."
+              label="Selecione o Veículo"
+              searchPlaceholder="Digite placa, modelo ou marca..."
+              emptyMessage="Nenhum veículo encontrado"
+            />
 
             {selectedDelVehicle && (
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
@@ -707,6 +744,14 @@ export const DeliveryWizard: React.FC<DeliveryWizardProps> = ({
           </button>
         )}
       </div>
+
+      {/* Plate Scanner Modal */}
+      {showScanner && (
+        <PlateScanner
+          onScan={handlePlateScan}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </div>
   );
 };

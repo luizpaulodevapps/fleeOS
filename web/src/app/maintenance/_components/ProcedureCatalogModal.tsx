@@ -18,6 +18,7 @@ interface ProcedureCatalogModalProps {
     formData: MaintenanceProcedureFormData,
     kitItems: ProcedurePartKitItem[]
   ) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
   selected: MaintenanceProcedure | null;
   existingKit: ProcedurePartKit | null;
   inventoryItems: any[];
@@ -46,6 +47,7 @@ export function ProcedureCatalogModal({
   isOpen,
   onClose,
   onSave,
+  onDelete,
   selected,
   existingKit,
   inventoryItems,
@@ -342,26 +344,44 @@ export function ProcedureCatalogModal({
         </form>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-outline-variant bg-surface-container">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-xs font-bold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="px-5 py-2 bg-violet-600 text-white rounded-lg text-xs font-bold hover:bg-violet-700 transition-all disabled:opacity-50 flex items-center gap-2"
-          >
-            {saving ? (
-              <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Plus className="w-3 h-3" />
+        <div className="flex justify-between px-6 py-4 border-t border-outline-variant bg-surface-container">
+          <div>
+            {selected && onDelete && (
+              <button
+                onClick={() => {
+                  if (confirm(`Deseja excluir o procedimento "${selected.name}"? Esta ação não pode ser desfeita.`)) {
+                    onDelete(selected.id);
+                    onClose();
+                  }
+                }}
+                className="px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Excluir
+              </button>
             )}
-            {selected ? "Salvar" : "Criar Procedimento"}
-          </button>
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-bold text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={saving}
+              className="px-5 py-2 bg-violet-600 text-white rounded-lg text-xs font-bold hover:bg-violet-700 transition-all disabled:opacity-50 flex items-center gap-2"
+            >
+              {saving ? (
+                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Plus className="w-3 h-3" />
+              )}
+              {selected ? "Salvar" : "Criar Procedimento"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

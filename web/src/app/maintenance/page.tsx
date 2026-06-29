@@ -21,7 +21,9 @@ import {
   BookOpen,
   Link,
   Settings,
-  Zap
+  Edit2,
+  Zap,
+  Trash2
 } from "lucide-react";
 
 // Types
@@ -162,7 +164,11 @@ export default function MaintenanceManager() {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all"); 
   const [selectedVehicleIdFilter, setSelectedVehicleIdFilter] = useState("all");
-  const [activeSubTab, setActiveSubTab] = useState("alertas"); 
+  const [activeSubTab, setActiveSubTab] = useState("operacoes");
+  const [operacoesSubTab, setOperacoesSubTab] = useState("alertas");
+  const [engenhariaSubTab, setEngenhariaSubTab] = useState("catalogo");
+  const [almoxarifadoSubTab, setAlmoxarifadoSubTab] = useState("estoque");
+  const [comprasSubTab, setComprasSubTab] = useState("compras");
   const [localLoading, setLocalLoading] = useState(true);
   // Engineering module modal states
   const [isPlanCatalogModalOpen, setIsPlanCatalogModalOpen] = useState(false);
@@ -234,7 +240,8 @@ export default function MaintenanceManager() {
     phone: "",
     email: "",
     address: "",
-    active: true
+    active: true,
+    type: "peças"
   });
 
   const [poFormData, setPoFormData] = useState<PurchaseOrderFormData>({
@@ -450,7 +457,8 @@ export default function MaintenanceManager() {
       phone: "",
       email: "",
       address: "",
-      active: true
+      active: true,
+      type: "peças"
     });
     setIsSupModalOpen(true);
   };
@@ -463,7 +471,8 @@ export default function MaintenanceManager() {
       phone: sup.phone,
       email: sup.email,
       address: sup.address,
-      active: sup.active
+      active: sup.active,
+      type: sup.type || "peças"
     });
     setIsSupModalOpen(true);
   };
@@ -921,6 +930,46 @@ export default function MaintenanceManager() {
     });
   }, [inventoryItems, searchTerm]);
 
+  const filteredCatalogPlans = useMemo(() => {
+    return plans.filter(plan => {
+      const name = (plan.name || "").toLowerCase();
+      const manufacturer = (plan.manufacturer || "").toLowerCase();
+      const category = (plan.category || "").toLowerCase();
+      const applicableModels = plan.applicableModels.map(m => m.toLowerCase());
+      const search = searchTerm.toLowerCase();
+
+      return (
+        name.includes(search) ||
+        manufacturer.includes(search) ||
+        category.includes(search) ||
+        applicableModels.some(m => m.includes(search))
+      );
+    });
+  }, [plans, searchTerm]);
+
+  const filteredProcedures = useMemo(() => {
+    return procedures.filter(proc => {
+      const name = (proc.name || "").toLowerCase();
+      const notes = (proc.notes || "").toLowerCase();
+      const category = (proc.category || "").toLowerCase();
+      const search = searchTerm.toLowerCase();
+
+      return name.includes(search) || notes.includes(search) || category.includes(search);
+    });
+  }, [procedures, searchTerm]);
+
+  const filteredTechnicalCatalog = useMemo(() => {
+    return catalog.filter(entry => {
+      const make = (entry.make || "").toLowerCase();
+      const model = (entry.model || "").toLowerCase();
+      const engine = (entry.engine || "").toLowerCase();
+      const category = (entry.category || "").toLowerCase();
+      const search = searchTerm.toLowerCase();
+
+      return make.includes(search) || model.includes(search) || engine.includes(search) || category.includes(search);
+    });
+  }, [catalog, searchTerm]);
+
   const lowStockCount = useMemo(() => {
     return getLowStockItems().length;
   }, [getLowStockItems]);
@@ -948,7 +997,7 @@ export default function MaintenanceManager() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {activeSubTab === "logs" && can("maintenance.edit") && (
+          {activeSubTab === "operacoes" && operacoesSubTab === "logs" && can("maintenance.edit") && (
             <>
               <button
                 onClick={openNewWoModal}
@@ -967,7 +1016,7 @@ export default function MaintenanceManager() {
             </>
           )}
 
-          {activeSubTab === "plans" && can("maintenance.edit") && (
+          {activeSubTab === "operacoes" && operacoesSubTab === "plans" && can("maintenance.edit") && (
             <button
               onClick={openPlanModal}
               className="flex items-center space-x-1.5 px-4 py-2.5 rounded-lg bg-primary text-on-primary font-bold hover:opacity-90 transition-all text-xs"
@@ -977,7 +1026,7 @@ export default function MaintenanceManager() {
             </button>
           )}
 
-          {activeSubTab === "estoque" && can("maintenance.edit") && (
+          {activeSubTab === "almoxarifado" && almoxarifadoSubTab === "estoque" && can("maintenance.edit") && (
             <button
               onClick={openNewInvModal}
               className="flex items-center space-x-1.5 px-4 py-2.5 rounded-lg bg-primary text-on-primary font-bold hover:opacity-90 transition-all text-xs"
@@ -989,20 +1038,24 @@ export default function MaintenanceManager() {
 
           {activeSubTab === "compras" && can("maintenance.edit") && (
             <>
-              <button
-                onClick={openNewPoModal}
-                className="flex items-center space-x-1.5 px-4 py-2.5 rounded-lg bg-primary text-on-primary font-bold hover:opacity-90 transition-all text-xs"
-              >
-                <ShoppingCart className="w-4 h-4" />
-                <span>Registrar Compra</span>
-              </button>
-              <button
-                onClick={openNewSupModal}
-                className="flex items-center space-x-1.5 px-4 py-2.5 rounded-lg bg-surface-container border border-outline-variant text-primary font-bold hover:bg-surface-container-high transition-all text-xs"
-              >
-                <Building className="w-4 h-4" />
-                <span>Cadastrar Fornecedor</span>
-              </button>
+              {comprasSubTab === "compras" && (
+                <button
+                  onClick={openNewPoModal}
+                  className="flex items-center space-x-1.5 px-4 py-2.5 rounded-lg bg-primary text-on-primary font-bold hover:opacity-90 transition-all text-xs"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  <span>Registrar Compra</span>
+                </button>
+              )}
+              {comprasSubTab === "fornecedores" && (
+                <button
+                  onClick={openNewSupModal}
+                  className="flex items-center space-x-1.5 px-4 py-2.5 rounded-lg bg-primary text-on-primary font-bold hover:opacity-90 transition-all text-xs"
+                >
+                  <Building className="w-4 h-4" />
+                  <span>Cadastrar Fornecedor</span>
+                </button>
+              )}
             </>
           )}
         </div>
@@ -1069,54 +1122,176 @@ export default function MaintenanceManager() {
       {/* Main Tabs Selector */}
       <div className="flex flex-wrap gap-2 border-b border-outline-variant pb-3 print:hidden">
         {[
-          { id: "alertas", label: "Alertas da Frota", icon: AlertTriangle, badge: overdueCount + dueSoonCount },
-          { id: "logs", label: "Ordens de Serviço", icon: Wrench },
-          { id: "plans", label: "Planos Preventivos", icon: Activity },
-          { id: "catalogo", label: "Catálogo de Planos", icon: BookOpen },
-          { id: "catalog_tech", label: "Catálogo Técnico", icon: Layers },
-          { id: "estoque", label: "Estoque Técnico", icon: Package },
-          { id: "compras", label: "Compras & Fornecedores", icon: Truck },
-          { id: "catalogacao", label: "Catalogação de Peças", icon: Layers },
-          { id: "bi", label: "Custos & BI", icon: BarChart3 }
+          { id: "operacoes", label: "Operações de Oficina", icon: Wrench, badge: overdueCount + dueSoonCount },
+          { id: "engenharia", label: "Catálogo & Engenharia", icon: Layers },
+          { id: "almoxarifado", label: "Almoxarifado & Peças", icon: Package, badge: lowStockCount > 0 ? "!" : 0 },
+          { id: "compras", label: "Compras & Suprimentos", icon: Truck }
         ].map(tab => {
           const Icon = tab.icon;
-          const badge = (tab as any).badge || 0;
+          const isActive = activeSubTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveSubTab(tab.id)}
-              className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                activeSubTab === tab.id
-                  ? tab.id === "alertas"
-                    ? "bg-red-600 text-white font-bold shadow"
-                    : "bg-primary text-on-primary font-bold shadow"
+              className={`flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-black transition-all ${
+                isActive
+                  ? "bg-primary text-on-primary shadow-lg scale-[1.02]"
                   : "bg-surface-container-low border border-outline-variant text-on-surface-variant hover:bg-surface-container-high"
               }`}
             >
               <Icon className="w-4 h-4" />
               <span>{tab.label}</span>
-              {badge > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[9px] font-black rounded-full px-1 animate-pulse">
-                  {badge}
+              {tab.badge ? (
+                <span className="ml-1.5 px-2 py-0.5 bg-red-500 text-white text-[9px] font-black rounded-full animate-pulse">
+                  {tab.badge}
                 </span>
-              )}
+              ) : null}
             </button>
           );
         })}
       </div>
 
+      {/* Sub-tabs Selector */}
+      <div className="print:hidden">
+        {activeSubTab === "operacoes" && (
+          <div className="flex gap-2 p-1 bg-surface-container/50 border border-outline-variant/60 rounded-xl w-fit">
+            {[
+              { id: "alertas", label: "Alertas da Frota", icon: AlertTriangle, badge: overdueCount + dueSoonCount },
+              { id: "plans", label: "Checklist Preventivo", icon: Activity },
+              { id: "logs", label: "Ordens de Serviço (OS)", icon: Wrench },
+              { id: "bi", label: "Custos & BI", icon: BarChart3 }
+            ].map(sub => {
+              const Icon = sub.icon;
+              const isActive = operacoesSubTab === sub.id;
+              return (
+                <button
+                  key={sub.id}
+                  type="button"
+                  onClick={() => setOperacoesSubTab(sub.id)}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                    isActive
+                      ? "bg-surface-container-lowest text-primary shadow-xs border border-outline-variant/30 font-black"
+                      : "text-outline hover:text-on-surface hover:bg-surface-container"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{sub.label}</span>
+                  {sub.badge ? (
+                    <span className="ml-1 px-1.5 py-0.2 bg-red-100 text-red-700 text-[9px] font-bold rounded-full">
+                      {sub.badge}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {activeSubTab === "engenharia" && (
+          <div className="flex gap-2 p-1 bg-surface-container/50 border border-outline-variant/60 rounded-xl w-fit">
+            {[
+              { id: "catalogo", label: "Catálogo de Planos", icon: BookOpen },
+              { id: "catalog_tech", label: "Catálogo Técnico FIPE", icon: Layers }
+            ].map(sub => {
+              const Icon = sub.icon;
+              const isActive = engenhariaSubTab === sub.id;
+              return (
+                <button
+                  key={sub.id}
+                  type="button"
+                  onClick={() => setEngenhariaSubTab(sub.id)}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                    isActive
+                      ? "bg-surface-container-lowest text-primary shadow-xs border border-outline-variant/30 font-black"
+                      : "text-outline hover:text-on-surface hover:bg-surface-container"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{sub.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {activeSubTab === "almoxarifado" && (
+          <div className="flex gap-2 p-1 bg-surface-container/50 border border-outline-variant/60 rounded-xl w-fit">
+            {[
+              { id: "estoque", label: "Estoque Técnico", icon: Package, badge: lowStockCount },
+              { id: "catalogacao", label: "Catalogação de Peças", icon: Layers }
+            ].map(sub => {
+              const Icon = sub.icon;
+              const isActive = almoxarifadoSubTab === sub.id;
+              return (
+                <button
+                  key={sub.id}
+                  type="button"
+                  onClick={() => setAlmoxarifadoSubTab(sub.id)}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                    isActive
+                      ? "bg-surface-container-lowest text-primary shadow-xs border border-outline-variant/30 font-black"
+                      : "text-outline hover:text-on-surface hover:bg-surface-container"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{sub.label}</span>
+                  {sub.badge ? (
+                    <span className="ml-1 px-1.5 py-0.2 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-full animate-pulse">
+                      {sub.badge}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {activeSubTab === "compras" && (
+          <div className="flex gap-2 p-1 bg-surface-container/50 border border-outline-variant/60 rounded-xl w-fit">
+            {[
+              { id: "compras", label: "Compras e OC", icon: Truck },
+              { id: "fornecedores", label: "Fornecedores", icon: Building }
+            ].map(sub => {
+              const Icon = sub.icon;
+              const isActive = comprasSubTab === sub.id;
+              return (
+                <button
+                  key={sub.id}
+                  type="button"
+                  onClick={() => setComprasSubTab(sub.id)}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                    isActive
+                      ? "bg-surface-container-lowest text-primary shadow-xs border border-outline-variant/30 font-black"
+                      : "text-outline hover:text-on-surface hover:bg-surface-container"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{sub.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Search & Filters */}
-      {activeSubTab !== "bi" && (
+      {!(activeSubTab === "operacoes" && operacoesSubTab === "bi") && (
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-container-lowest p-4 border border-outline-variant rounded-xl print:hidden text-xs">
           <div className="relative flex-grow max-w-md">
             <Search className="absolute left-3 top-3 w-4 h-4 text-outline" />
             <input
               type="text"
               placeholder={
-                activeSubTab === "logs" ? "Pesquisar por placa, modelo ou descrição..." :
-                activeSubTab === "plans" ? "Pesquisar item de plano..." :
-                activeSubTab === "estoque" ? "Pesquisar peça pelo nome ou código..." :
-                "Pesquisar compras..."
+                (activeSubTab === "operacoes" && operacoesSubTab === "logs") ? "Pesquisar por placa, modelo ou descrição..." :
+                (activeSubTab === "operacoes" && operacoesSubTab === "plans") ? "Pesquisar item de plano..." :
+                (activeSubTab === "operacoes" && operacoesSubTab === "alertas") ? "Pesquisar por placa ou modelo..." :
+                (activeSubTab === "engenharia" && engenhariaSubTab === "catalogo") ? "Pesquisar plano ou procedimento..." :
+                (activeSubTab === "engenharia" && engenhariaSubTab === "catalog_tech") ? "Pesquisar modelo ou montadora..." :
+                (activeSubTab === "almoxarifado" && almoxarifadoSubTab === "estoque") ? "Pesquisar peça pelo nome ou código..." :
+                (activeSubTab === "almoxarifado" && almoxarifadoSubTab === "catalogacao") ? "Pesquisar peça pendente..." :
+                (activeSubTab === "compras" && comprasSubTab === "compras") ? "Pesquisar ordens de compra..." :
+                (activeSubTab === "compras" && comprasSubTab === "fornecedores") ? "Pesquisar fornecedores por nome ou CNPJ..." :
+                "Pesquisar..."
               }
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -1125,7 +1300,7 @@ export default function MaintenanceManager() {
           </div>
 
           <div className="flex items-center gap-2">
-            {(activeSubTab === "logs" || activeSubTab === "plans") && (
+            {activeSubTab === "operacoes" && (
               <select
                 value={selectedVehicleIdFilter}
                 onChange={(e) => setSelectedVehicleIdFilter(e.target.value)}
@@ -1138,7 +1313,7 @@ export default function MaintenanceManager() {
               </select>
             )}
 
-            {activeSubTab === "logs" && (
+            {activeSubTab === "operacoes" && operacoesSubTab === "logs" && (
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
@@ -1162,7 +1337,7 @@ export default function MaintenanceManager() {
       ) : (
         <>
           {/* TAB 0: ALERTAS DA FROTA (default) */}
-          {activeSubTab === "alertas" && (
+          {activeSubTab === "operacoes" && operacoesSubTab === "alertas" && (
             <div className="space-y-6">
               {/* Sub-header */}
               <div className="flex items-center justify-between">
@@ -1217,7 +1392,7 @@ export default function MaintenanceManager() {
           )}
 
           {/* TAB 1: ORDENS DE SERVIÇO & LOGS */}
-          {activeSubTab === "logs" && (
+          {activeSubTab === "operacoes" && operacoesSubTab === "logs" && (
             <div className="space-y-6">
               {/* Work Orders Table */}
               <WorkOrdersTable 
@@ -1251,7 +1426,7 @@ export default function MaintenanceManager() {
           )}
 
           {/* TAB 2: PLANS (legacy) */}
-          {activeSubTab === "plans" && (
+          {activeSubTab === "operacoes" && operacoesSubTab === "plans" && (
             <MaintenancePlansTable 
               planItems={filteredPlans}
               vehicles={vehicles}
@@ -1263,7 +1438,7 @@ export default function MaintenanceManager() {
           )}
 
           {/* TAB: CATÁLOGO DE PLANOS */}
-          {activeSubTab === "catalogo" && (
+          {activeSubTab === "engenharia" && engenhariaSubTab === "catalogo" && (
             <div className="space-y-6">
               {/* Sub-header */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -1299,13 +1474,13 @@ export default function MaintenanceManager() {
               {/* Planos */}
               <div>
                 <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3">
-                  Planos de Manutenção ({plans.length})
+                  Planos de Manutenção ({filteredCatalogPlans.length})
                 </h3>
-                {plans.length === 0 ? (
+                {filteredCatalogPlans.length === 0 ? (
                   <p className="text-outline text-xs italic">Nenhum plano cadastrado.</p>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {plans.map(plan => (
+                    {filteredCatalogPlans.map(plan => (
                       <div key={plan.id} className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 shadow-sm space-y-3">
                         <div className="flex items-start justify-between">
                           <div>
@@ -1325,12 +1500,25 @@ export default function MaintenanceManager() {
                             </div>
                           </div>
                           {can("maintenance.edit") && (
-                            <button
-                              onClick={() => { setSelectedPlan(plan); setIsPlanCatalogModalOpen(true); }}
-                              className="p-1.5 text-outline hover:text-primary hover:bg-surface-container rounded-lg transition-colors"
-                            >
-                              <Settings className="w-4 h-4" />
-                            </button>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => { setSelectedPlan(plan); setIsPlanCatalogModalOpen(true); }}
+                                className="p-1.5 text-outline hover:text-primary hover:bg-surface-container rounded-lg transition-colors"
+                                title="Editar plano"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Deseja excluir o plano "${plan.name}"? Esta ação não pode ser desfeita.`)) {
+                                    deletePlan(plan.id);
+                                  }
+                                }}
+                                className="p-1.5 text-outline hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           )}
                         </div>
 
@@ -1364,7 +1552,7 @@ export default function MaintenanceManager() {
               {/* Procedimentos */}
               <div>
                 <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3">
-                  Catálogo de Procedimentos ({procedures.length})
+                  Catálogo de Procedimentos ({filteredProcedures.length})
                 </h3>
                 <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
                   <table className="w-full text-left text-xs border-collapse">
@@ -1381,7 +1569,7 @@ export default function MaintenanceManager() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-outline-variant/50">
-                      {procedures.map(proc => {
+                      {filteredProcedures.map(proc => {
                         const kit = partKits.find(k => k.procedureId === proc.id);
                         return (
                           <tr key={proc.id} className="hover:bg-surface-container/50">
@@ -1416,12 +1604,24 @@ export default function MaintenanceManager() {
                             </td>
                             {can("maintenance.edit") && (
                               <td className="px-4 py-3 text-center">
-                                <button
-                                  onClick={() => { setSelectedProc(proc); setIsProcModalOpen(true); }}
-                                  className="px-3 py-1 text-[10px] font-bold bg-surface-container border border-outline-variant text-on-surface-variant hover:text-primary hover:border-primary rounded-lg transition-all"
-                                >
-                                  Editar
-                                </button>
+                                <div className="flex items-center justify-center gap-1">
+                                  <button
+                                    onClick={() => { setSelectedProc(proc); setIsProcModalOpen(true); }}
+                                    className="px-3 py-1 text-[10px] font-bold bg-surface-container border border-outline-variant text-on-surface-variant hover:text-primary hover:border-primary rounded-lg transition-all"
+                                  >
+                                    Editar
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (confirm(`Deseja excluir o procedimento "${proc.name}"? Esta ação não pode ser desfeita.`)) {
+                                        deleteProcedure(proc.id);
+                                      }
+                                    }}
+                                    className="p-1 text-outline hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </td>
                             )}
                           </tr>
@@ -1477,7 +1677,7 @@ export default function MaintenanceManager() {
           )}
 
           {/* TAB 3: ESTOQUE TÉCNICO */}
-          {activeSubTab === "estoque" && (
+          {activeSubTab === "almoxarifado" && almoxarifadoSubTab === "estoque" && (
             <div className="space-y-6">
               <InventoryTable 
                 items={filteredInventory}
@@ -1554,33 +1754,31 @@ export default function MaintenanceManager() {
           )}
 
           {/* TAB 4: COMPRAS & FORNECEDORES */}
-          {activeSubTab === "compras" && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Suppliers Column (Left) */}
-              <div className="lg:col-span-1">
-                <SuppliersList 
-                  suppliers={suppliers}
-                  onEdit={openEditSupModal}
-                  canEdit={can("maintenance.edit")}
-                  isLoading={loadingSup}
-                />
-              </div>
+          {activeSubTab === "compras" && comprasSubTab === "compras" && (
+            <div className="space-y-6 animate-fadeIn">
+              <PurchaseOrdersTable 
+                purchaseOrders={purchaseOrders}
+                suppliers={suppliers}
+                onDeliver={handleDeliverPurchaseOrder}
+                canEdit={can("maintenance.edit")}
+                isLoading={loadingPo}
+              />
+            </div>
+          )}
 
-              {/* Purchase Orders Column (Right/Main) */}
-              <div className="lg:col-span-2">
-                <PurchaseOrdersTable 
-                  purchaseOrders={purchaseOrders}
-                  suppliers={suppliers}
-                  onDeliver={handleDeliverPurchaseOrder}
-                  canEdit={can("maintenance.edit")}
-                  isLoading={loadingPo}
-                />
-              </div>
+          {activeSubTab === "compras" && comprasSubTab === "fornecedores" && (
+            <div className="space-y-6 animate-fadeIn">
+              <SuppliersList 
+                suppliers={suppliers}
+                onEdit={openEditSupModal}
+                canEdit={can("maintenance.edit")}
+                isLoading={loadingSup}
+              />
             </div>
           )}
 
           {/* TAB 5: BI & INTELIGÊNCIA DE CUSTOS */}
-          {activeSubTab === "bi" && (
+          {activeSubTab === "operacoes" && operacoesSubTab === "bi" && (
             <div className="space-y-6">
               {/* Cost Summary Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1699,7 +1897,7 @@ export default function MaintenanceManager() {
           )}
 
           {/* TAB: CATÁLOGO TÉCNICO */}
-          {activeSubTab === "catalog_tech" && (
+          {activeSubTab === "engenharia" && engenhariaSubTab === "catalog_tech" && (
             <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -1724,7 +1922,7 @@ export default function MaintenanceManager() {
                 <div className="flex items-center justify-center py-12">
                   <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                 </div>
-              ) : catalog.length === 0 ? (
+              ) : filteredTechnicalCatalog.length === 0 ? (
                 <div className="text-center py-12 text-outline">
                   <Layers className="w-12 h-12 mx-auto mb-3 opacity-40" />
                   <p className="text-sm font-semibold">Nenhum catálogo técnico cadastrado.</p>
@@ -1745,7 +1943,7 @@ export default function MaintenanceManager() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-outline-variant/60">
-                      {catalog.map((entry) => (
+                      {filteredTechnicalCatalog.map((entry) => (
                         <tr key={entry.id} className="hover:bg-slate-50/50">
                           <td className="px-4 py-3 font-bold">{entry.make}</td>
                           <td className="px-4 py-3 font-semibold">{entry.model}</td>
@@ -1789,7 +1987,7 @@ export default function MaintenanceManager() {
           )}
 
           {/* TAB 6: CATALOGAÇÃO DE PEÇAS */}
-          {activeSubTab === "catalogacao" && (
+          {activeSubTab === "almoxarifado" && almoxarifadoSubTab === "catalogacao" && (
             <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm p-6 space-y-4">
               <div>
                 <h3 className="font-extrabold text-sm text-primary uppercase tracking-wider flex items-center gap-2">
@@ -1872,6 +2070,9 @@ export default function MaintenanceManager() {
         onSave={async (formData: MaintenancePlanFormData) => {
           await savePlan(formData, selectedPlan);
         }}
+        onDelete={async (id: string) => {
+          await deletePlan(id);
+        }}
         selected={selectedPlan}
         procedures={procedures}
       />
@@ -1881,6 +2082,9 @@ export default function MaintenanceManager() {
         onClose={() => { setIsProcModalOpen(false); setSelectedProc(null); }}
         onSave={async (formData: MaintenanceProcedureFormData, kitItems: ProcedurePartKitItem[]) => {
           await saveProcedure(formData, kitItems, selectedProc);
+        }}
+        onDelete={async (id: string) => {
+          await deleteProcedure(id);
         }}
         selected={selectedProc}
         existingKit={selectedProc ? (partKits.find(k => k.procedureId === selectedProc.id) || null) : null}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   User,
   ShieldAlert,
@@ -15,7 +15,10 @@ import {
   FileText,
   PlusCircle,
   FilePlus,
-  Check
+  Check,
+  Save,
+  CheckCircle,
+  Clock
 } from "lucide-react";
 import {
   Driver,
@@ -30,6 +33,7 @@ import {
   InfractionFormData
 } from "../_lib/types";
 import { isReadOnly, getCNHStatus, getScoreTier } from "../_lib/helpers";
+import { useAuth } from "@/context/AuthContext";
 
 interface DriverProntuarioModalProps {
   isOpen: boolean;
@@ -215,9 +219,110 @@ export function DriverProntuarioModal({
     amount: ""
   });
 
-  // Document Emission Preview State
+  // Document Emission & Bureaucracy State
+  const { getCollection, updateDocument, addDocument } = useAuth();
   const [emissionTemplateId, setEmissionTemplateId] = useState("");
   const [emittedContent, setEmittedContent] = useState("");
+  const [templateBody, setTemplateBody] = useState("");
+  const [printedDocs, setPrintedDocs] = useState<any[]>([]);
+  const [isEditingTemplate, setIsEditingTemplate] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const loadPrintedDocs = async () => {
+    if (selectedDriver) {
+      try {
+        const logs = await getCollection("printed_documents");
+        const filtered = (logs || [])
+          .filter((l: any) => l.driverId === selectedDriver.id)
+          .sort((a: any, b: any) => b.printedAt.localeCompare(a.printedAt));
+        setPrintedDocs(filtered);
+      } catch (e) {
+        console.error("Erro ao carregar logs de impressão:", e);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "bureaucracy") {
+      loadPrintedDocs();
+    }
+  }, [activeTab, selectedDriver]);
+
+  const activeTemplate = templates.find(t => t.id === emissionTemplateId);
+
+  useEffect(() => {
+    if (activeTemplate) {
+      setTemplateBody(activeTemplate.body || "");
+      setEmittedContent("");
+    }
+  }, [emissionTemplateId, activeTemplate]);
+
+  const modalTags = [
+    { label: "Nome Motorista", tag: "driver_name" },
+    { label: "CPF Motorista", tag: "driver_cpf" },
+    { label: "CNH Motorista", tag: "driver_cnh" },
+    { label: "Placa Veículo", tag: "vehicle_plate" },
+    { label: "Modelo Veículo", tag: "vehicle_model" },
+    { label: "Marca Veículo", tag: "vehicle_brand" },
+    { label: "Cor Veículo", tag: "vehicle_color" },
+    { label: "Ano Veículo", tag: "vehicle_year" },
+    { label: "Diária Contrato", tag: "daily_rate" },
+    { label: "Número Contrato", tag: "contract_number" },
+    { label: "Data Contrato", tag: "contract_date" },
+  ];
+
+  const insertTag = (tag: string) => {
+    const textarea = document.getElementById("template-textarea") as HTMLTextAreaElement;
+    if (!textarea) {
+      setTemplateBody(prev => prev + `{{${tag}}}`);
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const before = text.substring(0, start);
+    const after = text.substring(end);
+    setTemplateBody(before + `{{${tag}}}` + after);
+    
+    setTimeout(() => {
+      textarea.selectionStart = textarea.selectionEnd = start + tag.length + 4;
+      textarea.focus();
+    }, 50);
+  };
+
+  const compiledPreview = useMemo(() => {
+    if (!templateBody || !selectedDriver) return "";
+    const activeContract = contracts.find(c => c.driverId === selectedDriver.id && c.status === "active");
+    const activeAsg = assignments.find(a => a.driverId === selectedDriver.id && a.status === "active");
+    const activeVehicle = activeAsg ? vehicles.find(v => v.id === activeAsg.vehicleId) : null;
+    
+    const todayStr = new Date().toLocaleDateString("pt-BR");
+    let compiled = templateBody
+      .replace(/{{driver_name}}/g, selectedDriver.name || "N/A")
+      .replace(/{{driver_cpf}}/g, selectedDriver.cpf || "N/A")
+      .replace(/{{driver_cnh}}/g, selectedDriver.cnhNumber || "N/A")
+      .replace(/{{contract_date}}/g, todayStr);
+
+    if (activeVehicle) {
+      compiled = compiled
+        .replace(/{{vehicle_plate}}/g, activeVehicle.plate || "N/A")
+        .replace(/{{vehicle_model}}/g, activeVehicle.model || "N/A")
+        .replace(/{{vehicle_brand}}/g, activeVehicle.brand || "N/A");
+    } else {
+      compiled = compiled
+        .replace(/{{vehicle_plate}}/g, "PLACA_AUSENTE")
+        .replace(/{{vehicle_model}}/g, "VEICULO_AUSENTE")
+        .replace(/{{vehicle_brand}}/g, "MARCA_AUSENTE");
+    }
+
+    if (activeContract) {
+      compiled = compiled
+        .replace(/{{daily_rate}}/g, activeContract.dailyRate.toString())
+        .replace(/{{contract_number}}/g, activeContract.id.slice(0, 8).toUpperCase());
+    }
+
+    return compiled;
+  }, [templateBody, selectedDriver, contracts, assignments, vehicles]);
 
   // Infraction Form State
   const [infractionForm, setInfractionForm] = useState<InfractionFormData>({
@@ -520,7 +625,7 @@ export function DriverProntuarioModal({
               { id: "occurrences", label: "Ocorrências Disciplinares", icon: AlertTriangle, requiresDriver: true },
               { id: "infractions", label: "Infrações de Trânsito", icon: FileSpreadsheet, requiresDriver: true },
               { id: "docs", label: "Docs Digitalizados", icon: Paperclip, requiresDriver: true },
-              { id: "emission", label: "Emissão de Termos", icon: FileCheck, requiresDriver: true },
+              { id: "bureaucracy", label: "📜 Contratos & Burocracia", icon: FileText, requiresDriver: true },
               { id: "timeline", label: "Histórico Auditoria", icon: Activity, requiresDriver: true }
             ].map(t => {
               const Icon = t.icon;
@@ -1771,59 +1876,412 @@ export function DriverProntuarioModal({
               </div>
             )}
 
-            {/* 7. EMISSÃO DE TEMPLATES */}
-            {activeTab === "emission" && selectedDriver && (
-              <div className="space-y-6">
-                <div>
-                  <h4 className="text-sm font-bold text-primary font-geist mb-1 uppercase text-xs tracking-wider">
-                    Impressão e Emissão de Termos de Frota
-                  </h4>
-                  <p className="text-xs text-on-surface-variant">
-                    Escolha um modelo corporativo para emitir um PDF assinado ou impresso preenchendo automaticamente as
-                    variáveis do motorista e veículo ativo.
-                  </p>
-                </div>
+            {/* 7. CONTRATOS & BUROCRACIA (REPLACES EMISSION) */}
+            {activeTab === "bureaucracy" && selectedDriver && (() => {
+              const activeContract = contracts.find(c => c.driverId === selectedDriver.id && c.status === "active");
+              const activeAsg = assignments.find(a => a.driverId === selectedDriver.id && a.status === "active");
+              const activeVehicle = activeAsg ? vehicles.find(v => v.id === activeAsg.vehicleId) : null;
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {templates.map(t => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => handleEmitDocument(t.id)}
-                      className={`p-3 rounded-lg border text-left space-y-1 font-semibold transition-all ${
-                        emissionTemplateId === t.id
-                          ? "bg-primary text-on-primary border-primary"
-                          : "bg-slate-50 border-outline-variant hover:bg-slate-100 text-primary"
-                      }`}
-                    >
-                      <FileText className="w-4 h-4 mb-1" />
-                      <span className="block text-xs">{t.name}</span>
-                      <span className="block text-[9px] text-outline font-normal">Placeholder Interpolado</span>
-                    </button>
-                  ))}
-                </div>
+              // Compile driver variables helper
+              const handleCompileDocument = (templateId: string) => {
+                const tpl = templates.find(t => t.id === templateId);
+                if (!tpl) return;
+                
+                const todayStr = new Date().toLocaleDateString("pt-BR");
+                let compiled = templateBody || tpl.body;
 
-                {emittedContent && (
-                  <div className="bg-white border-2 border-slate-900 rounded-xl p-6 space-y-4 text-slate-800">
-                    <div className="flex justify-between items-center border-b pb-3 border-slate-200">
-                      <span className="text-xs font-bold text-slate-500 uppercase">Visualização da Emissão Digital</span>
-                      <button
-                        type="button"
-                        onClick={handlePrintEmittedDocument}
-                        className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3.5 py-1.5 rounded flex items-center space-x-1.5"
-                      >
-                        <Printer className="w-3.5 h-3.5" />
-                        <span>Imprimir Termo</span>
-                      </button>
+                compiled = compiled
+                  .replace(/{{driver_name}}/g, selectedDriver.name || "N/A")
+                  .replace(/{{driver_cpf}}/g, selectedDriver.cpf || "N/A")
+                  .replace(/{{driver_cnh}}/g, selectedDriver.cnhNumber || "N/A")
+                  .replace(/{{contract_date}}/g, todayStr);
+
+                if (activeVehicle) {
+                  compiled = compiled
+                    .replace(/{{vehicle_plate}}/g, activeVehicle.plate || "N/A")
+                    .replace(/{{vehicle_model}}/g, activeVehicle.model || "N/A")
+                    .replace(/{{vehicle_brand}}/g, activeVehicle.brand || "N/A");
+                } else {
+                  compiled = compiled
+                    .replace(/{{vehicle_plate}}/g, "PLACA_AUSENTE")
+                    .replace(/{{vehicle_model}}/g, "VEICULO_AUSENTE")
+                    .replace(/{{vehicle_brand}}/g, "MARCA_AUSENTE");
+                }
+
+                if (activeContract) {
+                  compiled = compiled
+                    .replace(/{{daily_rate}}/g, activeContract.dailyRate.toString())
+                    .replace(/{{contract_number}}/g, activeContract.id.slice(0, 8).toUpperCase());
+                }
+
+                setEmittedContent(compiled);
+                setEmissionTemplateId(templateId);
+              };
+
+              // Print & log printed document
+              const handlePrintAndLog = async () => {
+                const tpl = templates.find(t => t.id === emissionTemplateId);
+                if (!tpl) return;
+
+                const printWindow = window.open("", "_blank");
+                if (printWindow) {
+                  printWindow.document.write(`
+                    <html>
+                      <head>
+                        <title>Impressão | FleetOS</title>
+                        <style>
+                          body { font-family: 'Inter', sans-serif; padding: 40px; color: #111; line-height: 1.6; }
+                          .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+                          .content { white-space: pre-wrap; margin-bottom: 50px; font-size: 14px; }
+                          .signature { margin-top: 60px; display: flex; justify-content: space-between; }
+                          .sig-line { border-top: 1px solid #111; width: 45%; text-align: center; padding-top: 8px; font-size: 12px; }
+                        </style>
+                      </head>
+                      <body>
+                        <div class="header">
+                          <h2>FLEETOS - CONTROLE DE DOCUMENTOS DE FROTA</h2>
+                          <p>Emissão Oficial Automatizada</p>
+                        </div>
+                        <div class="content">${emittedContent}</div>
+                        <div class="signature">
+                          <div class="sig-line">FLEETOS ADMINISTRADORA</div>
+                          <div class="sig-line">${selectedDriver.name.toUpperCase()}</div>
+                        </div>
+                        <script>window.print();</script>
+                      </body>
+                    </html>
+                  `);
+                  printWindow.document.close();
+                }
+
+                try {
+                  await addDocument("printed_documents", {
+                    driverId: selectedDriver.id,
+                    driverName: selectedDriver.name,
+                    vehicleId: activeVehicle ? activeVehicle.id : "",
+                    vehiclePlate: activeVehicle ? activeVehicle.plate : "N/A",
+                    templateId: tpl.id,
+                    templateName: tpl.name,
+                    printedAt: new Date().toISOString(),
+                    printedBy: currentUser?.displayName || "Operador",
+                    body: emittedContent
+                  });
+                  await loadPrintedDocs();
+                } catch (e) {
+                  console.error(e);
+                }
+              };
+
+              // Save template body
+              const handleUpdateTemplate = async () => {
+                if (!emissionTemplateId) return;
+                setIsSaving(true);
+                try {
+                  await updateDocument("contract_templates", emissionTemplateId, {
+                    body: templateBody
+                  });
+                  alert("Modelo de documento atualizado com sucesso!");
+                  setIsEditingTemplate(false);
+                } catch (e) {
+                  console.error(e);
+                  alert("Erro ao atualizar modelo no banco.");
+                } finally {
+                  setIsSaving(false);
+                }
+              };
+
+              // Expirations list
+              const today = new Date();
+              const driverExpirations = [];
+
+              if (formData.cnhExpiration) {
+                const exp = new Date(formData.cnhExpiration);
+                const diff = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                driverExpirations.push({
+                  name: "Validade da CNH",
+                  date: new Date(formData.cnhExpiration).toLocaleDateString("pt-BR"),
+                  status: diff < 0 ? "expired" : diff <= 30 ? "warning" : "ok",
+                  label: diff < 0 ? "Vencida" : diff <= 30 ? `Vence em ${diff}d` : "Regular"
+                });
+              }
+
+              if (formData.condutaxExpiration) {
+                const exp = new Date(formData.condutaxExpiration);
+                const diff = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                driverExpirations.push({
+                  name: "Validade do Condutax",
+                  date: new Date(formData.condutaxExpiration).toLocaleDateString("pt-BR"),
+                  status: diff < 0 ? "expired" : diff <= 30 ? "warning" : "ok",
+                  label: diff < 0 ? "Vencido" : diff <= 30 ? `Vence em ${diff}d` : "Regular"
+                });
+              }
+
+              if (activeContract && activeContract.endDate) {
+                const exp = new Date(activeContract.endDate);
+                const diff = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                driverExpirations.push({
+                  name: "Contrato de Locação Vigente",
+                  date: new Date(activeContract.endDate).toLocaleDateString("pt-BR"),
+                  status: diff < 0 ? "expired" : diff <= 15 ? "warning" : "ok",
+                  label: diff < 0 ? "Expirado" : diff <= 15 ? `Expira em ${diff}d` : "Ativo"
+                });
+              }
+
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  
+                  {/* Left Column (Template & Print engine) */}
+                  <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-white border border-outline-variant rounded-xl p-5 space-y-4 shadow-sm">
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                        <h4 className="font-bold text-primary text-xs uppercase tracking-wider flex items-center gap-1.5 font-geist">
+                          <FileText className="w-4 h-4 text-primary" />
+                          <span>Emissão & Edição de Modelos</span>
+                        </h4>
+                        <span className="text-[10px] text-slate-400 font-bold">Documentos & Recibos</span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase text-outline mb-1">Modelo Base</label>
+                          <div className="flex gap-2">
+                            <select
+                              value={emissionTemplateId}
+                              onChange={(e) => {
+                                setEmissionTemplateId(e.target.value);
+                                handleCompileDocument(e.target.value);
+                              }}
+                              className="flex-1 h-9 px-3 bg-slate-50 border border-outline-variant rounded text-xs outline-none focus:border-primary font-bold text-slate-700"
+                            >
+                              <option value="">Selecione um modelo...</option>
+                              {templates.map(t => (
+                                <option key={t.id} value={t.id}>{t.name} ({t.category})</option>
+                              ))}
+                            </select>
+
+                            {emissionTemplateId && (
+                              <button
+                                type="button"
+                                onClick={() => setIsEditingTemplate(!isEditingTemplate)}
+                                className="px-3 h-9 bg-slate-100 border border-slate-200 text-slate-750 font-bold rounded hover:bg-slate-200 active:scale-95 transition-all text-xs"
+                              >
+                                {isEditingTemplate ? "Ver Prévia" : "Editar Modelo"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Editor Mode */}
+                        {isEditingTemplate && emissionTemplateId && (
+                          <div className="space-y-4 p-4 bg-slate-50 border border-outline-variant rounded-xl text-slate-800">
+                            
+                            {/* 1. Allowed Tags Rack */}
+                            <div className="space-y-1.5 p-3 bg-white border border-slate-200 rounded-lg">
+                              <span className="block text-[10px] font-black uppercase text-slate-450 tracking-wider">Biblioteca de Tags (Clique para inserir)</span>
+                              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pt-1">
+                                {modalTags.map((t) => (
+                                  <button
+                                    key={t.tag}
+                                    type="button"
+                                    onClick={() => insertTag(t.tag)}
+                                    className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-750 hover:text-slate-900 transition-colors text-[9px] font-bold text-left"
+                                    title={`Inserir {{${t.tag}}}`}
+                                  >
+                                    {t.label} <code className="text-[8px] bg-slate-200/60 text-slate-600 px-1 ml-0.5 rounded">{`{{${t.tag}}}`}</code>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* 2. Textarea and Live Preview side-by-side */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="space-y-1">
+                                <label className="block text-[9px] font-black text-slate-450 uppercase tracking-wider">Texto do Modelo</label>
+                                <textarea
+                                  id="template-textarea"
+                                  rows={12}
+                                  value={templateBody}
+                                  onChange={(e) => setTemplateBody(e.target.value)}
+                                  placeholder="Comece a digitar seu contrato aqui..."
+                                  className="w-full p-3 bg-white border border-outline-variant rounded-lg text-xs font-mono outline-none focus:border-primary leading-relaxed"
+                                />
+                              </div>
+                              
+                              <div className="space-y-1">
+                                <label className="block text-[9px] font-black text-slate-450 uppercase tracking-wider">Prévia em Tempo Real (Com Dados)</label>
+                                <div className="w-full h-[218px] p-3 bg-white border border-outline-variant rounded-lg text-[10px] font-mono whitespace-pre-wrap leading-relaxed overflow-y-auto text-slate-750">
+                                  {compiledPreview || <span className="text-slate-450 italic">Digite alguma coisa para ver a prévia...</span>}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
+                              <button
+                                type="button"
+                                onClick={() => setIsEditingTemplate(false)}
+                                className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-750 font-bold rounded"
+                              >
+                                Voltar
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isSaving}
+                                onClick={handleUpdateTemplate}
+                                className="px-4 py-1.5 bg-primary text-on-primary font-bold rounded flex items-center gap-1.5 shadow"
+                              >
+                                <Save className="w-3.5 h-3.5" />
+                                <span>{isSaving ? "Salvando..." : "Salvar Alterações"}</span>
+                              </button>
+                            </div>
+
+                          </div>
+                        )}
+
+                        {/* Preview and print */}
+                        {!isEditingTemplate && emissionTemplateId && (
+                          <div className="space-y-3">
+                            <button
+                              type="button"
+                              onClick={() => handleCompileDocument(emissionTemplateId)}
+                              className="w-full h-9 bg-slate-900 text-white font-bold rounded hover:bg-slate-950 transition-all active:scale-95 text-xs"
+                            >
+                              Recarregar Dados & Gerar Prévia
+                            </button>
+
+                            {emittedContent && (
+                              <div className="space-y-3 border-2 border-slate-900 rounded-xl p-4 bg-white">
+                                <div className="flex justify-between items-center border-b pb-2 border-slate-100">
+                                  <span className="text-[9px] font-black uppercase text-slate-450 tracking-wider">Visualização Oficial</span>
+                                  <button
+                                    type="button"
+                                    onClick={handlePrintAndLog}
+                                    className="bg-primary text-on-primary font-bold text-xs px-3 py-1.5 rounded flex items-center space-x-1.5 shadow active:scale-95 transition-all"
+                                  >
+                                    <Printer className="w-3.5 h-3.5" />
+                                    <span>Imprimir e Logar</span>
+                                  </button>
+                                </div>
+                                <div className="bg-slate-50 border p-3 rounded font-mono text-[10px] whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
+                                  {emittedContent}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="font-sans text-xs whitespace-pre-wrap leading-relaxed border p-4 bg-slate-50 rounded font-mono">
-                      {emittedContent}
+                    {/* Printed logs history list */}
+                    <div className="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+                      <div className="p-4 bg-slate-50 border-b border-outline-variant">
+                        <span className="font-extrabold text-[10px] text-slate-650 uppercase tracking-wider">Histórico de Documentos Impressos</span>
+                      </div>
+                      <div className="divide-y divide-slate-150">
+                        {printedDocs.length === 0 ? (
+                          <p className="p-4 text-xs text-on-surface-variant italic">Nenhum termo ou contrato impresso para este motorista.</p>
+                        ) : (
+                          printedDocs.map((log) => (
+                            <div key={log.id} className="p-3 flex justify-between items-center hover:bg-slate-50/50">
+                              <div>
+                                <p className="font-bold text-slate-800">{log.templateName}</p>
+                                <p className="text-[10px] text-slate-450 mt-0.5">
+                                  Impresso por: {log.printedBy} em {new Date(log.printedAt).toLocaleString("pt-BR")}
+                                </p>
+                                {log.vehiclePlate && (
+                                  <p className="text-[9px] text-indigo-650 font-semibold mt-0.5">Veículo: {log.vehiclePlate}</p>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => {
+                                  const printWindow = window.open("", "_blank");
+                                  if (printWindow) {
+                                    printWindow.document.write(`
+                                      <html>
+                                        <head><title>Re-impressão | FleetOS</title></head>
+                                        <body style="font-family: sans-serif; padding: 40px; line-height: 1.6; font-size: 14px; white-space: pre-wrap;">${log.body}</body>
+                                      </html>
+                                    `);
+                                    printWindow.document.close();
+                                    printWindow.print();
+                                  }
+                                }}
+                                className="p-1 rounded text-slate-450 hover:text-slate-700 border border-slate-200"
+                                title="Re-imprimir"
+                              >
+                                <Printer className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
-            )}
+
+                  {/* Right Column (Active contract + Expirations list) */}
+                  <div className="space-y-6">
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-xs">
+                      <h4 className="font-black text-slate-900 uppercase tracking-wider mb-3">Contrato Ativo</h4>
+                      {activeContract ? (
+                        <div className="space-y-2.5">
+                          <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg p-2.5">
+                            <CheckCircle className="w-4.5 h-4.5 text-emerald-500 flex-shrink-0" />
+                            <div>
+                              <p className="font-bold">Locação Ativa</p>
+                              <p className="text-[9px] mt-0.5 font-mono">ID: {activeContract.id.slice(0, 8).toUpperCase()}</p>
+                            </div>
+                          </div>
+                          <div className="space-y-1.5 text-[11px] text-slate-650">
+                            <div className="flex justify-between py-1 border-b border-slate-200/50">
+                              <span className="text-slate-450">Veículo:</span>
+                              <span className="font-bold text-slate-800">{activeVehicle ? `${activeVehicle.brand} ${activeVehicle.model} (${activeVehicle.plate})` : "N/A"}</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-slate-200/50">
+                              <span className="text-slate-450">Taxa Diária:</span>
+                              <span className="font-bold text-slate-800">R$ {activeContract.dailyRate.toLocaleString("pt-BR")}/dia</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-slate-200/50">
+                              <span className="text-slate-450">Data de Início:</span>
+                              <span className="font-mono text-slate-700">{new Date(activeContract.startDate).toLocaleDateString("pt-BR")}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-slate-500 bg-slate-100/60 border border-slate-200 rounded-lg p-3 italic">
+                          <Clock className="w-4 h-4 text-slate-400" />
+                          <span>Nenhum contrato ativo para este cliente.</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="bg-white border border-outline-variant rounded-xl p-5 shadow-xs space-y-3">
+                      <h4 className="font-black text-slate-900 uppercase tracking-wider">Fila de Vencimentos (Prazos)</h4>
+                      <div className="space-y-2.5">
+                        {driverExpirations.length === 0 ? (
+                          <p className="text-[10px] text-slate-400 italic">Sem vencimentos registrados.</p>
+                        ) : (
+                          driverExpirations.map((exp, idx) => (
+                            <div key={idx} className="flex items-start justify-between p-2 rounded-lg bg-slate-50 border border-slate-200/50 text-[11px]">
+                              <div className="space-y-0.5">
+                                <p className="font-bold text-slate-750">{exp.name}</p>
+                                <p className="text-[10px] text-slate-450">Vence: {exp.date}</p>
+                              </div>
+                              <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
+                                exp.status === "expired" ? "bg-red-50 text-red-600 border border-red-100" :
+                                exp.status === "warning" ? "bg-amber-50 text-amber-600 border border-amber-100" :
+                                "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                              }`}>
+                                {exp.label}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              );
+            })()}
 
             {/* 8. INFRAÇÕES DE TRÂNSITO */}
             {activeTab === "infractions" && selectedDriver && (() => {

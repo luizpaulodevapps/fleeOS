@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 type Props = {
   resolvedBody: string;
   templateName: string;
@@ -19,7 +21,32 @@ export function DocumentPrintView({
   generatedBy,
   onBack,
 }: Props) {
+  const [generatingPdf, setGeneratingPdf] = useState(false);
   const lines = resolvedBody.split("\n");
+
+  const handleDownloadPdf = async () => {
+    setGeneratingPdf(true);
+    try {
+      const html2pdf = (await import("html2pdf.js")).default;
+      const element = document.getElementById("document-content");
+      if (!element) return;
+
+      const opt = {
+        margin: [15, 15, 15, 15] as [number, number, number, number],
+        filename: `${templateName.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.pdf`,
+        image: { type: "jpeg" as const, quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as const },
+      };
+
+      await html2pdf().set(opt).from(element).save();
+    } catch (e) {
+      console.error("Erro ao gerar PDF:", e);
+      alert("Erro ao gerar PDF. Tente novamente.");
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
 
   return (
     <div className="bg-white min-h-screen font-sans text-slate-900">
@@ -30,24 +57,36 @@ export function DocumentPrintView({
           className="flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
         >
           <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-          Voltar à Central de Documentos
+          Voltar
         </button>
         <div className="flex items-center gap-3">
           <span className="text-xs text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
             {category}
           </span>
           <button
+            onClick={handleDownloadPdf}
+            disabled={generatingPdf}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-colors shadow"
+          >
+            {generatingPdf ? (
+              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <span className="material-symbols-outlined text-[18px]">download</span>
+            )}
+            {generatingPdf ? "Gerando PDF..." : "Baixar PDF"}
+          </button>
+          <button
             onClick={() => window.print()}
             className="flex items-center gap-2 px-5 py-2 bg-slate-900 hover:bg-slate-700 text-white rounded-lg text-sm font-bold transition-colors shadow"
           >
             <span className="material-symbols-outlined text-[18px]">print</span>
-            Imprimir / Salvar PDF
+            Imprimir
           </button>
         </div>
       </div>
 
       {/* Document */}
-      <div className="max-w-3xl mx-auto py-10 px-8">
+      <div id="document-content" className="max-w-3xl mx-auto py-10 px-8">
         {/* Header */}
         <div className="border-b-2 border-slate-900 pb-5 mb-7">
           <div className="flex items-start justify-between">

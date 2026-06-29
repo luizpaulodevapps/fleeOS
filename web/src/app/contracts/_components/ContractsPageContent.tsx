@@ -35,7 +35,7 @@ import { ContractDetailModal } from "./modals/ContractDetailModal";
 import { formatBillingRuleLabel } from "@/lib/billingEngine";
 
 export function ContractsPageContent() {
-  const { currentUser, getCollection, addDocument, updateDocument, getNextSequence, can } = useAuth();
+  const { currentUser, getCollection, addDocument, updateDocument, deleteDocument, getNextSequence, can } = useAuth();
 
   // Collections
   const [contracts, setContracts]         = useState<any[]>([]);
@@ -48,9 +48,11 @@ export function ContractsPageContent() {
   const [receipts, setReceipts]           = useState<any[]>([]);
   const [promissories, setPromissories]   = useState<any[]>([]);
   const [checklists, setChecklists]       = useState<any[]>([]);
+  const [companySettings, setCompanySettings] = useState<any>(null);
   const [addendums, setAddendums]         = useState<any[]>([]);
   const [timeline, setTimeline]           = useState<any[]>([]);
   const [expirationAlerts, setExpirationAlerts] = useState<any[]>([]);
+  const [generatedDocuments, setGeneratedDocuments] = useState<any[]>([]);
 
   // UI State
   const [searchTerm, setSearchTerm]       = useState("");
@@ -109,7 +111,7 @@ export function ContractsPageContent() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [conList, drvList, vehList, tplList, asgList, profList, brList, recList, promList, chkList, addList, tlList, expList] =
+      const [conList, drvList, vehList, tplList, asgList, profList, brList, recList, promList, chkList, addList, tlList, expList, settingsList, genDocsList] =
         await Promise.all([
           getCollection("contracts"),
           getCollection("drivers"),
@@ -124,6 +126,8 @@ export function ContractsPageContent() {
           getCollection("contract_addendums"),
           getCollection("activity_timeline"),
           getCollection("expirations"),
+          getCollection("settings"),
+          getCollection("generated_documents"),
         ]);
       const normalizedContracts = conList.map(contract => ({
         ...contract,
@@ -142,6 +146,8 @@ export function ContractsPageContent() {
       setAddendums(addList);
       setTimeline(tlList);
       setExpirationAlerts(expList);
+      setCompanySettings(settingsList?.[0] || null);
+      setGeneratedDocuments(genDocsList || []);
       setSelectedContract((current: any | null) => current
         ? normalizedContracts.find(contract => contract.id === current.id) || null
         : null
@@ -520,6 +526,53 @@ export function ContractsPageContent() {
     loadData();
   };
 
+  // ─── Document Generation Handlers ──────────────────────────────────────
+  const handleGenerateDocument = async (templateId: string) => {
+    if (!selectedContract) return;
+    const template = [...templates, ...generatedDocuments].find(t => t.id === templateId) ||
+                     (await import("@/app/documents/_lib/templates")).DOCUMENT_TEMPLATES.find(t => t.id === templateId);
+    if (!template) return;
+
+    const driver = drivers.find(d => d.id === selectedContract.driverId);
+    const vehicle = vehicles.find(v => v.id === selectedContract.vehicleId);
+    const { buildVariableMap, resolveVariables } = await import("@/app/documents/_lib/engine");
+    const vars = buildVariableMap(selectedContract, driver, vehicle, companySettings, {});
+    const resolvedBody = resolveVariables(template.body, vars);
+
+    await addDocument("generated_documents", {
+      templateId: template.id,
+      templateName: template.name,
+      category: template.category,
+      resolvedBody,
+      contractId: selectedContract.id,
+      driverId: selectedContract.driverId,
+      vehicleId: selectedContract.vehicleId,
+      generatedAt: new Date().toISOString(),
+      generatedBy: currentUser?.displayName || "Sistema",
+      tenantId: currentUser?.tenantId || "default",
+    });
+
+    await addDocument("activity_timeline", {
+      entityType: "contract", entityId: selectedContract.id,
+      eventType: "document", title: `Documento gerado: ${template.name}`,
+      description: `Template: ${template.name}`, createdBy: currentUser?.displayName,
+    });
+
+    loadData();
+  };
+
+  const handleDeleteDocument = async (docId: string) => {
+    if (!confirm("Excluir este documento gerado?")) return;
+    await deleteDocument("generated_documents", docId);
+    loadData();
+  };
+
+  const [viewingDocument, setViewingDocument] = useState<any | null>(null);
+
+  const handleViewDocument = (doc: any) => {
+    setViewingDocument(doc);
+  };
+
   const resetNewForm = () => setFormData(createDefaultNewContractForm());
 
   const openContractDetail = (contract: any) => {
@@ -651,7 +704,7 @@ export function ContractsPageContent() {
           onSubmit={handleCreate}
           getDriverLocks={(id) => getDriverLocks(drivers, id)}
           getInterpolatedBody={(templateId, driverId, vehicleId, dailyRate) =>
-            getInterpolatedBody(templates, drivers, vehicles, templateId, driverId, vehicleId, dailyRate)
+            getInterpolatedBody(templates, drivers, vehicles, templateId, driverId, vehicleId, dailyRate, companySettings)
           }
         />
       )}
@@ -695,16 +748,21 @@ export function ContractsPageContent() {
           contract={selectedContract}
           drivers={drivers}
           vehicles={vehicles}
+          company={companySettings}
           receipts={receipts}
           promissories={promissories}
           checklists={checklists}
           addendums={addendums}
           timeline={timeline}
+          generatedDocuments={generatedDocuments}
           activeDetailTab={activeDetailTab}
           setActiveDetailTab={setActiveDetailTab}
           can={can}
           onClose={() => setSelectedContract(null)}
           onEdit={openEditContract}
+          onGenerateDocument={handleGenerateDocument}
+          onDeleteDocument={handleDeleteDocument}
+          onViewDocument={handleViewDocument}
           receiptForm={receiptForm}
           setReceiptForm={setReceiptForm}
           promissoryForm={promissoryForm}
@@ -729,6 +787,7 @@ export function ContractsPageContent() {
           onPrintChecklist={setPrintingChecklist}
           onSubmitChecklist={handleSubmitChecklist}
           onAddAddendum={handleAddAddendum}
+          currentUserName={currentUser?.displayName || "Sistema"}
         />
       )}
     </div>

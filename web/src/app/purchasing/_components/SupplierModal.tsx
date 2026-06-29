@@ -89,6 +89,22 @@ export function SupplierModal({
           </div>
 
           <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-1.5">Tipo de Prestador / Fornecedor</label>
+            <select
+              value={formData.type || "peças"}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+              className="w-full px-3 py-1.5 bg-slate-50 border border-outline-variant rounded text-xs outline-none text-on-surface font-semibold"
+            >
+              <option value="peças">Distribuidor de Peças / Insumos</option>
+              <option value="mecanica">Oficina Mecânica Prestadora</option>
+              <option value="funilaria">Funilaria e Pintura (Serviços Externos)</option>
+              <option value="retifica">Retífica de Motores</option>
+              <option value="eletrica">Auto-Elétrica</option>
+              <option value="outro">Outro Prestador de Serviço</option>
+            </select>
+          </div>
+
+          <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-1.5">Endereço Comercial</label>
             <input
               type="text"

@@ -8,6 +8,7 @@ export interface Supplier {
   email: string;
   address: string;
   active: boolean;
+  type?: "peças" | "mecanica" | "funilaria" | "retifica" | "eletrica" | "outro";
 }
 
 export interface PurchaseOrder {
@@ -36,6 +37,7 @@ export interface SupplierFormData {
   email: string;
   address: string;
   active: boolean;
+  type?: "peças" | "mecanica" | "funilaria" | "retifica" | "eletrica" | "outro";
 }
 
 export interface PurchaseOrderFormData {

@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  X, FileText, ReceiptText, CreditCard, ClipboardCheck, Layers, Activity,
+  X, FileText, ReceiptText, CreditCard, ClipboardCheck, Layers, Activity, FileStack,
 } from "lucide-react";
 import { STATUS_STYLES } from "../../_lib/constants";
 import { getDriverName, getVehicleInfo } from "../../_lib/helpers";
@@ -11,6 +11,7 @@ import { PromissoriesTab } from "../detail/PromissoriesTab";
 import { ChecklistTab } from "../detail/ChecklistTab";
 import { AddendumsTab } from "../detail/AddendumsTab";
 import { AuditTab } from "../detail/AuditTab";
+import { DocumentsTab } from "../detail/DocumentsTab";
 import type {
   AddendumFormState,
   ChecklistItemForm,
@@ -22,6 +23,7 @@ import type {
 
 const TABS = [
   { id: "overview", label: "Visão Geral", icon: FileText },
+  { id: "documents", label: "Documentos", icon: FileStack },
   { id: "receipts", label: "Recibos", icon: ReceiptText },
   { id: "promissories", label: "Promissórias", icon: CreditCard },
   { id: "checklist", label: "Checklist", icon: ClipboardCheck },
@@ -33,16 +35,21 @@ type Props = {
   contract: any;
   drivers: any[];
   vehicles: any[];
+  company: any;
   receipts: any[];
   promissories: any[];
   checklists: any[];
   addendums: any[];
   timeline: any[];
+  generatedDocuments: any[];
   activeDetailTab: string;
   setActiveDetailTab: (tab: string) => void;
   can: (action: string, resource?: any) => boolean;
   onClose: () => void;
   onEdit: (contract: any) => void;
+  onGenerateDocument: (templateId: string) => void;
+  onDeleteDocument: (docId: string) => void;
+  onViewDocument: (doc: any) => void;
   receiptForm: ReceiptFormState;
   setReceiptForm: React.Dispatch<React.SetStateAction<ReceiptFormState>>;
   promissoryForm: PromissoryFormState;
@@ -67,22 +74,28 @@ type Props = {
   onPrintChecklist: (checklist: any) => void;
   onSubmitChecklist: (e: React.FormEvent) => void;
   onAddAddendum: (e: React.FormEvent) => void;
+  currentUserName: string;
 };
 
 export function ContractDetailModal({
   contract,
   drivers,
   vehicles,
+  company,
   receipts,
   promissories,
   checklists,
   addendums,
   timeline,
+  generatedDocuments,
   activeDetailTab,
   setActiveDetailTab,
   can,
   onClose,
   onEdit,
+  onGenerateDocument,
+  onDeleteDocument,
+  onViewDocument,
   receiptForm,
   setReceiptForm,
   promissoryForm,
@@ -107,6 +120,7 @@ export function ContractDetailModal({
   onPrintChecklist,
   onSubmitChecklist,
   onAddAddendum,
+  currentUserName,
 }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-obsidian-950/40 backdrop-blur-sm">
@@ -152,6 +166,19 @@ export function ContractDetailModal({
         <div className="flex-1 overflow-y-auto p-6 text-xs">
           {activeDetailTab === "overview" && (
             <OverviewTab contract={contract} drivers={drivers} vehicles={vehicles} can={can} onEdit={onEdit} />
+          )}
+          {activeDetailTab === "documents" && (
+            <DocumentsTab
+              contract={contract}
+              drivers={drivers}
+              vehicles={vehicles}
+              company={company}
+              generatedDocuments={generatedDocuments}
+              onGenerate={onGenerateDocument}
+              onDelete={onDeleteDocument}
+              onView={onViewDocument}
+              currentUserName={currentUserName}
+            />
           )}
           {activeDetailTab === "receipts" && (
             <ReceiptsTab

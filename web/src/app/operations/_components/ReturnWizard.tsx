@@ -1,8 +1,10 @@
 "use client";
 
-import React from "react";
-import { RotateCcw, X, AlertTriangle, CheckCircle } from "lucide-react";
+import React, { useState } from "react";
+import { RotateCcw, X, AlertTriangle, CheckCircle, Camera } from "lucide-react";
 import { SignaturePad } from "./SignaturePad";
+import { SearchSelect } from "./SearchSelect";
+import { PlateScanner } from "./PlateScanner";
 import { ReturnFormState } from "../_lib/types";
 
 interface ReturnWizardProps {
@@ -39,6 +41,26 @@ export const ReturnWizard: React.FC<ReturnWizardProps> = ({
   submitReturn,
   setActiveWizard
 }) => {
+  const [showScanner, setShowScanner] = useState(false);
+
+  const handlePlateScan = (plate: string) => {
+    const veh = vehicles.find(v => v.plate?.toUpperCase() === plate);
+    if (!veh) {
+      alert(`Nenhum veículo encontrado com a placa ${plate}`);
+      setShowScanner(false);
+      return;
+    }
+    const hasActive = assignments.some(a => a.active === true && a.vehicleId === veh.id);
+    if (!hasActive) {
+      alert(`O veículo ${plate} não possui vínculo ativo para devolução.`);
+      setShowScanner(false);
+      return;
+    }
+    setRetForm(prev => ({ ...prev, vehicleId: veh.id }));
+    setShowScanner(false);
+    handleRetNext();
+  };
+
   return (
     <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-md overflow-hidden animate-fadeIn">
       {/* Header Progress Tracker */}
@@ -61,7 +83,7 @@ export const ReturnWizard: React.FC<ReturnWizardProps> = ({
         </div>
         
         {/* Step Indicators */}
-        <div className="grid grid-cols-6 gap-2 text-center text-[9px] font-black uppercase tracking-wider">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-center text-[9px] font-black uppercase tracking-wider">
           {[
             { s: 1, name: "Ativo Locado" },
             { s: 2, name: "Checklist" },
@@ -96,20 +118,38 @@ export const ReturnWizard: React.FC<ReturnWizardProps> = ({
               Selecione o veículo da frota que está retornando. O sistema carregará o motorista e o contrato ativo vinculados a ele.
             </p>
 
-            <div className="floating-label-group">
-              <select
-                value={retForm.vehicleId}
-                onChange={(e) => setRetForm(prev => ({ ...prev, vehicleId: e.target.value }))}
-                className="w-full pl-3 pr-3 text-xs"
-                required
-              >
-                <option value="">Selecione...</option>
-                {vehicles.filter(v => v.status === "locado" || assignments.some(a => a.active === true && a.vehicleId === v.id)).map(veh => (
-                  <option key={veh.id} value={veh.id}>{veh.brand} {veh.model} ({veh.plate})</option>
-                ))}
-              </select>
-              <label className="text-xs font-semibold text-outline">Selecione o Veículo</label>
+            {/* Scan Plate Button */}
+            <button
+              type="button"
+              onClick={() => setShowScanner(true)}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors"
+            >
+              <Camera className="w-4 h-4" />
+              Escanear Placa do Veículo
+            </button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-outline-variant"></div>
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-surface-container-lowest px-3 text-outline">ou selecione manualmente</span>
+              </div>
             </div>
+
+            <SearchSelect
+              items={vehicles.filter(v => v.status === "locado" || assignments.some(a => a.active === true && a.vehicleId === v.id)).map(veh => ({
+                id: veh.id,
+                label: `${veh.brand} ${veh.model}`,
+                subtitle: veh.plate
+              }))}
+              value={retForm.vehicleId}
+              onChange={(id) => setRetForm(prev => ({ ...prev, vehicleId: id }))}
+              placeholder="Pesquise por placa, modelo ou marca..."
+              label="Selecione o Veículo"
+              searchPlaceholder="Digite placa, modelo ou marca..."
+              emptyMessage="Nenhum veículo locado encontrado"
+            />
 
             {activeAssignment && activeDriver && activeContract && (
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 text-xs">
@@ -404,6 +444,14 @@ export const ReturnWizard: React.FC<ReturnWizardProps> = ({
           </button>
         )}
       </div>
+
+      {/* Plate Scanner Modal */}
+      {showScanner && (
+        <PlateScanner
+          onScan={handlePlateScan}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </div>
   );
 };

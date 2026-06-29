@@ -13,9 +13,11 @@ import { BillingSettings } from "./_components/BillingSettings";
 import { ProfileSettings } from "./_components/ProfileSettings";
 import { DatabaseSettings } from "./_components/DatabaseSettings";
 import { BillingEngineSettings } from "./_components/BillingEngineSettings";
+import { ContractTemplatesSettings } from "./_components/ContractTemplatesSettings";
+import { FleetParametersSettings } from "./_components/FleetParametersSettings";
 import { 
   Building, User, Key, ShieldCheck, ShieldAlert, Share2, 
-  Bell, Receipt, DollarSign, Database, X 
+  Bell, Receipt, DollarSign, Database, X, FileText, Settings
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -134,22 +136,66 @@ export default function SettingsPage() {
     );
   }
 
-  const navItems = [
-    { id: "company", label: "Perfil Corporativo", icon: Building, permission: "settings.view" },
-    { id: "users", label: "Controle de Usuários", icon: User, permission: "users.manage" },
-    { id: "roles", label: "Perfis de Acesso", icon: Key, permission: "users.manage" },
-    { id: "permissions", label: "Matriz de Permissões", icon: ShieldCheck, permission: "users.manage" },
-    { id: "audit", label: "Logs de Auditoria", icon: ShieldAlert, permission: "users.manage" },
-    { id: "integrations", label: "Integrações", icon: Share2, permission: "settings.view" },
-    { id: "notifications", label: "Avisos & Notificações", icon: Bell, permission: "settings.view" },
-    { id: "billing", label: "Faturamento FleetOS", icon: Receipt, permission: "settings.view" },
-    { id: "billing_engine", label: "Motor de Faturamento", icon: DollarSign, permission: "billing.view" },
-    { id: "profile", label: "Minha Conta", icon: User },
-    { id: "database", label: "Banco de Dados Local", icon: Database, permission: "settings.view" }
+  interface SettingItem {
+    id: string;
+    label: string;
+    icon: any;
+    permission?: string;
+  }
+
+  interface SettingGroup {
+    title: string;
+    items: SettingItem[];
+  }
+
+  const settingGroups: SettingGroup[] = [
+    {
+      title: "Administração",
+      items: [
+        { id: "company", label: "Perfil Corporativo", icon: Building, permission: "settings.view" },
+        { id: "billing", label: "Assinatura FleetOS", icon: Receipt, permission: "settings.view" },
+        { id: "database", label: "Banco de Dados Local", icon: Database, permission: "settings.view" }
+      ]
+    },
+    {
+      title: "Burocracia & Contratos",
+      items: [
+        { id: "contract_templates", label: "Modelos & Aditivos", icon: FileText, permission: "settings.view" }
+      ]
+    },
+    {
+      title: "Parâmetros da Frota",
+      items: [
+        { id: "fleet_parameters", label: "Parâmetros Operacionais", icon: Settings, permission: "settings.view" }
+      ]
+    },
+    {
+      title: "Segurança e Acesso",
+      items: [
+        { id: "users", label: "Controle de Usuários", icon: User, permission: "users.manage" },
+        { id: "roles", label: "Perfis de Acesso", icon: Key, permission: "users.manage" },
+        { id: "permissions", label: "Matriz de Permissões", icon: ShieldCheck, permission: "users.manage" },
+        { id: "audit", label: "Logs de Auditoria", icon: ShieldAlert, permission: "users.manage" }
+      ]
+    },
+    {
+      title: "Regras e Motor",
+      items: [
+        { id: "billing_engine", label: "Motor de Faturamento", icon: DollarSign, permission: "billing.view" },
+        { id: "notifications", label: "Avisos & Notificações", icon: Bell, permission: "settings.view" },
+        { id: "integrations", label: "Integrações", icon: Share2, permission: "settings.view" }
+      ]
+    },
+    {
+      title: "Pessoal",
+      items: [
+        { id: "profile", label: "Minha Conta", icon: User }
+      ]
+    }
   ];
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto text-slate-800 text-xs">
       {/* Title */}
       <div>
         <h1 className="text-3xl font-extrabold tracking-tight text-primary font-geist">
@@ -160,25 +206,56 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-gutter">
-        {/* Navigation Sidebar Tabs */}
-        <aside className="w-full md:w-64 flex flex-col gap-1 bg-surface-container-lowest border border-outline-variant p-3 rounded-xl h-fit">
-          {navItems.map(item => {
-            if (item.permission && !can(item.permission)) return null;
-            const Icon = item.icon;
+      <div className="flex flex-col md:flex-row gap-6">
+        {/* Mobile Dropdown Category Switcher */}
+        <div className="md:hidden block w-full bg-surface-container-lowest border border-outline-variant p-4 rounded-xl shadow-sm mb-1">
+          <label className="block text-[10px] font-black uppercase text-outline mb-1.5">Escolher Painel</label>
+          <select
+            value={activeTab}
+            onChange={(e) => setActiveTab(e.target.value)}
+            className="w-full h-11 px-3 bg-white border border-outline-variant rounded-xl text-xs font-bold text-slate-800 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
+          >
+            {settingGroups.flatMap(group => 
+              group.items
+                .filter(item => !item.permission || can(item.permission))
+                .map(item => (
+                  <option key={item.id} value={item.id}>
+                    {group.title} · {item.label}
+                  </option>
+                ))
+            )}
+          </select>
+        </div>
+
+        {/* Desktop Navigation Sidebar Tabs */}
+        <aside className="hidden md:flex w-full md:w-64 flex-col gap-4 bg-surface-container-lowest border border-outline-variant p-4 rounded-xl h-fit">
+          {settingGroups.map(group => {
+            const visibleItems = group.items.filter(item => !item.permission || can(item.permission));
+            if (visibleItems.length === 0) return null;
+
             return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-xs font-bold text-left transition-all ${
-                  activeTab === item.id
-                    ? "bg-primary text-on-primary"
-                    : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{item.label}</span>
-              </button>
+              <div key={group.title} className="space-y-1">
+                <h3 className="text-[10px] font-bold text-outline uppercase tracking-wider px-3 mb-1.5">
+                  {group.title}
+                </h3>
+                {visibleItems.map(item => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold text-left transition-all ${
+                        activeTab === item.id
+                          ? "bg-primary text-on-primary shadow-sm"
+                          : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             );
           })}
         </aside>
@@ -249,6 +326,16 @@ export default function SettingsPage() {
 
           {activeTab === "billing" && can("settings.view") && (
             <BillingSettings />
+          )}
+
+          {activeTab === "contract_templates" && can("settings.view") && (
+            <ContractTemplatesSettings
+              driversList={driversList}
+            />
+          )}
+
+          {activeTab === "fleet_parameters" && can("settings.view") && (
+            <FleetParametersSettings />
           )}
 
           {activeTab === "profile" && (

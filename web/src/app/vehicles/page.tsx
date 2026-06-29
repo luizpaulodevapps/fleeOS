@@ -92,7 +92,16 @@ export default function VehiclesPage() {
     handleSaveRegulatoryProcess,
     handleSaveTaximeterRegistry,
     handleSaveRegulatoryInspection,
-    handleDeleteRegulatoryInspection
+    handleDeleteRegulatoryInspection,
+    
+    // Workshop Integration
+    workOrders,
+    appointments,
+    handleScheduleWorkshopAppointment,
+    handleCreateWorkshopOS,
+    handleCancelAppointment,
+    handleStartOSFromAppointment,
+    handleCompleteWorkshopOS
   } = useVehicles();
 
   const getExpirationBadge = (dateStr: string) => {
@@ -221,6 +230,15 @@ export default function VehiclesPage() {
         handleSaveTaximeterRegistry={handleSaveTaximeterRegistry}
         handleSaveRegulatoryInspection={handleSaveRegulatoryInspection}
         handleDeleteRegulatoryInspection={handleDeleteRegulatoryInspection}
+        
+        // Workshop Integration
+        workOrders={workOrders}
+        appointments={appointments}
+        handleScheduleWorkshopAppointment={handleScheduleWorkshopAppointment}
+        handleCreateWorkshopOS={handleCreateWorkshopOS}
+        handleCancelAppointment={handleCancelAppointment}
+        handleStartOSFromAppointment={handleStartOSFromAppointment}
+        handleCompleteWorkshopOS={handleCompleteWorkshopOS}
       />
 
       <AssignDriverModal

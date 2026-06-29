@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Geist:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Geist:wght@400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 
 @tailwind base;
@@ -59,6 +59,45 @@ body {
   color: #565e74;
 }
 
+/* ─────────────────────────────────────────────
+   Glass UI Utilities  (dark mode / login page)
+───────────────────────────────────────────── */
+.glass-card {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.25rem;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.glass-input {
+  display: block;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  color: #ffffff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  outline: none;
+}
+.glass-input::placeholder {
+  color: rgba(255, 255, 255, 0.28);
+}
+.glass-input:focus {
+  border-color: rgba(16, 185, 129, 0.65);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+/* Shadow helpers */
+.shadow-glass       { box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06); }
+.shadow-glass-hover { box-shadow: 0 16px 56px rgba(16,185,129,0.28); }
+
 /* Custom scrollbar for high-density UI */
 ::-webkit-scrollbar {
   width: 6px;
@@ -102,5 +141,22 @@ body {
   .contract-print-view {
     min-height: auto !important;
     padding: 0 !important;
+  }
+}
+
+/* Responsive dialog modals override for mobile viewports */
+@media (max-width: 768px) {
+  .fixed.inset-0.z-50 {
+    align-items: flex-start !important;
+    padding: 1rem !important;
+    overflow-y: auto !important;
+  }
+  
+  .fixed.inset-0.z-50 > div {
+    max-height: 85vh !important;
+    overflow-y: auto !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
+    padding: 1.25rem !important;
   }
 }

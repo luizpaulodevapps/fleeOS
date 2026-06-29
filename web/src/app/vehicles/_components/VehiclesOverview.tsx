@@ -226,99 +226,101 @@ export const VehiclesOverview: React.FC<VehiclesOverviewProps> = ({
 
       {/* Grid List */}
       <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
-        <table className="w-full text-left border-collapse text-xs">
-          <thead className="bg-slate-50 border-b border-outline-variant">
-            <tr>
-              <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase">Marca / Modelo</th>
-              <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase">Placa</th>
-              <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase">Condutor Atual</th>
-              <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase">Odômetro</th>
-              <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase">Seguro / Licenc.</th>
-              <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase">Status</th>
-              <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase text-right">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-outline-variant/60">
-            {filteredVehicles.map(veh => {
-              const driver = getActiveDriver(veh.id);
-              return (
-                <tr key={veh.id} className="hover:bg-slate-50/50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      {veh.photoUrl ? (
-                        <img src={veh.photoUrl} alt="Foto" className="w-10 h-7 rounded object-cover border border-outline-variant" />
-                      ) : (
-                        <div className="w-10 h-7 rounded bg-slate-100 flex items-center justify-center border border-outline-variant text-[10px] text-outline font-bold">
-                          FROTA
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left border-collapse text-xs min-w-[850px] md:min-w-0">
+            <thead className="bg-slate-50 border-b border-outline-variant">
+              <tr>
+                <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase">Marca / Modelo</th>
+                <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase">Placa</th>
+                <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase">Condutor Atual</th>
+                <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase">Odômetro</th>
+                <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase">Seguro / Licenc.</th>
+                <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase">Status</th>
+                <th className="px-6 py-3.5 font-semibold text-on-surface-variant uppercase text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant/60">
+              {filteredVehicles.map(veh => {
+                const driver = getActiveDriver(veh.id);
+                return (
+                  <tr key={veh.id} className="hover:bg-slate-50/50">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        {veh.photoUrl ? (
+                          <img src={veh.photoUrl} alt="Foto" className="w-10 h-7 rounded object-cover border border-outline-variant" />
+                        ) : (
+                          <div className="w-10 h-7 rounded bg-slate-100 flex items-center justify-center border border-outline-variant text-[10px] text-outline font-bold">
+                            FROTA
+                          </div>
+                        )}
+                        <div>
+                          <h4 className="font-bold text-primary">{veh.brand} {veh.model}</h4>
+                          <p className="text-[10px] text-outline mt-0.5">{veh.color} | {veh.fuelType} | {veh.year}</p>
                         </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 font-mono font-bold text-slate-800 uppercase">{veh.plate}</td>
+                    <td className="px-6 py-4 font-medium">
+                      {driver ? (
+                        <span className="text-slate-800 font-bold flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-blue-500" />
+                          {driver}
+                        </span>
+                      ) : (
+                        <span className="text-outline italic">Estoque Livre</span>
                       )}
-                      <div>
-                        <h4 className="font-bold text-primary">{veh.brand} {veh.model}</h4>
-                        <p className="text-[10px] text-outline mt-0.5">{veh.color} | {veh.fuelType} | {veh.year}</p>
+                    </td>
+                    <td className="px-6 py-4 font-mono font-semibold text-slate-700">
+                      <div className="flex items-center gap-1">
+                        <Gauge className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{Number(veh.mileage).toLocaleString("pt-BR")} km</span>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 font-mono font-bold text-slate-800 uppercase">{veh.plate}</td>
-                  <td className="px-6 py-4 font-medium">
-                    {driver ? (
-                      <span className="text-slate-800 font-bold flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-blue-500" />
-                        {driver}
-                      </span>
-                    ) : (
-                      <span className="text-outline italic">Estoque Livre</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 font-mono font-semibold text-slate-700">
-                    <div className="flex items-center gap-1">
-                      <Gauge className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{Number(veh.mileage).toLocaleString("pt-BR")} km</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="space-y-1">
-                      <div className="flex justify-between gap-2 text-[10px]">
-                        <span className="text-slate-400">Seguro:</span>
-                        {getExpirationBadge(veh.insuranceExpiration)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="space-y-1">
+                        <div className="flex justify-between gap-2 text-[10px]">
+                          <span className="text-slate-400">Seguro:</span>
+                          {getExpirationBadge(veh.insuranceExpiration)}
+                        </div>
+                        <div className="flex justify-between gap-2 text-[10px]">
+                          <span className="text-slate-400">CRLV:</span>
+                          {getExpirationBadge(veh.registrationExpiration)}
+                        </div>
                       </div>
-                      <div className="flex justify-between gap-2 text-[10px]">
-                        <span className="text-slate-400">CRLV:</span>
-                        {getExpirationBadge(veh.registrationExpiration)}
+                    </td>
+                    <td className="px-6 py-4">
+                      {getStatusBadge(veh)}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => openVehicleProntuario(veh)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-outline-variant hover:bg-slate-100 text-primary font-bold rounded-lg text-[10px]"
+                        >
+                          <Wrench className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Prontuário</span>
+                        </button>
+                        <button
+                          onClick={() => handleOpenDossier(veh)}
+                          className="p-1.5 bg-white border border-outline-variant hover:bg-slate-100 text-slate-700 rounded-lg"
+                          title="Imprimir Dossiê"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteVehicle(veh.id)}
+                          className="p-1.5 bg-white border border-red-200 hover:bg-red-50 text-red-600 rounded-lg"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    {getStatusBadge(veh)}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex gap-2 justify-end">
-                      <button
-                        onClick={() => openVehicleProntuario(veh)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-outline-variant hover:bg-slate-100 text-primary font-bold rounded-lg text-[10px]"
-                      >
-                        <Wrench className="w-3.5 h-3.5 text-slate-500" />
-                        <span>Prontuário</span>
-                      </button>
-                      <button
-                        onClick={() => handleOpenDossier(veh)}
-                        className="p-1.5 bg-white border border-outline-variant hover:bg-slate-100 text-slate-700 rounded-lg"
-                        title="Imprimir Dossiê"
-                      >
-                        <Printer className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteVehicle(veh.id)}
-                        className="p-1.5 bg-white border border-red-200 hover:bg-red-50 text-red-600 rounded-lg"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

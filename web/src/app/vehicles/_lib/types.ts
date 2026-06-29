@@ -15,6 +15,7 @@ export interface SpecsFormState {
   family?: string;
   pricingCategoryId?: string;
   maintenanceGroup?: string;
+  maintenancePlanId?: string;
   fipe?: {
     code: string;
     value: number;

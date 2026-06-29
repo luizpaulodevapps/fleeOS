@@ -30,6 +30,11 @@ export function useVehicles() {
   const [taximeterRegistries, setTaximeterRegistries] = useState<TaximeterRegistry[]>([]);
   const [municipalRegulations, setMunicipalRegulations] = useState<MunicipalRegulation[]>([]);
 
+  // Workshop Integration states
+  const [workOrders, setWorkOrders] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [vehiclePlans, setVehiclePlans] = useState<any[]>([]);
+
 
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
@@ -170,7 +175,7 @@ export function useVehicles() {
         vehList, attList, asgList, drvList, assetList, incList, maintList, 
         planList, chkList, timelineList, acqList, conList, payList, 
         ledList, expList, catList, regProcessesList, regInspectionsList, 
-        taximeterRegList
+        taximeterRegList, woList, appList, vehiclePlansList
       ] = await Promise.all([
         getCollection("vehicles"),
         getCollection("attachments"),
@@ -190,7 +195,10 @@ export function useVehicles() {
         getCollection("pricing_categories"),
         getCollection("vehicle_regulatory_process"),
         getCollection("regulatory_inspections"),
-        getCollection("taximeter_registry")
+        getCollection("taximeter_registry"),
+        getCollection("work_orders"),
+        getCollection("maintenance_appointments"),
+        getCollection("vehicle_maintenance_plans")
       ]);
       setVehicles(vehList);
       setAttachments(attList);
@@ -211,6 +219,9 @@ export function useVehicles() {
       setRegulatoryProcesses(regProcessesList || []);
       setRegulatoryInspections(regInspectionsList || []);
       setTaximeterRegistries(taximeterRegList || []);
+      setWorkOrders(woList || []);
+      setAppointments(appList || []);
+      setVehiclePlans(vehiclePlansList || []);
 
       // Seed municipal regulations if not exists
       let munRegs = await getCollection("municipal_regulations");
@@ -343,6 +354,7 @@ export function useVehicles() {
       family: "",
       pricingCategoryId: "",
       maintenanceGroup: "",
+      maintenancePlanId: "",
       fipe: {
         code: "",
         value: 0,
@@ -358,6 +370,7 @@ export function useVehicles() {
   const openVehicleProntuario = (vehicle: any) => {
     setSelectedVehicle(vehicle);
     setActiveTab("specs");
+    const activeVp = vehiclePlans.find((vp) => vp.vehicleId === vehicle.id);
     setFormData({
       plate: vehicle.plate || "",
       model: vehicle.model || "",
@@ -375,6 +388,7 @@ export function useVehicles() {
       family: vehicle.family || "",
       pricingCategoryId: vehicle.pricingCategoryId || "",
       maintenanceGroup: vehicle.maintenanceGroup || "",
+      maintenancePlanId: activeVp?.planId || vehicle.maintenancePlanId || "",
       fipe: vehicle.fipe || {
         code: "",
         value: 0,
@@ -589,6 +603,30 @@ export function useVehicles() {
 
       if (selectedVehicle) {
         await updateDocument("vehicles", selectedVehicle.id, payload);
+
+        // Sync vehicle maintenance plan
+        const plans = await getCollection("vehicle_maintenance_plans");
+        const existing = plans?.find((vp: any) => vp.vehicleId === selectedVehicle.id);
+        if (formData.maintenancePlanId) {
+          if (existing) {
+            await updateDocument("vehicle_maintenance_plans", existing.id, {
+              ...existing,
+              planId: formData.maintenancePlanId,
+              assignedAt: new Date().toISOString(),
+              notes: "Sincronizado via Ficha Técnica"
+            });
+          } else {
+            await addDocument("vehicle_maintenance_plans", {
+              vehicleId: selectedVehicle.id,
+              planId: formData.maintenancePlanId,
+              assignedAt: new Date().toISOString(),
+              notes: "Criado via Ficha Técnica"
+            });
+          }
+        } else if (existing) {
+          await deleteDocument("vehicle_maintenance_plans", existing.id);
+        }
+
         await addDocument("activity_timeline", {
           entityType: "vehicle",
           entityId: selectedVehicle.id,
@@ -604,6 +642,17 @@ export function useVehicles() {
           activeLocks: [],
           lockJustification: {}
         });
+
+        // Save plan for new vehicle if chosen
+        if (formData.maintenancePlanId) {
+          await addDocument("vehicle_maintenance_plans", {
+            vehicleId: newVeh.id,
+            planId: formData.maintenancePlanId,
+            assignedAt: new Date().toISOString(),
+            notes: "Criado via Ficha Técnica"
+          });
+        }
+
         await addDocument("activity_timeline", {
           entityType: "vehicle",
           entityId: newVeh.id,
@@ -952,6 +1001,228 @@ export function useVehicles() {
     }
   };
 
+  const handleScheduleWorkshopAppointment = async (
+    vehicleId: string,
+    title: string,
+    date: string,
+    time: string,
+    notes: string,
+    type: string = "Preventiva"
+  ) => {
+    try {
+      const newApp = {
+        vehicleId,
+        title,
+        scheduledDate: date,
+        scheduledTime: time,
+        type,
+        notes,
+        status: "Agendado",
+        workshopId: "uid-workshop",
+        createdAt: new Date().toISOString()
+      };
+
+      await addDocument("maintenance_appointments", newApp);
+      await addDocument("activity_timeline", {
+        entityType: "vehicle",
+        entityId: vehicleId,
+        eventType: "maintenance_scheduled",
+        title: `Visita Oficina Agendada`,
+        description: `Agendado para ${date} às ${time}: ${title}`,
+        metadata: newApp,
+        createdBy: currentUser?.displayName || "Dono da Frota"
+      });
+      await loadData();
+    } catch (e) {
+      console.error("Erro ao agendar visita à oficina", e);
+      throw e;
+    }
+  };
+
+  const handleCreateWorkshopOS = async (
+    vehicleId: string,
+    description: string,
+    mileage: number
+  ) => {
+    try {
+      const woId = `wo-${Math.random().toString(36).substring(2, 11)}`;
+      const newWo = {
+        id: woId,
+        vehicleId,
+        description,
+        status: "Aberta",
+        mileage,
+        totalPartsCost: 0,
+        totalLaborCost: 0,
+        totalCost: 0,
+        workshopId: "uid-workshop",
+        operatorId: currentUser?.uid || "uid-super",
+        createdAt: new Date().toISOString()
+      };
+
+      await addDocument("work_orders", newWo);
+      
+      // Update vehicle status to maintenance
+      await updateDocument("vehicles", vehicleId, {
+        status: "maintenance"
+      });
+
+      await addDocument("activity_timeline", {
+        entityType: "vehicle",
+        entityId: vehicleId,
+        eventType: "maintenance_os_open",
+        title: `OS Oficina Aberta`,
+        description: `Ordem de Serviço OS-${woId.substring(0, 5).toUpperCase()} aberta: ${description}`,
+        metadata: newWo,
+        createdBy: currentUser?.displayName || "Dono da Frota"
+      });
+      await loadData();
+    } catch (e) {
+      console.error("Erro ao abrir OS", e);
+      throw e;
+    }
+  };
+
+  const handleCancelAppointment = async (appId: string, vehicleId: string) => {
+    try {
+      await updateDocument("maintenance_appointments", appId, { status: "Cancelado" });
+      await addDocument("activity_timeline", {
+        entityType: "vehicle",
+        entityId: vehicleId,
+        eventType: "maintenance_cancelled",
+        title: `Agendamento Cancelado`,
+        description: `Agendamento cancelado pelo gestor`,
+        metadata: { appId },
+        createdBy: currentUser?.displayName || "Dono da Frota"
+      });
+      await loadData();
+    } catch (e) {
+      console.error("Erro ao cancelar agendamento", e);
+      throw e;
+    }
+  };
+
+  const handleStartOSFromAppointment = async (app: any) => {
+    try {
+      const woId = `wo-${Math.random().toString(36).substring(2, 11)}`;
+      const newWo = {
+        id: woId,
+        vehicleId: app.vehicleId,
+        description: `Agendamento: ${app.title}`,
+        status: "Aberta",
+        mileage: 0,
+        totalPartsCost: 0,
+        totalLaborCost: 0,
+        totalCost: 0,
+        workshopId: app.workshopId || "uid-workshop",
+        operatorId: currentUser?.uid || "uid-super",
+        createdAt: new Date().toISOString()
+      };
+
+      await addDocument("work_orders", newWo);
+      await updateDocument("maintenance_appointments", app.id, { status: "Realizado" });
+      
+      // Update vehicle status to maintenance
+      await updateDocument("vehicles", app.vehicleId, {
+        status: "maintenance"
+      });
+
+      await addDocument("activity_timeline", {
+        entityType: "vehicle",
+        entityId: app.vehicleId,
+        eventType: "maintenance_os_open",
+        title: `OS Oficina Aberta`,
+        description: `Ordem de Serviço OS-${woId.substring(0, 5).toUpperCase()} iniciada do agendamento`,
+        metadata: newWo,
+        createdBy: currentUser?.displayName || "Dono da Frota"
+      });
+      await loadData();
+    } catch (e) {
+      console.error("Erro ao iniciar OS a partir do agendamento", e);
+      throw e;
+    }
+  };
+
+  const handleCompleteWorkshopOS = async (
+    woId: string,
+    vehicleId: string,
+    mileage: number,
+    cost: number,
+    description: string,
+    planItemId?: string
+  ) => {
+    try {
+      // 1. Update OS Document
+      const wo = workOrders.find(w => w.id === woId);
+      const updatedWo = {
+        ...wo,
+        status: "completed",
+        mileage,
+        totalCost: cost,
+        completedAt: new Date().toISOString()
+      };
+      await updateDocument("work_orders", woId, updatedWo);
+
+      // 2. Add legacy maintenance log
+      await addDocument("maintenance", {
+        vehicleId,
+        type: "Preventiva",
+        description: `OS-${woId.substring(0, 5).toUpperCase()}: ${description}`,
+        cost,
+        date: new Date().toISOString().split("T")[0],
+        mileage,
+        nextMaintenanceMileage: mileage + 10000
+      });
+
+      // 3. Add vehicle expense
+      await addDocument("vehicle_expenses", {
+        vehicleId,
+        expenseType: "maintenance",
+        amount: cost,
+        date: new Date().toISOString().split("T")[0],
+        referenceId: woId,
+        referenceType: "work_order",
+        description: `OS-${woId.substring(0, 5).toUpperCase()}: ${description}`,
+        createdAt: new Date().toISOString()
+      });
+
+      // 4. Update vehicle status to active and set odometer
+      const veh = vehicles.find(v => v.id === vehicleId);
+      if (veh) {
+        await updateDocument("vehicles", vehicleId, {
+          mileage: Math.max(veh.mileage || 0, mileage),
+          status: "active"
+        });
+      }
+
+      // 5. Update plan item if linked
+      if (planItemId) {
+        const item = maintenancePlan.find(p => p.id === planItemId);
+        if (item) {
+          await updateDocument("maintenance_plan_items", planItemId, {
+            lastServiceKm: mileage,
+            nextServiceKm: mileage + Number(item.intervalKm || 10000)
+          });
+        }
+      }
+
+      await addDocument("activity_timeline", {
+        entityType: "vehicle",
+        entityId: vehicleId,
+        eventType: "maintenance_completed",
+        title: `OS Oficina Concluída`,
+        description: `OS-${woId.substring(0, 5).toUpperCase()} finalizada. Custo: R$ ${cost}.`,
+        metadata: updatedWo,
+        createdBy: currentUser?.displayName || "Dono da Frota"
+      });
+
+      await loadData();
+    } catch (e) {
+      console.error("Erro ao concluir OS", e);
+      throw e;
+    }
+  };
+
   const getDriverName = (driverId: string) => {
     const drv = drivers.find(d => d.id === driverId);
     return drv ? drv.name : `Motorista (${driverId.substring(0, 6)})`;
@@ -992,6 +1263,8 @@ export function useVehicles() {
     regulatoryInspections,
     taximeterRegistries,
     municipalRegulations,
+    workOrders,
+    appointments,
     
     // Status/UI
     searchTerm,
@@ -1054,6 +1327,11 @@ export function useVehicles() {
     handleSaveRegulatoryProcess,
     handleSaveTaximeterRegistry,
     handleSaveRegulatoryInspection,
-    handleDeleteRegulatoryInspection
+    handleDeleteRegulatoryInspection,
+    handleScheduleWorkshopAppointment,
+    handleCreateWorkshopOS,
+    handleCancelAppointment,
+    handleStartOSFromAppointment,
+    handleCompleteWorkshopOS
   };
 }

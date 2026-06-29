@@ -3,6 +3,7 @@
 import React from "react";
 import { RefreshCw, X, CheckCircle } from "lucide-react";
 import { SignaturePad } from "./SignaturePad";
+import { SearchSelect } from "./SearchSelect";
 import { SwapFormState } from "../_lib/types";
 
 interface SwapWizardProps {
@@ -61,7 +62,7 @@ export const SwapWizard: React.FC<SwapWizardProps> = ({
         </div>
         
         {/* Step Indicators */}
-        <div className="grid grid-cols-6 gap-2 text-center text-[9px] font-black uppercase tracking-wider">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-center text-[9px] font-black uppercase tracking-wider">
           {[
             { s: 1, name: "Condutor" },
             { s: 2, name: "Checklist Antigo" },
@@ -96,20 +97,19 @@ export const SwapWizard: React.FC<SwapWizardProps> = ({
               Selecione o motorista que fará a troca. O sistema detectará o veículo atualmente locado.
             </p>
 
-            <div className="floating-label-group">
-              <select
-                value={swapForm.driverId}
-                onChange={(e) => setSwapForm(prev => ({ ...prev, driverId: e.target.value }))}
-                className="w-full pl-3 pr-3 text-xs"
-                required
-              >
-                <option value="">Selecione...</option>
-                {driversWithVehicles.map(drv => (
-                  <option key={drv.id} value={drv.id}>{drv.name}</option>
-                ))}
-              </select>
-              <label className="text-xs font-semibold text-outline">Selecione o Motorista</label>
-            </div>
+            <SearchSelect
+              items={driversWithVehicles.map(drv => ({
+                id: drv.id,
+                label: drv.name,
+                subtitle: drv.cpf
+              }))}
+              value={swapForm.driverId}
+              onChange={(id) => setSwapForm(prev => ({ ...prev, driverId: id }))}
+              placeholder="Pesquise por nome ou CPF..."
+              label="Selecione o Motorista"
+              searchPlaceholder="Digite nome ou CPF..."
+              emptyMessage="Nenhum motorista com veículo ativo encontrado"
+            />
 
             {activeSwapAssignment && selectedOldVehicle && (
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 text-xs">
@@ -219,20 +219,19 @@ export const SwapWizard: React.FC<SwapWizardProps> = ({
               Selecione o novo ativo a ser entregue ao motorista da lista de veículos livres e ativos.
             </p>
 
-            <div className="floating-label-group">
-              <select
-                value={swapForm.newVehicleId}
-                onChange={(e) => setSwapForm(prev => ({ ...prev, newVehicleId: e.target.value }))}
-                className="w-full pl-3 pr-3 text-xs"
-                required
-              >
-                <option value="">Selecione...</option>
-                {availableVehicles.map(veh => (
-                  <option key={veh.id} value={veh.id}>{veh.brand} {veh.model} ({veh.plate})</option>
-                ))}
-              </select>
-              <label className="text-xs font-semibold text-outline">Selecione o Veículo</label>
-            </div>
+            <SearchSelect
+              items={availableVehicles.map(veh => ({
+                id: veh.id,
+                label: `${veh.brand} ${veh.model}`,
+                subtitle: veh.plate
+              }))}
+              value={swapForm.newVehicleId}
+              onChange={(id) => setSwapForm(prev => ({ ...prev, newVehicleId: id }))}
+              placeholder="Pesquise por placa, modelo ou marca..."
+              label="Selecione o Novo Veículo"
+              searchPlaceholder="Digite placa, modelo ou marca..."
+              emptyMessage="Nenhum veículo disponível encontrado"
+            />
 
             {selectedNewVehicle && (
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 text-xs">

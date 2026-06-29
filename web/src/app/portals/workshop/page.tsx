@@ -675,7 +675,7 @@ export default function WorkshopPortal() {
       </section>
 
       {/* Portal Navigation Tabs */}
-      <div className="flex border-b border-outline-variant text-xs">
+      <div className="flex border-b border-outline-variant text-xs overflow-x-auto whitespace-nowrap scrollbar-none flex-nowrap pb-1">
         {[
           { id: "orders", label: "📋 Ordens de Serviço Ativas" },
           { id: "schedule", label: "📅 Agenda de Revisões" },
@@ -1229,8 +1229,8 @@ export default function WorkshopPortal() {
                 </div>
 
                 {/* Items Table */}
-                <div className="border border-outline-variant rounded-lg overflow-hidden">
-                  <table className="w-full border-collapse text-left">
+                <div className="border border-outline-variant rounded-lg overflow-x-auto w-full">
+                  <table className="w-full border-collapse text-left min-w-[600px] md:min-w-0">
                     <thead>
                       <tr className="bg-surface-container-low border-b border-outline-variant font-bold text-on-surface-variant">
                         <th className="p-2.5">Tipo</th>
