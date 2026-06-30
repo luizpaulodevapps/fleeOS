@@ -103,14 +103,17 @@ export const db = {
     const isRelational = RELATIONAL_TABLES.includes(table);
 
     if (isRelational) {
-      const query = tenantId ? `?tenant_id=eq.${tenantId}` : "";
-      const data = await supabaseRestRequest(`/rest/v1/${table}${query}&select=*`);
+      const params = new URLSearchParams();
+      if (tenantId) params.set("tenant_id", `eq.${tenantId}`);
+      params.set("select", "*");
+      const data = await supabaseRestRequest(`/rest/v1/${table}?${params.toString()}`);
       return convertKeysToCamelCase(data);
     } else {
-      const query = tenantId
-        ? `?collection_name=eq.${table}&tenant_id=eq.${tenantId}`
-        : `?collection_name=eq.${table}`;
-      const rows = await supabaseRestRequest(`/rest/v1/fleetos_collections${query}&select=*`);
+      const params = new URLSearchParams();
+      params.set("collection_name", `eq.${table}`);
+      if (tenantId) params.set("tenant_id", `eq.${tenantId}`);
+      params.set("select", "*");
+      const rows = await supabaseRestRequest(`/rest/v1/fleetos_collections?${params.toString()}`);
       return rows.map((r: any) => ({
         id: r.doc_id,
         tenantId: r.tenant_id,
