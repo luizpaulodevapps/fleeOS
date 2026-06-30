@@ -82,10 +82,10 @@ class SyncEngine {
       for (const item of pendingItems) {
         const payloadObj = JSON.parse(item.payload);
         
-        // Simulating network latency / Firestore write
+        // Simulating network latency / DB write
         await new Promise(resolve => setTimeout(resolve, 800));
 
-        console.log(`Sincronizado: ${item.entity} (${item.operation}) -> Firestore.`);
+        console.log(`Sincronizado: ${item.entity} (${item.operation}) -> Supabase.`);
 
         // Mark as synced in local SQLite db
         sqliteOperations.execute(
@@ -137,7 +137,7 @@ class SyncEngine {
       );
     }
 
-    // 2. Queue for Firebase synchronization
+    // 2. Queue for synchronization
     sqliteOperations.enqueueSync(table, entityId, operation, data);
     this.triggerStatusChange();
 

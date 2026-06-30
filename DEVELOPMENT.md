@@ -36,7 +36,7 @@ Cada aplicação tem seu próprio ciclo de instalação e execução.
    ```bash
    cp .env.example .env.local
    ```
-4. Preencha as variáveis do Firebase no `.env.local`.
+4. Preencha as variáveis do Supabase no `.env.local`.
 
 ### Mobile
 
@@ -94,7 +94,7 @@ Cada aplicação tem seu próprio ciclo de instalação e execução.
 - Mantenha tipagem `TypeScript` coerente.
 - Separe regras de negócio da UI.
 - Documente novos serviços, hooks e entidades de dados.
-- Verifique se qualquer alteração em `firestore.rules` preserva isolamento de `tenantId`.
+- Verifique se alterações no schema Supabase preservam o isolamento de `tenantId`.
 - Use `SearchSelect` para seleções com mais de 10 opções (nunca `<select>` nativo).
 - Adicione confirmação (`confirm()`) antes de ações destrutivas (excluir).
 - Modais devem ser responsivos: sidebar colapsável no mobile.
@@ -107,7 +107,6 @@ Cada aplicação tem seu próprio ciclo de instalação e execução.
 |--------|--------|-----|
 | `next` | 15 | Framework React |
 | `react` | 19 | UI library |
-| `firebase` | latest | Backend (Auth + Firestore) |
 | `zustand` | 5 | Estado global |
 | `@tanstack/react-query` | 5 | Cache e fetch |
 | `tailwindcss` | 3 | Estilos |
@@ -136,7 +135,7 @@ Cada aplicação tem seu próprio ciclo de instalação e execução.
 ### Web Auth e Multi-Tenant
 
 - `web/src/context/AuthContext.tsx` contém a maior parte do controle de sessão e autorização.
-- O web app tem modo mock quando não há credenciais Firebase válidas.
+- O web app tem modo mock quando não há credenciais Supabase válidas.
 
 ### Escaneamento de Placa
 

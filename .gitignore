@@ -24,10 +24,6 @@ pnpm-debug.log*
 .env.test.local
 .env.production.local
 
-# Firebase
-.firebase/
-firebase-debug.log
-
 # TypeScript
 *.tsbuildinfo
 

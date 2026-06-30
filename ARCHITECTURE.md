@@ -14,7 +14,7 @@ Os dois lados compartilham conceitos de tenant, usuário e contratos, mas não c
 ### Web Admin
 
 - **Next.js 15** em modo `app/`.
-- **Firebase** para autenticação (`auth`) e dados (`firestore`).
+- **Supabase** para autenticação (`auth`) e dados (`PostgreSQL`).
 - **Zustand** para estado global de sessão e operações.
 - **React Query** para gerenciamento de cache e fetch assíncrono.
 - **Tailwind CSS** para estilos utilitários.
@@ -32,10 +32,10 @@ Os dois lados compartilham conceitos de tenant, usuário e contratos, mas não c
 
 ### Web
 
-1. O usuário faz login via Firebase Auth.
+1. O usuário faz login via Supabase Auth.
 2. `AuthContext` busca perfil e aplica controle de tenant.
-3. Operações CRUD são executadas no Firestore.
-4. Regras em `firestore.rules` garantem isolamento por `tenantId` e RBAC.
+3. Operações CRUD são executadas no Supabase (PostgreSQL).
+4. Row Level Security (RLS) garante isolamento por `tenantId` e RBAC.
 
 ### Mobile
 
@@ -47,17 +47,17 @@ Os dois lados compartilham conceitos de tenant, usuário e contratos, mas não c
 ## Multi-Tenant
 
 - Cada documento persiste um `tenantId`.
-- Firestore aplica limites por tenant para leitura e escrita.
+- Supabase RLS aplica isolamento por tenant em todas as tabelas.
 - Mobile armazena `tenant_id` em tabelas locais para associar usuário e veículo ao tenant.
 
 ## Security Model
 
-- A aplicação web depende de Firebase Auth.
-- `firestore.rules` define regras específicas por coleção e papel:
+- A aplicação web depende de Supabase Auth.
+- Row Level Security (RLS) define regras específicas por tabela e papel:
   - `super_admin`
   - `fleet_owner`
   - `driver`
-- As regras validam `tenantId` tanto no `resource.data` quanto em `request.resource.data`.
+- As regras validam `tenantId` em todas as operações de leitura e escrita.
 
 ## Offline-First Sync
 

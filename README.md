@@ -4,7 +4,7 @@ FleetOS é uma plataforma de gestão de frotas com painel administrativo web e a
 
 - Web Admin em **Next.js 15** com **React 19**, **Tailwind CSS**, **Zustand** e **React Query**.
 - Mobile App em **Expo 51** com **React Native 0.74**, **NativeWind 4** e **SQLite** para persistência local.
-- Backend de dados via **Firebase** (Firestore + Auth) e um modo de execução mock para desenvolvimento sem credenciais.
+- Backend de dados via **Supabase** (PostgreSQL + Auth) e um modo de execução mock para desenvolvimento sem credenciais.
 
 ---
 
@@ -12,7 +12,7 @@ FleetOS é uma plataforma de gestão de frotas com painel administrativo web e a
 
 ### Web (`/web`)
 
-- `web/src/lib/firebase.ts`: inicializa Firebase com `NEXT_PUBLIC_*` env vars.
+- `web/src/lib/supabaseClient.ts`: cliente Supabase com operações REST (auth + banco de dados).
   - Se as variáveis não estiverem definidas, entra em **Mock Mode** e mantém o app funcional localmente.
 - `web/src/context/AuthContext.tsx`: gerencia autenticação, sessões, CRUD e multi-tenant.
   - Suporta perfis de usuário, roles e regras de acesso.
@@ -35,10 +35,9 @@ FleetOS é uma plataforma de gestão de frotas com painel administrativo web e a
 
 ### Segurança e Regras de Acesso
 
-- `firestore.rules`: regras de segurança Firestore com modelo multi-tenant.
-  - `user_profiles`, `companies`, `drivers`, `vehicles`, `contracts` e coleções ERP suportam isolamento por `tenantId`.
-  - Permite leitura/escrita apenas para usuários autenticados com papel e tenant compatíveis.
-  - Regras validadas com helpers `isSuperAdmin`, `isFleetOwner`, `isDriver` e `belongsToTenant`.
+- Supabase Row Level Security (RLS) com modelo multi-tenant.
+- `supabase_schema.sql`: script completo de schema com tabelas, seeds e política de isolamento por `tenantId`.
+- Autenticação via Supabase Auth (email + senha com bcrypt).
 
 ---
 
@@ -46,7 +45,8 @@ FleetOS é uma plataforma de gestão de frotas com painel administrativo web e a
 
 - `mobile/`: aplicativo móvel Expo + NativeWind.
 - `web/`: painel administrativo Next.js.
-- `firestore.rules`: regras de segurança Firestore.
+- `saas-stack-infra/`: console de infraestrutura SaaS (Vite).
+- `supabase_schema.sql`: schema e seeds do banco de dados.
 - `README.md`: documentação do projeto.
 
 ---
@@ -134,7 +134,6 @@ Sistema completo de manutenção com 9 sub-módulos:
 
 - `next`, `react`, `react-dom`
 - `@tanstack/react-query`
-- `firebase`
 - `zustand`
 - `tailwindcss`, `postcss`, `autoprefixer`
 - `typescript`
@@ -167,7 +166,7 @@ Sistema completo de manutenção com 9 sub-módulos:
 cd web
 npm install
 cp .env.example .env.local
-# preencha as variáveis Firebase em .env.local
+# preencha as variáveis Supabase em .env.local
 npm run dev
 ```
 
@@ -176,7 +175,7 @@ npm run dev
 ```bash
 cd mobile
 npm install
-# use .env.example para definir variáveis de Firebase se necessário
+# use .env.example para definir variáveis de Supabase se necessário
 npx expo start
 ```
 
@@ -184,16 +183,12 @@ npx expo start
 
 ## Configuração de Ambiente
 
-O projeto espera variáveis de ambiente em `web/.env` ou `web/.env.local` e `mobile/.env.example`.
+O projeto espera variáveis de ambiente em `web/.env` ou `web/.env.local` e `mobile/.env`.
 
 Variáveis esperadas:
 
-- `NEXT_PUBLIC_FIREBASE_API_KEY`
-- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
-- `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
-- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
-- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
-- `NEXT_PUBLIC_FIREBASE_APP_ID`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
 > Se não houver credenciais válidas, o web app entra em modo mock-controlado para testes locais.
 
@@ -205,7 +200,7 @@ Variáveis esperadas:
 
 - Arquitetura clara em duas camadas: admin web e app móvel.
 - Mobile offline-first com esquema local e fila de sincronização.
-- Segurança multi-tenant pensada no Firestore com regras de tenant boundary.
+- Segurança multi-tenant via Supabase RLS com isolamento por `tenantId`.
 - Uso de `Zustand` para estado compartilhado e `React Query` para gerenciamento de dados.
 - Componentes reutilizáveis (SearchSelect, PlateScanner, SignaturePad).
 - Modais responsivos com adaptação mobile-first.
@@ -214,7 +209,7 @@ Variáveis esperadas:
 
 - A sincronização móvel é atualmente simulada e não persiste em backend real.
 - Falta de testes automatizados e validação de contrato de dados entre web e mobile.
-- `AuthContext` e regras de Firestore fazem muitos `get()` em cada requisição, o que pode afetar desempenho em escala.
+- `AuthContext` e operações Supabase fazem muitas consultas, o que pode afetar desempenho em escala.
 - Ausência de migração de schema SQLite e versão de dados no app móvel.
 - Não há documentação de deploy nem checklist de produção.
 
@@ -223,7 +218,8 @@ Variáveis esperadas:
 - Externalizar seeds e mock data para arquivos JSON/fixtures.
 - Adicionar testes unitários/integração e lint no pipeline.
 - Implementar uma API de sincronização real para o motor offline-first.
-- Rever a política de regras Firestore para reduzir leituras repetidas e evitar uso excessivo de `get()`.
+- Otimizar consultas Supabase para reduzir chamadas repetidas.
+- Documentar a estrutura de dados usada pelo `sync_queue` e o formato de payload.
 
 ---
 

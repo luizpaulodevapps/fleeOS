@@ -4,7 +4,7 @@ import {
   addDbDocument, 
   updateDbDocument, 
   isMock 
-} from "./lib/firebase";
+} from "./lib/database";
 import { 
   Layers, 
   DollarSign, 
@@ -244,12 +244,12 @@ export default function App() {
         return;
       }
 
-      // Live Firestore seeding
+      // Live database seeding
       await Promise.all([
         ...DEFAULT_PLANS.map(p => addDbDocument("saas_plans", p)),
         ...DEFAULT_FLEETS.map(f => addDbDocument("saas_fleets", f))
       ]);
-      pushLog("Banco de dados Live Firestore populado com esquemas padrão.", "success");
+      pushLog("Banco de dados populado com esquemas padrão.", "success");
       await loadData();
     } catch (e) {
       console.error(e);

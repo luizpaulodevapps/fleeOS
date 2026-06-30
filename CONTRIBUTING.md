@@ -17,7 +17,7 @@ Obrigado por contribuir para o FleetOS. Este guia ajuda você a colaborar de for
 
 - `web/`: painel administrativo Next.js.
 - `mobile/`: aplicativo de motorista Expo + React Native.
-- `firestore.rules`: regras de segurança Firestore.
+- `supabase_schema.sql`: schema e seeds do banco de dados.
 
 ## Boas Práticas
 
@@ -63,7 +63,7 @@ Obrigado por contribuir para o FleetOS. Este guia ajuda você a colaborar de for
 ## Testes e Validação
 
 - Execute `npm install` em cada pasta antes de testar.
-- Verifique se alterações no `firestore.rules` mantêm o isolamento por `tenantId`.
+- Verifique se alterações no schema Supabase (`supabase_schema.sql`) mantêm o isolamento por `tenantId`.
 - Para mudanças no mobile, revise `mobile/src/lib/sqlite.ts` e `mobile/src/lib/sync.ts`.
 - Execute `npx tsc --noEmit` para verificar erros de TypeScript antes de commitar.
 

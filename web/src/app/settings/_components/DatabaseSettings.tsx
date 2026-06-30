@@ -110,7 +110,7 @@ export function DatabaseSettings({
           <AlertTriangle className="w-5 h-5 flex-shrink-0 text-amber-600" />
           <div>
             <p className="font-bold">Modo de Simulação Ativo</p>
-            <p className="mt-0.5 leading-relaxed text-[11px]">Esta aplicação está rodando em modo Mock Local (armazenando dados inteiramente no navegador via LocalStorage). Modificações não afetam o Firestore real enquanto as chaves de API não forem configuradas.</p>
+            <p className="mt-0.5 leading-relaxed text-[11px]">Esta aplicação está rodando em modo Mock Local (armazenando dados inteiramente no navegador via LocalStorage). Modificações não afetam o banco de dados remoto enquanto as chaves de API não forem configuradas.</p>
           </div>
         </div>
 

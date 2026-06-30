@@ -6,7 +6,7 @@
  *  - cashier/page.tsx  (on-the-fly pending dailies for a driver)
  *  - future closing/reporting flows
  *
- * All functions here are pure: they take data + return data, no Firestore I/O.
+ * All functions here are pure: they take data + return data, no DB I/O.
  * Persistence stays in the calling module so that idempotency and write
  * concerns (ledger entries, billing_runs) are owned by each surface.
  */

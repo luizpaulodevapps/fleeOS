@@ -57,7 +57,7 @@ export function BillingSettings() {
         "Cluster Kubernetes dedicado (GCP/AWS)",
         "Rede isolada (VPC) e VPN corporativa",
         "Domínio customizado e SSL dedicado",
-        "Acesso completo ao banco de dados Firestore",
+        "Acesso completo ao banco de dados Supabase",
         "Gerente de conta técnico dedicado"
       ]
     }
